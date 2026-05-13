@@ -1,0 +1,84 @@
+# =========================
+# HOME ASSISTANT CORE
+# =========================
+.HA_VERSION
+.ha_run.lock
+
+.cache/
+.cloud/
+.storage/
+.storage/**
+
+# =========================
+# DATABASES / LOGS
+# =========================
+home-assistant_v2.db*
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.log.*
+*.fault
+
+# =========================
+# SENSITIVE FILES
+# =========================
+secrets.yaml
+ssh/
+ssh/**
+
+# =========================
+# TEMP / CACHE
+# =========================
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# =========================
+# DIRECTORIES TO IGNORE
+# =========================
+custom_components/
+custom_components/**
+
+www/
+www/**
+
+zigbee2mqtt/
+zigbee2mqtt/**
+
+esphome/
+esphome/**
+
+tts/
+tts/**
+
+deps/
+deps/**
+
+node-red/
+node-red/**
+
+backupwm/
+backupwm/**
+
+image/
+image/**
+
+backups/
+backup/
+
+# =========================
+# PYTHON CACHE
+# =========================
+__pycache__/
+__pycache__/**
+*.pyc
+
+# =========================
+# OS / EDITOR
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/

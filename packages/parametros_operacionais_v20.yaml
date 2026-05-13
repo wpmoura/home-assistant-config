@@ -1,0 +1,57 @@
+###############################################################################
+# Central Operacional V20 - Parametros complementares
+#
+# Helpers de preparacao para a futura matriz contextual de prioridade.
+# Nao altera score, automacoes ou dashboards.
+###############################################################################
+
+input_number:
+  casa_peso_ups:
+    name: Casa - Peso UPS
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:battery-alert
+    initial: 70
+
+  casa_timeout_evento_minutos:
+    name: Casa - Timeout Evento Minutos
+    min: 1
+    max: 60
+    step: 1
+    mode: slider
+    unit_of_measurement: min
+    icon: mdi:timer-sand
+    initial: 5
+
+  casa_confianca_minima_evento:
+    name: Casa - Confianca Minima Evento
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:shield-check-outline
+    initial: 60
+
+  casa_timeout_porta_aberta_minutos:
+    name: Casa - Timeout Porta Aberta
+    min: 1
+    max: 60
+    step: 1
+    mode: slider
+    unit_of_measurement: min
+    icon: mdi:door-clock
+    initial: 5
+
+input_boolean:
+  casa_eventos_visiveis:
+    name: Casa - Eventos Visiveis
+    icon: mdi:eye-outline
+    initial: true
+
+  casa_prioridade_contextual_ativa:
+    name: Casa - Prioridade Contextual Ativa
+    icon: mdi:vector-combine
+    initial: false

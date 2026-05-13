@@ -1,0 +1,238 @@
+###############################################################################
+# Central Operacional - Aliases finais resilientes V20
+#
+# Contratos sem versao para dashboards e automacoes.
+# Nao depende de V17/V18/V19.
+###############################################################################
+
+template:
+  - sensor:
+
+      #########################################################################
+      # Estado final da casa
+      #########################################################################
+
+      - name: Status Casa
+        unique_id: status_casa
+        icon: mdi:home-assistant
+        state: >
+          {% set fonte = states('sensor.central_alerta_principal') %}
+          {% if fonte in ['unknown', 'unavailable', '', 'none', 'None', none] %}
+            Casa operando normalmente
+          {% else %}
+            {{ fonte | regex_replace('^🏠\\s*', '') }}
+          {% endif %}
+        attributes:
+          fonte: sensor.central_alerta_principal
+          fallback: Casa operando normalmente
+          prioridade: "{{ states('sensor.casa_prioridade') }}"
+          score_operacional: "{{ states('sensor.casa_score_operacional') }}"
+          origem: "{{ state_attr('sensor.central_alerta_principal', 'origem') }}"
+          detalhe: "{{ state_attr('sensor.central_alerta_principal', 'detalhe') }}"
+
+      #########################################################################
+      # Fontes semanticas internas
+      #########################################################################
+
+      - name: Central TV Contexto Fonte
+        unique_id: central_tv_contexto_fonte
+        icon: mdi:television-classic
+        state: >
+          {% set tv = 'media_player.lg_webos_tv_oled55g3psa' %}
+          {% set estado = states(tv) %}
+          {% set titulo = state_attr(tv, 'media_title') %}
+          {% set canal = state_attr(tv, 'media_channel') %}
+          {% set app = state_attr(tv, 'app_name') %}
+          {% set source = state_attr(tv, 'source') %}
+          {% set ativo = estado not in ['off', 'standby', 'unknown', 'unavailable', '', 'none', 'None', none] %}
+          {% set valido = ['unknown', 'unavailable', '', 'none', 'None', none] %}
+          {% if titulo not in valido %}
+            📺 {{ titulo }}
+          {% elif canal not in valido %}
+            📺 {{ canal }}
+          {% elif app not in valido %}
+            📺 {{ app }}
+          {% elif source not in valido and source != 'Live TV' %}
+            📺 {{ source }}
+          {% elif source == 'Live TV' %}
+            📺 TV: Live TV
+          {% elif ativo %}
+            📺 TV ligada
+          {% else %}
+            TV desligada
+          {% endif %}
+        attributes:
+          fonte: media_player.lg_webos_tv_oled55g3psa
+          estado: "{{ states('media_player.lg_webos_tv_oled55g3psa') }}"
+          source: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') }}"
+          app_name: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') }}"
+          media_title: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') }}"
+          media_channel: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') }}"
+          fallback_1: 📺 TV ligada
+          fallback_2: "📺 TV: Live TV"
+
+      #########################################################################
+      # Atividade relevante final
+      #########################################################################
+
+      - name: Atividade Relevante
+        unique_id: atividade_relevante
+        icon: mdi:home-search
+        state: >
+          {% set tv = states('sensor.central_tv_contexto_fonte') %}
+          {% set fonte = states('sensor.central_atividade_relevante_fonte') %}
+          {% if tv not in ['unknown', 'unavailable', '', 'none', 'None', none, 'TV desligada'] %}
+            {{ tv }}
+          {% elif fonte in ['unknown', 'unavailable', '', 'none', 'None', none, 'Nenhuma atividade relevante no momento'] %}
+            Nenhuma atividade relevante
+          {% else %}
+            {{ fonte }}
+          {% endif %}
+        attributes:
+          fonte: sensor.central_atividade_relevante_fonte
+          fonte_tv: sensor.central_tv_contexto_fonte
+          fallback: Nenhuma atividade relevante
+
+      #########################################################################
+      # Timeline e feed finais
+      #########################################################################
+
+      - name: Casa Timeline
+        unique_id: casa_timeline
+        icon: mdi:timeline-clock-outline
+        state: >
+          {% set timeline_v20 = states('sensor.casa_timeline_v20') %}
+          {% set fonte = states('sensor.central_ultima_mensagem') %}
+          {% set invalid = ['unknown', 'unavailable', '', 'none', 'None', none, 'Nenhum evento registrado', 'Aguardando eventos'] %}
+          {% if timeline_v20 not in invalid %}
+            {{ timeline_v20 }}
+          {% elif fonte in invalid %}
+            Aguardando eventos
+          {% else %}
+            {% set msg = fonte | string | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {% if ja_tem_hora %}
+              {{ msg }}
+            {% else %}
+              {{ now().strftime('%H:%M') }} {{ msg }}
+            {% endif %}
+          {% endif %}
+        attributes:
+          fonte: sensor.casa_timeline_v20
+          fallback_fonte: sensor.central_ultima_mensagem
+          fallback: Aguardando eventos
+          formato_publicacao: HH:MM mensagem
+          linha_1: "{{ state_attr('sensor.casa_timeline_v20', 'linha_1') | default('', true) }}"
+          linha_2: "{{ state_attr('sensor.casa_timeline_v20', 'linha_2') | default('', true) }}"
+          linha_3: "{{ state_attr('sensor.casa_timeline_v20', 'linha_3') | default('', true) }}"
+          linha_4: "{{ state_attr('sensor.casa_timeline_v20', 'linha_4') | default('', true) }}"
+          linha_5: "{{ state_attr('sensor.casa_timeline_v20', 'linha_5') | default('', true) }}"
+          linha_6: "{{ state_attr('sensor.casa_timeline_v20', 'linha_6') | default('', true) }}"
+          origem: "{{ state_attr('sensor.central_ultima_mensagem', 'origem') }}"
+          prioridade: "{{ state_attr('sensor.central_ultima_mensagem', 'prioridade') }}"
+
+      - name: Casa Event Feed
+        unique_id: casa_event_feed
+        icon: mdi:timeline-text
+        state: >
+          {% set feed_v20 = states('sensor.casa_event_feed_v20') %}
+          {% set fonte = states('sensor.central_ultima_mensagem') %}
+          {% set invalid = ['unknown', 'unavailable', '', 'none', 'None', none, 'Nenhum evento registrado', 'Aguardando eventos'] %}
+          {% if feed_v20 not in invalid %}
+            {{ feed_v20 }}
+          {% elif fonte in invalid %}
+            Aguardando eventos
+          {% else %}
+            {% set msg = fonte | string | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {% if ja_tem_hora %}
+              {{ msg }}
+            {% else %}
+              {{ now().strftime('%H:%M') }} {{ msg }}
+            {% endif %}
+          {% endif %}
+        attributes:
+          fonte: sensor.casa_event_feed_v20
+          fallback_fonte: sensor.central_ultima_mensagem
+          fallback: Aguardando eventos
+          formato_publicacao: HH:MM mensagem
+          linha_1: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_1') | default('', true) }}"
+          linha_2: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_2') | default('', true) }}"
+          linha_3: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_3') | default('', true) }}"
+          linha_4: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_4') | default('', true) }}"
+          linha_5: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_5') | default('', true) }}"
+          linha_6: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_6') | default('', true) }}"
+
+      #########################################################################
+      # Contexto, prioridade e score finais
+      #########################################################################
+
+      - name: Casa Contexto Humano
+        unique_id: casa_contexto_humano
+        icon: mdi:account-heart-outline
+        state: >
+          {% set atividade = states('sensor.central_atividade_relevante_fonte') %}
+          {% set categoria = states('sensor.central_categoria_alerta') %}
+          {% if categoria not in ['unknown', 'unavailable', '', 'none', 'None', none, 'normal'] %}
+            Contexto operacional: {{ categoria }}
+          {% elif atividade not in ['unknown', 'unavailable', '', 'none', 'None', none, 'Nenhuma atividade relevante no momento'] %}
+            {{ atividade }}
+          {% else %}
+            Contexto não determinado
+          {% endif %}
+        attributes:
+          fonte_atividade: sensor.central_atividade_relevante_fonte
+          fonte_categoria: sensor.central_categoria_alerta
+          fallback: Contexto não determinado
+
+      - name: Casa Prioridade
+        unique_id: casa_prioridade
+        icon: mdi:priority-high
+        state: >
+          {% set prioridade = states('input_select.central_mensagem_prioridade') %}
+          {% if prioridade in ['unknown', 'unavailable', '', 'none', 'None', none] %}
+            normal
+          {% else %}
+            {{ prioridade }}
+          {% endif %}
+        attributes:
+          fonte: input_select.central_mensagem_prioridade
+          fallback: normal
+          categoria: "{{ states('sensor.central_categoria_alerta') }}"
+
+      - name: Casa Score Operacional
+        unique_id: casa_score_operacional
+        icon: mdi:speedometer
+        unit_of_measurement: "%"
+        state: >
+          {% set prioridade = states('sensor.casa_prioridade') %}
+          {% set internet = states('sensor.internet_estado_operacional') %}
+          {% set backup = states('sensor.backup_google_status') %}
+          {% if internet == 'critica' %}
+            100
+          {% elif internet == 'failover_4g' %}
+            85
+          {% elif prioridade == 'critica' %}
+            100
+          {% elif prioridade == 'alta' %}
+            70
+          {% elif internet == 'backup_4g_indisponivel' %}
+            60
+          {% elif prioridade == 'media' %}
+            40
+          {% elif backup == 'erro' %}
+            30
+          {% elif prioridade == 'baixa' %}
+            20
+          {% else %}
+            0
+          {% endif %}
+        attributes:
+          fonte_prioridade: sensor.casa_prioridade
+          fonte_internet: sensor.internet_estado_operacional
+          fonte_backup: sensor.backup_google_status
+          fallback: 0

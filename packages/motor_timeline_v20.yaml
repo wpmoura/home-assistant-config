@@ -1,0 +1,177 @@
+###############################################################################
+# Central Operacional V20-RC3 - Motor de timeline operacional
+#
+# Camada paralela e isolada.
+# Registra eventos relevantes por transicao de estado, incluindo eventos
+# secundarios que nao vencem como evento dominante.
+#
+# Nao altera sensor.status_casa.
+# Nao depende de V17/V18/V19.
+# Nao altera dashboards nem automacoes.
+###############################################################################
+
+template:
+  - trigger:
+      - platform: state
+        id: mudanca_estado
+        entity_id:
+          - binary_sensor.energia_concessionaria
+          - binary_sensor.sensor_porta_sala_contact
+          - binary_sensor.sensor_chuva_girasol_rain
+          - sensor.intensidade_da_chuva
+          - sensor.internet_estado_operacional
+          - binary_sensor.internet_em_failover_4g
+          - sensor.backup_google_status
+          - media_player.lg_webos_tv_oled55g3psa
+          - sensor.central_tv_contexto_fonte
+
+      - platform: state
+        id: porta_timeout
+        entity_id: binary_sensor.sensor_porta_sala_contact
+        to: "on"
+        for:
+          minutes: "{{ states('input_number.casa_timeout_porta_aberta_minutos') | int(5) }}"
+
+    sensor:
+      - name: Casa Evento Publicavel V20
+        unique_id: casa_evento_publicavel_v20
+        icon: mdi:timeline-plus-outline
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set tid = trigger.id if trigger is defined else '' %}
+          {% set eid = trigger.entity_id if trigger is defined else '' %}
+          {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+          {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+          {% set timeout_min = states('input_number.casa_timeout_porta_aberta_minutos') | int(5) %}
+          {% set porta_sala = 'binary_sensor.sensor_porta_sala_contact' %}
+          {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+          {% set tv_ativa = tv_contexto not in invalid + ['TV desligada'] %}
+          {% set evento = '' %}
+
+          {% if tid == 'porta_timeout' and eid == porta_sala and new == 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta há ' ~ timeout_min ~ ' min' %}
+          {% elif eid == porta_sala and new == 'on' and old == 'off' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta' %}
+          {% elif eid == porta_sala and new == 'off' and old == 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala fechada' %}
+          {% elif eid == 'binary_sensor.energia_concessionaria' and new == 'off' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⚡ Falta de energia' %}
+          {% elif eid == 'binary_sensor.energia_concessionaria' and new == 'on' and old == 'off' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⚡ Energia restabelecida' %}
+          {% elif eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'on' and old != 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
+          {% elif eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'off' and old == 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva encerrada' %}
+          {% elif eid == 'sensor.intensidade_da_chuva' and new not in invalid and new != 'Sem chuva' and old in invalid + ['Sem chuva'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
+          {% elif eid == 'sensor.intensidade_da_chuva' and new == 'Sem chuva' and old not in invalid + ['Sem chuva'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva encerrada' %}
+          {% elif eid == 'sensor.internet_estado_operacional' and new == 'critica' and old != 'critica' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet crítica' %}
+          {% elif eid == 'sensor.internet_estado_operacional' and new == 'failover_4g' and old != 'failover_4g' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativo' %}
+          {% elif eid == 'sensor.internet_estado_operacional' and new not in invalid + ['critica', 'failover_4g'] and old in ['critica', 'failover_4g'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet normalizada' %}
+          {% elif eid == 'binary_sensor.internet_em_failover_4g' and new == 'on' and old != 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativo' %}
+          {% elif eid == 'binary_sensor.internet_em_failover_4g' and new == 'off' and old == 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G encerrado' %}
+          {% elif eid == 'sensor.backup_google_status' and new in ['erro', 'falha', 'atencao', 'atenção'] and old != new %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Backup Google com erro' %}
+          {% elif eid == 'media_player.lg_webos_tv_oled55g3psa' and new not in invalid + ['off', 'standby'] and old in invalid + ['off', 'standby'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' ' ~ (tv_contexto if tv_ativa else '📺 TV ligada') %}
+          {% elif eid == 'media_player.lg_webos_tv_oled55g3psa' and new in ['off', 'standby'] and old not in invalid + ['off', 'standby'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
+          {% elif eid == 'sensor.central_tv_contexto_fonte' and new not in invalid + ['TV desligada'] and old != new %}
+            {% set evento = now().strftime('%H:%M') ~ ' ' ~ new %}
+          {% elif eid == 'sensor.central_tv_contexto_fonte' and new == 'TV desligada' and old not in invalid + ['TV desligada'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
+          {% endif %}
+
+          {% if evento == '' %}
+            {{ this.state | default('sem_evento', true) }}
+          {% else %}
+            {{ evento }}
+          {% endif %}
+        attributes:
+          fonte: "{{ trigger.entity_id if trigger is defined else 'motor_timeline_v20' }}"
+          formato_publicacao: HH:MM mensagem
+          timeout_porta_minutos: "{{ states('input_number.casa_timeout_porta_aberta_minutos') | int(5) }}"
+          evento_reconhecido: >
+            {% set estado = this.state | default('', true) | string | trim %}
+            {{ estado not in ['', 'unknown', 'unavailable', 'sem_evento'] }}
+
+  - trigger:
+      - platform: state
+        entity_id: sensor.casa_evento_publicavel_v20
+
+    sensor:
+      - name: Casa Timeline V20
+        unique_id: casa_timeline_v20
+        icon: mdi:timeline-clock-outline
+        state: >
+          {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+          {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+          {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+          {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+          {% if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
+            {{ this.state | default('Aguardando eventos', true) }}
+          {% else %}
+            {{ evento }}
+          {% endif %}
+        attributes:
+          fonte: sensor.casa_evento_publicavel_v20
+          formato_publicacao: HH:MM mensagem
+          limite_eventos: 6
+          deduplicacao: evento_consecutivo_sem_timestamp
+          linha_1: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ anterior if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else evento }}
+          linha_2: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ this.attributes.linha_2 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else anterior }}
+          linha_3: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ this.attributes.linha_3 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_2 | default('', true) }}
+          linha_4: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ this.attributes.linha_4 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_3 | default('', true) }}
+          linha_5: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ this.attributes.linha_5 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_4 | default('', true) }}
+          linha_6: >
+            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {{ this.attributes.linha_6 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_5 | default('', true) }}
+
+      - name: Casa Event Feed V20
+        unique_id: casa_event_feed_v20
+        icon: mdi:timeline-text
+        state: >
+          {{ states('sensor.casa_timeline_v20') | default('Aguardando eventos', true) }}
+        attributes:
+          fonte: sensor.casa_timeline_v20
+          formato_publicacao: HH:MM mensagem
+          linha_1: "{{ state_attr('sensor.casa_timeline_v20', 'linha_1') | default('', true) }}"
+          linha_2: "{{ state_attr('sensor.casa_timeline_v20', 'linha_2') | default('', true) }}"
+          linha_3: "{{ state_attr('sensor.casa_timeline_v20', 'linha_3') | default('', true) }}"
+          linha_4: "{{ state_attr('sensor.casa_timeline_v20', 'linha_4') | default('', true) }}"
+          linha_5: "{{ state_attr('sensor.casa_timeline_v20', 'linha_5') | default('', true) }}"
+          linha_6: "{{ state_attr('sensor.casa_timeline_v20', 'linha_6') | default('', true) }}"
