@@ -1,27 +1,373 @@
 ###############################################################################
-# Central Operacional V20-RC3 - Motor de timeline operacional
+# Central Operacional V20.1 - Motor de timeline operacional
 #
 # Camada paralela e isolada.
 # Registra eventos relevantes por transicao de estado, incluindo eventos
 # secundarios que nao vencem como evento dominante.
 #
+# V20.1 adiciona:
+# - limite dinamico de eventos via input_number.casa_timeline_max_eventos
+# - controle de publicacao por dominio/evento
+# - portas internas, janelas/contatos e vazamento como eventos opcionais
+#
 # Nao altera sensor.status_casa.
 # Nao depende de V17/V18/V19.
-# Nao altera dashboards nem automacoes.
+# Nao altera automacoes.
 ###############################################################################
 
 template:
+  - sensor:
+      - name: Casa Porta Sala Estado V20
+        unique_id: casa_porta_sala_estado_v20
+        icon: mdi:door
+        state: >
+          {% if is_state('binary_sensor.sensor_porta_sala_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_porta_sala_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: porta
+          tipo: porta_sala
+          fonte_real: binary_sensor.sensor_porta_sala_contact
+          estado_real: "{{ states('binary_sensor.sensor_porta_sala_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_porta_sala
+          legado_relacionado: "automation.Sala - Porta da sala abriu; automation.alerta_contextual_porta_sala_v2"
+
+      - name: Casa Porta Banheiro Estado V20
+        unique_id: casa_porta_banheiro_estado_v20
+        icon: mdi:door
+        state: >
+          {% if is_state('binary_sensor.sensor_porta_banheiro_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_porta_banheiro_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: porta
+          tipo: porta_interna
+          fonte_real: binary_sensor.sensor_porta_banheiro_contact
+          estado_real: "{{ states('binary_sensor.sensor_porta_banheiro_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_portas_internas
+          legado_relacionado: "automation.Corredor - Gestão Luz Segurança versus portas"
+
+      - name: Casa Porta Quarto Menor Estado V20
+        unique_id: casa_porta_quarto_menor_estado_v20
+        icon: mdi:door
+        state: >
+          {% if is_state('binary_sensor.sensor_porta_sec_quarto_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_porta_sec_quarto_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: porta
+          tipo: porta_interna
+          ambiente: quarto_menor
+          fonte_real: binary_sensor.sensor_porta_sec_quarto_contact
+          estado_real: "{{ states('binary_sensor.sensor_porta_sec_quarto_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_portas_internas
+          legado_relacionado: "automation.Corredor - Gestão Luz Segurança versus portas"
+
+      - name: Casa Porta Quarto Maior Estado V20
+        unique_id: casa_porta_quarto_maior_estado_v20
+        icon: mdi:door
+        state: >
+          {% if is_state('binary_sensor.0x00158d0006b0a28b_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.0x00158d0006b0a28b_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: porta
+          tipo: porta_interna
+          ambiente: quarto_maior
+          fonte_real: binary_sensor.0x00158d0006b0a28b_contact
+          estado_real: "{{ states('binary_sensor.0x00158d0006b0a28b_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_portas_internas
+          legado_relacionado: "automation.Corredor - Gestão Luz Segurança versus portas"
+
+      - name: Casa Janela Varanda Sala Estado V20
+        unique_id: casa_janela_varanda_sala_estado_v20
+        icon: mdi:window-open-variant
+        state: >
+          {% if is_state('binary_sensor.sensor_varanda_sala_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_varanda_sala_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: janela
+          tipo: varanda_sala
+          fonte_real: binary_sensor.sensor_varanda_sala_contact
+          estado_real: "{{ states('binary_sensor.sensor_varanda_sala_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_janelas
+          legado_relacionado: sensor bruto identificado em V20.1A
+
+      - name: Casa Janela Quarto Maior Estado V20
+        unique_id: casa_janela_quarto_maior_estado_v20
+        icon: mdi:window-open-variant
+        state: >
+          {% if is_state('binary_sensor.sensor_janela_quarto_maior_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_janela_quarto_maior_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: janela
+          tipo: quarto_maior
+          fonte_real: binary_sensor.sensor_janela_quarto_maior_contact
+          estado_real: "{{ states('binary_sensor.sensor_janela_quarto_maior_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_janelas
+          legado_relacionado: sensor informado na correcao V20.1B lote 1
+
+      - name: Casa Janela Quarto Menor Estado V20
+        unique_id: casa_janela_quarto_menor_estado_v20
+        icon: mdi:window-open-variant
+        state: >
+          {% if is_state('binary_sensor.sensor_janela_quarto_menor_contact', 'on') %}
+            aberta
+          {% elif is_state('binary_sensor.sensor_janela_quarto_menor_contact', 'off') %}
+            fechada
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: janela
+          tipo: quarto_menor
+          fonte_real: binary_sensor.sensor_janela_quarto_menor_contact
+          estado_real: "{{ states('binary_sensor.sensor_janela_quarto_menor_contact') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_janelas
+          legado_relacionado: sensor informado na correcao V20.1B lote 1
+
+      - name: Casa Chuva Estado V20
+        unique_id: casa_chuva_estado_v20
+        icon: mdi:weather-rainy
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set chuva_bin = states('binary_sensor.sensor_chuva_girasol_rain') %}
+          {% set intensidade = states('sensor.intensidade_da_chuva') %}
+          {% if chuva_bin == 'on' %}
+            ativa
+          {% elif chuva_bin == 'off' %}
+            inativa
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: chuva
+          tipo: chuva
+          fonte_binaria: binary_sensor.sensor_chuva_girasol_rain
+          fonte_intensidade: sensor.intensidade_da_chuva
+          estado_binario: "{{ states('binary_sensor.sensor_chuva_girasol_rain') }}"
+          intensidade: "{{ states('sensor.intensidade_da_chuva') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_chuva
+          legado_relacionado: "automation.Quarto - Está chovendo; automation.Quarto - Parou de chover; automation.alerta_contextual_chuva_inicio_v2"
+
+      - name: Casa Vazamento Estado V20
+        unique_id: casa_vazamento_estado_v20
+        icon: mdi:water-alert
+        state: >
+          {% set vazamento_principal = states('binary_sensor.sensor_vazmento_agua_water_leak') %}
+          {% set vazamento_alt = states('binary_sensor.vazamento') %}
+          {% if vazamento_principal == 'on' or vazamento_alt == 'on' %}
+            detectado
+          {% elif vazamento_principal == 'off' or vazamento_alt == 'off' %}
+            normal
+          {% else %}
+            desconhecido
+          {% endif %}
+        attributes:
+          dominio: vazamento
+          tipo: vazamento
+          fonte_principal: binary_sensor.sensor_vazmento_agua_water_leak
+          fonte_alternativa: binary_sensor.vazamento
+          estado_principal: "{{ states('binary_sensor.sensor_vazmento_agua_water_leak') }}"
+          estado_alternativo: "{{ states('binary_sensor.vazamento') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_vazamento
+          legado_relacionado: "blueprints/automation/wmoura/Alerta_Vazamento_com_Led.yaml; packages/cerebro_backup_formatado.yaml"
+
+      - name: Casa Energia Estado V20
+        unique_id: casa_energia_estado_v20
+        icon: mdi:transmission-tower
+        state: >
+          {% set energia = states('binary_sensor.energia_concessionaria') %}
+          {% if energia == 'on' %}
+            presente
+          {% elif energia == 'off' %}
+            ausente
+          {% else %}
+            desconhecida
+          {% endif %}
+        attributes:
+          dominio: energia
+          tipo: energia_concessionaria
+          fonte_real: binary_sensor.energia_concessionaria
+          estado_real: "{{ states('binary_sensor.energia_concessionaria') }}"
+          ups_voltagem: "{{ states('sensor.ups_voltagem') }}"
+          ups_potencia: "{{ states('sensor.ups_potencia') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_energia
+          legado_relacionado: "automation.Home Office - Monitorar falta de energia e desligar após 30 minutos; blueprints/automation/wmoura/Gestão de Energia - UPS.yaml"
+
+      - name: Casa Internet Estado V20
+        unique_id: casa_internet_estado_v20
+        icon: mdi:wan
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set estado = states('sensor.internet_estado_operacional') %}
+          {% set wan_principal = states('binary_sensor.internet_wan_principal_ok') %}
+          {% set wan2_4g = states('binary_sensor.internet_wan2_4g_ok') %}
+          {% set failover = states('binary_sensor.internet_em_failover_4g') %}
+          {% set wan_semantico = states('sensor.casa_internet_estado_semantico_v20') %}
+          {% if estado == 'critica' %}
+            indisponivel
+          {% elif failover == 'on' or estado in ['backup_4g_indisponivel', 'failover_4g'] %}
+            degradada
+          {% elif estado == 'normal' and wan_principal == 'on' %}
+            normal
+          {% elif estado in invalid and wan_principal in invalid and wan2_4g in invalid %}
+            desconhecida
+          {% elif estado in invalid and wan_semantico == 'normal' %}
+            normal
+          {% elif estado in invalid and wan_semantico == 'indisponivel' %}
+            indisponivel
+          {% elif estado in invalid and wan_semantico in ['failover_4g', 'instavel'] %}
+            degradada
+          {% else %}
+            degradada
+          {% endif %}
+        attributes:
+          dominio: internet
+          tipo: conectividade
+          fonte_principal: sensor.internet_estado_operacional
+          fonte_wan_v20: sensor.casa_internet_estado_semantico_v20
+          estado_principal: "{{ states('sensor.internet_estado_operacional') }}"
+          estado_wan_v20: "{{ states('sensor.casa_internet_estado_semantico_v20') }}"
+          wan_principal_ok: "{{ states('binary_sensor.internet_wan_principal_ok') }}"
+          wan2_4g_ok: "{{ states('binary_sensor.internet_wan2_4g_ok') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_internet
+          legado_relacionado: "automation.Home Office - Internet - Sem Conexão com Internet; automation.Home Office - Internet - Retorno da Conexão"
+
+      - name: Casa Failover Estado V20
+        unique_id: casa_failover_estado_v20
+        icon: mdi:router-wireless
+        state: >
+          {% set failover = states('binary_sensor.internet_em_failover_4g') %}
+          {% set estado = states('sensor.internet_estado_operacional') %}
+          {% set failover_wan = states('binary_sensor.casa_failover_ativo_v20') %}
+          {% if failover == 'on' or estado == 'failover_4g' or failover_wan == 'on' %}
+            ativo
+          {% elif failover == 'off' or estado in ['normal', 'backup_4g_indisponivel', 'critica'] or failover_wan == 'off' %}
+            inativo
+          {% else %}
+            desconhecido
+          {% endif %}
+        attributes:
+          dominio: failover
+          tipo: failover_4g
+          fonte_principal: binary_sensor.internet_em_failover_4g
+          fonte_estado_internet: sensor.internet_estado_operacional
+          fonte_wan_v20: binary_sensor.casa_failover_ativo_v20
+          estado_principal: "{{ states('binary_sensor.internet_em_failover_4g') }}"
+          estado_internet: "{{ states('sensor.internet_estado_operacional') }}"
+          estado_wan_v20: "{{ states('binary_sensor.casa_failover_ativo_v20') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_failover
+          legado_relacionado: "blueprints/automation/wmoura/wan_4G_AppleWatch_Energia.yaml; blueprints/automation/wmoura/wan_4G_AppleWatch.yaml"
+
+      - name: Casa Backup Google Estado V20
+        unique_id: casa_backup_google_estado_v20
+        icon: mdi:cloud-check-outline
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set backup = states('sensor.backup_google_status') %}
+          {% if backup in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção'] %}
+            falha
+          {% elif backup in ['ok', 'backed_up', 'backing_up', 'idle', 'completed'] %}
+            ok
+          {% elif backup in invalid %}
+            desconhecido
+          {% else %}
+            falha
+          {% endif %}
+        attributes:
+          dominio: backup
+          tipo: backup_google
+          fonte_real: sensor.backup_google_status
+          fonte_original: sensor.backup_state
+          estado_real: "{{ states('sensor.backup_google_status') }}"
+          estado_original: "{{ states('sensor.backup_state') }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_backup_google
+          legado_relacionado: "sensor.backup_google_status em central_mensagens_corrigido.yaml"
+
+  - trigger:
+      - platform: state
+        id: banho_inicio
+        entity_id: binary_sensor.movimento_alto_banheiro_occupancy
+        to: "on"
+
+      - platform: state
+        id: banho_timeout
+        entity_id: binary_sensor.movimento_alto_banheiro_occupancy
+        to: "off"
+        for:
+          minutes: "{{ states('input_number.casa_timeout_banho_minutos') | int(3) }}"
+
+    sensor:
+      - name: Casa Banho Estado V20
+        unique_id: casa_banho_estado_v20
+        icon: mdi:shower-head
+        state: >
+          {% set tid = trigger.id if trigger is defined else '' %}
+          {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+          {% if tid == 'banho_inicio' and old == 'off' %}
+            banho_detectado
+          {% elif tid == 'banho_timeout' %}
+            sem_banho
+          {% else %}
+            {{ this.state | default('desconhecido', true) }}
+          {% endif %}
+        attributes:
+          dominio: contexto_humano
+          tipo: banho
+          fonte_real: binary_sensor.movimento_alto_banheiro_occupancy
+          estado_real: "{{ states('binary_sensor.movimento_alto_banheiro_occupancy') }}"
+          classificacao: evento_semantico_humano
+          timeout_encerramento_minutos: "{{ states('input_number.casa_timeout_banho_minutos') | int(3) }}"
+          publicacao_controlada_por: input_boolean.casa_timeline_evento_banho
+          observacao: "Sensor do box/chuveiro; nao tratar como movimento generico"
+
   - trigger:
       - platform: state
         id: mudanca_estado
         entity_id:
-          - binary_sensor.energia_concessionaria
-          - binary_sensor.sensor_porta_sala_contact
+          - sensor.casa_energia_estado_v20
+          - sensor.casa_internet_estado_v20
+          - sensor.casa_failover_estado_v20
+          - sensor.casa_backup_google_estado_v20
+          - sensor.casa_porta_sala_estado_v20
+          - sensor.casa_porta_banheiro_estado_v20
+          - sensor.casa_porta_quarto_menor_estado_v20
+          - sensor.casa_porta_quarto_maior_estado_v20
+          - sensor.casa_janela_varanda_sala_estado_v20
+          - sensor.casa_janela_quarto_maior_estado_v20
+          - sensor.casa_janela_quarto_menor_estado_v20
+          - sensor.casa_vazamento_estado_v20
+          - sensor.casa_banho_estado_v20
+          - sensor.casa_chuva_estado_v20
           - binary_sensor.sensor_chuva_girasol_rain
           - sensor.intensidade_da_chuva
-          - sensor.internet_estado_operacional
-          - binary_sensor.internet_em_failover_4g
-          - sensor.backup_google_status
           - media_player.lg_webos_tv_oled55g3psa
           - sensor.central_tv_contexto_fonte
 
@@ -43,48 +389,107 @@ template:
           {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
           {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
           {% set timeout_min = states('input_number.casa_timeout_porta_aberta_minutos') | int(5) %}
-          {% set porta_sala = 'binary_sensor.sensor_porta_sala_contact' %}
+          {% set porta_sala_timeout = 'binary_sensor.sensor_porta_sala_contact' %}
+          {% set porta_sala = 'sensor.casa_porta_sala_estado_v20' %}
           {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
           {% set tv_ativa = tv_contexto not in invalid + ['TV desligada'] %}
           {% set evento = '' %}
 
-          {% if tid == 'porta_timeout' and eid == porta_sala and new == 'on' %}
+          {% set publica_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') %}
+          {% set publica_chuva = not is_state('input_boolean.casa_timeline_evento_chuva', 'off') %}
+          {% set publica_porta_sala = not is_state('input_boolean.casa_timeline_evento_porta_sala', 'off') %}
+          {% set publica_portas_internas = is_state('input_boolean.casa_timeline_evento_portas_internas', 'on') %}
+          {% set publica_janelas = is_state('input_boolean.casa_timeline_evento_janelas', 'on') %}
+          {% set publica_vazamento = is_state('input_boolean.casa_timeline_evento_vazamento', 'on') %}
+          {% set publica_banho = is_state('input_boolean.casa_timeline_evento_banho', 'on') %}
+          {% set publica_backup = not is_state('input_boolean.casa_timeline_evento_backup_google', 'off') %}
+          {% set publica_energia = not is_state('input_boolean.casa_timeline_evento_energia', 'off') %}
+          {% set publica_internet = not is_state('input_boolean.casa_timeline_evento_internet', 'off') %}
+          {% set publica_failover = not is_state('input_boolean.casa_timeline_evento_failover', 'off') %}
+
+          {% if publica_porta_sala and tid == 'porta_timeout' and eid == porta_sala_timeout and new == 'on' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta há ' ~ timeout_min ~ ' min' %}
-          {% elif eid == porta_sala and new == 'on' and old == 'off' %}
+          {% elif publica_porta_sala and eid == porta_sala and new == 'aberta' and old == 'fechada' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta' %}
-          {% elif eid == porta_sala and new == 'off' and old == 'on' %}
+          {% elif publica_porta_sala and eid == porta_sala and new == 'fechada' and old == 'aberta' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala fechada' %}
-          {% elif eid == 'binary_sensor.energia_concessionaria' and new == 'off' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_banheiro_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta banheiro aberta' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_banheiro_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta banheiro fechada' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_quarto_menor_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta Quarto Menor aberta' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_quarto_menor_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta Quarto Menor fechada' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_quarto_maior_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta Quarto Maior aberta' %}
+          {% elif publica_portas_internas and eid == 'sensor.casa_porta_quarto_maior_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta Quarto Maior fechada' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_varanda_sala_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Varanda sala aberta' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_varanda_sala_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Varanda sala fechada' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_quarto_maior_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Janela Quarto Maior aberta' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_quarto_maior_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Janela Quarto Maior fechada' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_quarto_menor_estado_v20' and new == 'aberta' and old == 'fechada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Janela Quarto Menor aberta' %}
+          {% elif publica_janelas and eid == 'sensor.casa_janela_quarto_menor_estado_v20' and new == 'fechada' and old == 'aberta' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🪟 Janela Quarto Menor fechada' %}
+          {% elif publica_vazamento and eid == 'sensor.casa_vazamento_estado_v20' and new == 'detectado' and old != 'detectado' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 💧 Vazamento detectado' %}
+          {% elif publica_vazamento and eid == 'sensor.casa_vazamento_estado_v20' and new == 'normal' and old == 'detectado' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 💧 Vazamento normalizado' %}
+          {% elif publica_banho and eid == 'sensor.casa_banho_estado_v20' and new == 'banho_detectado' and old == 'sem_banho' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚿 Banho iniciado' %}
+          {% elif publica_banho and eid == 'sensor.casa_banho_estado_v20' and new == 'sem_banho' and old == 'banho_detectado' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🚿 Banho encerrado' %}
+          {% elif publica_energia and eid == 'sensor.casa_energia_estado_v20' and new == 'ausente' and old == 'presente' %}
             {% set evento = now().strftime('%H:%M') ~ ' ⚡ Falta de energia' %}
-          {% elif eid == 'binary_sensor.energia_concessionaria' and new == 'on' and old == 'off' %}
+          {% elif publica_energia and eid == 'sensor.casa_energia_estado_v20' and new == 'presente' and old == 'ausente' %}
             {% set evento = now().strftime('%H:%M') ~ ' ⚡ Energia restabelecida' %}
-          {% elif eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'on' and old != 'on' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
-          {% elif eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'off' and old == 'on' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva encerrada' %}
-          {% elif eid == 'sensor.intensidade_da_chuva' and new not in invalid and new != 'Sem chuva' and old in invalid + ['Sem chuva'] %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
-          {% elif eid == 'sensor.intensidade_da_chuva' and new == 'Sem chuva' and old not in invalid + ['Sem chuva'] %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva encerrada' %}
-          {% elif eid == 'sensor.internet_estado_operacional' and new == 'critica' and old != 'critica' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet crítica' %}
-          {% elif eid == 'sensor.internet_estado_operacional' and new == 'failover_4g' and old != 'failover_4g' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativo' %}
-          {% elif eid == 'sensor.internet_estado_operacional' and new not in invalid + ['critica', 'failover_4g'] and old in ['critica', 'failover_4g'] %}
+          {% elif publica_chuva and eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'on' and old == 'off' %}
+            {% set intensidade = states('sensor.intensidade_da_chuva') %}
+            {% if intensidade not in invalid + ['Sem chuva'] %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada: ' ~ intensidade %}
+            {% else %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
+            {% endif %}
+          {% elif publica_chuva and eid == 'binary_sensor.sensor_chuva_girasol_rain' and new == 'off' and old == 'on' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌤️ Chuva encerrada' %}
+          {% elif publica_chuva and eid == 'sensor.intensidade_da_chuva' and is_state('binary_sensor.sensor_chuva_girasol_rain', 'on') and is_state('sensor.casa_chuva_estado_v20', 'ativa') and new not in invalid + ['Sem chuva'] and old not in invalid + ['Sem chuva'] and new != old %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Intensidade da chuva: ' ~ new %}
+          {% elif publica_chuva and eid == 'sensor.casa_chuva_estado_v20' and is_state('binary_sensor.sensor_chuva_girasol_rain', 'on') and new == 'ativa' and old == 'inativa' %}
+            {% set intensidade = state_attr('sensor.casa_chuva_estado_v20', 'intensidade') %}
+            {% if intensidade not in invalid + ['Sem chuva'] %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada: ' ~ intensidade %}
+            {% else %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🌧️ Chuva iniciada' %}
+            {% endif %}
+          {% elif publica_chuva and eid == 'sensor.casa_chuva_estado_v20' and is_state('binary_sensor.sensor_chuva_girasol_rain', 'off') and new == 'inativa' and old == 'ativa' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌤️ Chuva encerrada' %}
+          {% elif publica_internet and eid == 'sensor.casa_internet_estado_v20' and new == 'degradada' and old in ['normal', 'indisponivel'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet degradada' %}
+          {% elif publica_internet and eid == 'sensor.casa_internet_estado_v20' and new == 'indisponivel' and old in ['normal', 'degradada'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet indisponível' %}
+          {% elif publica_internet and eid == 'sensor.casa_internet_estado_v20' and new == 'normal' and old in ['degradada', 'indisponivel'] %}
             {% set evento = now().strftime('%H:%M') ~ ' 🌐 Internet normalizada' %}
-          {% elif eid == 'binary_sensor.internet_em_failover_4g' and new == 'on' and old != 'on' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativo' %}
-          {% elif eid == 'binary_sensor.internet_em_failover_4g' and new == 'off' and old == 'on' %}
+          {% elif publica_failover and eid == 'sensor.casa_failover_estado_v20' and new == 'ativo' and old == 'inativo' %}
+            {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativado' %}
+          {% elif publica_failover and eid == 'sensor.casa_failover_estado_v20' and new == 'inativo' and old == 'ativo' %}
             {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G encerrado' %}
-          {% elif eid == 'sensor.backup_google_status' and new in ['erro', 'falha', 'atencao', 'atenção'] and old != new %}
-            {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Backup Google com erro' %}
-          {% elif eid == 'media_player.lg_webos_tv_oled55g3psa' and new not in invalid + ['off', 'standby'] and old in invalid + ['off', 'standby'] %}
+          {% elif publica_backup and eid == 'sensor.casa_backup_google_estado_v20' and new == 'falha' and old == 'ok' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Backup Google com falha' %}
+          {% elif publica_backup and eid == 'sensor.casa_backup_google_estado_v20' and new == 'ok' and old == 'falha' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ✅ Backup Google normalizado' %}
+          {% elif publica_tv and eid == 'media_player.lg_webos_tv_oled55g3psa' and new not in invalid + ['off', 'standby'] and old in invalid + ['off', 'standby'] %}
             {% set evento = now().strftime('%H:%M') ~ ' ' ~ (tv_contexto if tv_ativa else '📺 TV ligada') %}
-          {% elif eid == 'media_player.lg_webos_tv_oled55g3psa' and new in ['off', 'standby'] and old not in invalid + ['off', 'standby'] %}
+          {% elif publica_tv and eid == 'media_player.lg_webos_tv_oled55g3psa' and new in ['off', 'standby'] and old not in invalid + ['off', 'standby'] %}
             {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
-          {% elif eid == 'sensor.central_tv_contexto_fonte' and new not in invalid + ['TV desligada'] and old != new %}
+          {% elif publica_tv and eid == 'sensor.central_tv_contexto_fonte' and new not in invalid + ['TV desligada'] and old != new %}
             {% set evento = now().strftime('%H:%M') ~ ' ' ~ new %}
-          {% elif eid == 'sensor.central_tv_contexto_fonte' and new == 'TV desligada' and old not in invalid + ['TV desligada'] %}
+          {% elif publica_tv and eid == 'sensor.central_tv_contexto_fonte' and new == 'TV desligada' and old not in invalid + ['TV desligada'] %}
             {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
           {% endif %}
 
@@ -97,20 +502,45 @@ template:
           fonte: "{{ trigger.entity_id if trigger is defined else 'motor_timeline_v20' }}"
           formato_publicacao: HH:MM mensagem
           timeout_porta_minutos: "{{ states('input_number.casa_timeout_porta_aberta_minutos') | int(5) }}"
+          publica_tv: "{{ not is_state('input_boolean.casa_timeline_evento_tv', 'off') }}"
+          publica_chuva: "{{ not is_state('input_boolean.casa_timeline_evento_chuva', 'off') }}"
+          publica_porta_sala: "{{ not is_state('input_boolean.casa_timeline_evento_porta_sala', 'off') }}"
+          publica_portas_internas: "{{ is_state('input_boolean.casa_timeline_evento_portas_internas', 'on') }}"
+          publica_janelas: "{{ is_state('input_boolean.casa_timeline_evento_janelas', 'on') }}"
+          publica_vazamento: "{{ is_state('input_boolean.casa_timeline_evento_vazamento', 'on') }}"
+          publica_banho: "{{ is_state('input_boolean.casa_timeline_evento_banho', 'on') }}"
+          publica_backup_google: "{{ not is_state('input_boolean.casa_timeline_evento_backup_google', 'off') }}"
+          publica_energia: "{{ not is_state('input_boolean.casa_timeline_evento_energia', 'off') }}"
+          publica_internet: "{{ not is_state('input_boolean.casa_timeline_evento_internet', 'off') }}"
+          publica_failover: "{{ not is_state('input_boolean.casa_timeline_evento_failover', 'off') }}"
+          estado_controle_tv: "{{ states('input_boolean.casa_timeline_evento_tv') }}"
+          estado_controle_chuva: "{{ states('input_boolean.casa_timeline_evento_chuva') }}"
+          estado_controle_porta_sala: "{{ states('input_boolean.casa_timeline_evento_porta_sala') }}"
+          estado_controle_portas_internas: "{{ states('input_boolean.casa_timeline_evento_portas_internas') }}"
+          estado_controle_janelas: "{{ states('input_boolean.casa_timeline_evento_janelas') }}"
+          estado_controle_vazamento: "{{ states('input_boolean.casa_timeline_evento_vazamento') }}"
+          estado_controle_banho: "{{ states('input_boolean.casa_timeline_evento_banho') }}"
+          estado_controle_backup_google: "{{ states('input_boolean.casa_timeline_evento_backup_google') }}"
+          estado_controle_energia: "{{ states('input_boolean.casa_timeline_evento_energia') }}"
+          estado_controle_internet: "{{ states('input_boolean.casa_timeline_evento_internet') }}"
+          estado_controle_failover: "{{ states('input_boolean.casa_timeline_evento_failover') }}"
           evento_reconhecido: >
             {% set estado = this.state | default('', true) | string | trim %}
             {{ estado not in ['', 'unknown', 'unavailable', 'sem_evento'] }}
 
   - trigger:
       - platform: state
-        entity_id: sensor.casa_evento_publicavel_v20
+        entity_id:
+          - sensor.casa_evento_publicavel_v20
+          - input_number.casa_timeline_max_eventos
 
     sensor:
       - name: Casa Timeline V20
         unique_id: casa_timeline_v20
         icon: mdi:timeline-clock-outline
         state: >
-          {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+          {% set eid = trigger.entity_id if trigger is defined else '' %}
+          {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
           {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
           {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
           {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
@@ -122,44 +552,88 @@ template:
         attributes:
           fonte: sensor.casa_evento_publicavel_v20
           formato_publicacao: HH:MM mensagem
-          limite_eventos: 6
+          limite_eventos: "{{ [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max }}"
           deduplicacao: evento_consecutivo_sem_timestamp
+          eventos_json: >
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {% if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
+              {{ historico[:limite] | to_json }}
+            {% else %}
+              {{ ([evento] + historico)[:limite] | to_json }}
+            {% endif %}
           linha_1: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ anterior if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else evento }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[0] | default('', true) }}
           linha_2: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ this.attributes.linha_2 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else anterior }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[1] | default('', true) }}
           linha_3: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ this.attributes.linha_3 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_2 | default('', true) }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[2] | default('', true) }}
           linha_4: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ this.attributes.linha_4 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_3 | default('', true) }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[3] | default('', true) }}
           linha_5: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ this.attributes.linha_5 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_4 | default('', true) }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[4] | default('', true) }}
           linha_6: >
-            {% set evento = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
-            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
+            {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
+            {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {{ this.attributes.linha_6 | default('', true) if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else this.attributes.linha_5 | default('', true) }}
+            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {{ lista[5] | default('', true) }}
 
       - name: Casa Event Feed V20
         unique_id: casa_event_feed_v20
@@ -169,6 +643,8 @@ template:
         attributes:
           fonte: sensor.casa_timeline_v20
           formato_publicacao: HH:MM mensagem
+          limite_eventos: "{{ state_attr('sensor.casa_timeline_v20', 'limite_eventos') | default(6, true) }}"
+          eventos_json: "{{ state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) }}"
           linha_1: "{{ state_attr('sensor.casa_timeline_v20', 'linha_1') | default('', true) }}"
           linha_2: "{{ state_attr('sensor.casa_timeline_v20', 'linha_2') | default('', true) }}"
           linha_3: "{{ state_attr('sensor.casa_timeline_v20', 'linha_3') | default('', true) }}"
