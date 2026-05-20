@@ -1,0 +1,473 @@
+###############################################################################
+# Central Operacional V20 - Motor shadow de atividade operacional
+#
+# Fase V20.1N.4
+# Produtor canonico shadow para atividade da casa.
+# Nao altera aliases finais, Central V4, automacoes, scripts ou dashboards.
+###############################################################################
+
+input_boolean:
+  atividade_tv_habilitada:
+    name: Atividade TV Habilitada
+    icon: mdi:television
+    initial: true
+
+  atividade_maquina_lavar_habilitada:
+    name: Atividade Maquina Lavar Habilitada
+    icon: mdi:washing-machine
+    initial: true
+
+  atividade_microondas_habilitada:
+    name: Atividade Microondas Habilitada
+    icon: mdi:microwave
+    initial: true
+
+  atividade_banho_habilitada:
+    name: Atividade Banho Habilitada
+    icon: mdi:shower
+    initial: false
+
+input_number:
+  atividade_tv_peso:
+    name: Atividade TV Peso
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:weight
+    initial: 20
+
+  atividade_maquina_lavar_peso:
+    name: Atividade Maquina Lavar Peso
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:weight
+    initial: 45
+
+  atividade_microondas_peso:
+    name: Atividade Microondas Peso
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:weight
+    initial: 60
+
+  atividade_banho_peso:
+    name: Atividade Banho Peso
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:weight
+    initial: 50
+
+  atividade_microondas_potencia_minima:
+    name: Atividade Microondas Potencia Minima
+    min: 0
+    max: 3000
+    step: 10
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:flash
+    initial: 100
+
+  atividade_maquina_lavar_potencia_minima:
+    name: Atividade Maquina Lavar Potencia Minima
+    min: 0
+    max: 1000
+    step: 1
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:flash
+    initial: 5
+
+  atividade_banho_umidade_delta:
+    name: Atividade Banho Delta Umidade
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+    initial: 12
+
+template:
+  - sensor:
+
+      - name: Casa Atividade Operacional V20
+        unique_id: casa_atividade_operacional_v20
+        icon: mdi:home-lightning-bolt
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+
+          {% set tv_helper = states('input_boolean.atividade_tv_habilitada') %}
+          {% set tv_habilitada = tv_helper != 'off' %}
+          {% set tv_estado = states('media_player.lg_webos_tv_oled55g3psa') %}
+          {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+          {% set tv_ativa_player = tv_estado not in invalid + ['off', 'standby'] %}
+          {% set tv_ativa_contexto = tv_contexto not in invalid + ['TV desligada'] %}
+          {% set tv_ativa = tv_habilitada and (tv_ativa_player or tv_ativa_contexto) %}
+
+          {% set maquina_helper = states('input_boolean.atividade_maquina_lavar_habilitada') %}
+          {% set maquina_habilitada = maquina_helper != 'off' %}
+          {% set maquina_estado = states('input_select.maquina_lavar_estado') %}
+          {% set maquina_ciclo = is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') %}
+          {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+          {% set maquina_min = states('input_number.atividade_maquina_lavar_potencia_minima') | float(5) %}
+          {% set maquina_ativa = maquina_habilitada and (maquina_ciclo or maquina_estado not in estados_inativos or maquina_potencia > maquina_min) %}
+
+          {% set micro_helper = states('input_boolean.atividade_microondas_habilitada') %}
+          {% set micro_habilitado = micro_helper != 'off' %}
+          {% set micro_potencia = states('sensor.micro_ondas_potencia') | float(0) %}
+          {% set micro_corrente = states('sensor.micro_ondas_corrente') | float(0) %}
+          {% set micro_min = states('input_number.atividade_microondas_potencia_minima') | float(100) %}
+          {% set micro_ativo = micro_habilitado and (micro_potencia > micro_min or micro_corrente > 1) %}
+
+          {% set banho_ativo = false %}
+          {% set ativos = [micro_ativo, maquina_ativa, tv_ativa, banho_ativo] | select('eq', true) | list | count %}
+
+          {% if ativos == 0 %}
+            sem_atividade
+          {% elif ativos > 1 %}
+            multiatividade
+          {% elif micro_ativo %}
+            microondas_ativo
+          {% elif maquina_ativa %}
+            maquina_lavar_ativa
+          {% elif tv_ativa %}
+            tv_ativa
+          {% elif banho_ativo %}
+            banho_ativo
+          {% else %}
+            sem_atividade
+          {% endif %}
+        attributes:
+          atividade_dominante: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_habilitada = states('input_boolean.atividade_tv_habilitada') != 'off' %}
+            {% set tv_estado = states('media_player.lg_webos_tv_oled55g3psa') %}
+            {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% set tv_ativa = tv_habilitada and (tv_estado not in invalid + ['off', 'standby'] or tv_contexto not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              microondas
+            {% elif maquina_ativa %}
+              maquina_lavar
+            {% elif tv_ativa %}
+              tv
+            {% else %}
+              sem_atividade
+            {% endif %}
+          dominio: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% set ativos = [micro_ativo, maquina_ativa, tv_ativa] | select('eq', true) | list | count %}
+            {% if ativos > 1 %}
+              multiatividade
+            {% elif micro_ativo %}
+              microondas
+            {% elif maquina_ativa %}
+              maquina_lavar
+            {% elif tv_ativa %}
+              tv
+            {% else %}
+              sem_atividade
+            {% endif %}
+          origem: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              sensor.micro_ondas_potencia
+            {% elif maquina_ativa %}
+              input_select.maquina_lavar_estado
+            {% elif tv_ativa and states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] %}
+              media_player.lg_webos_tv_oled55g3psa
+            {% elif tv_ativa %}
+              sensor.central_tv_contexto_fonte
+            {% else %}
+              motor_atividade_operacional_v20
+            {% endif %}
+          ativo: >
+            {{ states('sensor.casa_atividade_operacional_v20') not in ['sem_atividade', 'unknown', 'unavailable', 'none', 'None', '', none] }}
+          prioridade: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              {% set rel = states('input_number.atividade_microondas_peso') | int(60) %}
+            {% elif maquina_ativa %}
+              {% set rel = states('input_number.atividade_maquina_lavar_peso') | int(45) %}
+            {% elif tv_ativa %}
+              {% set rel = states('input_number.atividade_tv_peso') | int(20) %}
+            {% else %}
+              {% set rel = 0 %}
+            {% endif %}
+            {% if rel >= 90 %}
+              critica
+            {% elif rel >= 70 %}
+              alta
+            {% elif rel >= 40 %}
+              media
+            {% elif rel > 0 %}
+              informativa
+            {% else %}
+              normal
+            {% endif %}
+          relevancia_local: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              {{ states('input_number.atividade_microondas_peso') | int(60) }}
+            {% elif maquina_ativa %}
+              {{ states('input_number.atividade_maquina_lavar_peso') | int(45) }}
+            {% elif tv_ativa %}
+              {{ states('input_number.atividade_tv_peso') | int(20) }}
+            {% else %}
+              0
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+          atividades_ativas: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set ns = namespace(items=[]) %}
+
+            {% set tv_estado = states('media_player.lg_webos_tv_oled55g3psa') %}
+            {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% set tv_titulo = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+            {% set tv_canal = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') %}
+            {% set tv_app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+            {% set tv_source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+            {% set tv_invalid = invalid + ['Live', 'Live TV', 'playing', 'on'] %}
+            {% if tv_titulo not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_titulo %}
+              {% set tv_fonte = 'media_title' %}
+            {% elif tv_canal not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_canal %}
+              {% set tv_fonte = 'media_channel' %}
+            {% elif tv_app not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_app %}
+              {% set tv_fonte = 'app_name' %}
+            {% elif tv_source not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_source %}
+              {% set tv_fonte = 'source' %}
+            {% elif tv_contexto not in tv_invalid + ['TV desligada'] %}
+              {% set tv_ui = tv_contexto %}
+              {% set tv_fonte = 'central_tv_contexto_fonte' %}
+            {% else %}
+              {% set tv_ui = 'TV ligada' %}
+              {% set tv_fonte = 'fallback' %}
+            {% endif %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (tv_estado not in invalid + ['off', 'standby'] or tv_contexto not in invalid + ['TV desligada']) %}
+            {% if tv_ativa %}
+              {% set ns.items = ns.items + [dict(dominio='tv', state='tv_ativa', ativo=true, titulo_ui=tv_ui, detalhe=tv_ui, prioridade='informativa', relevancia_local=states('input_number.atividade_tv_peso') | int(20), origem='media_player.lg_webos_tv_oled55g3psa' if tv_estado not in invalid + ['off', 'standby'] else 'sensor.central_tv_contexto_fonte', fonte=tv_fonte)] %}
+            {% endif %}
+
+            {% set maquina_estado = states('input_select.maquina_lavar_estado') %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or maquina_estado not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% if maquina_ativa %}
+              {% set maq_rel = states('input_number.atividade_maquina_lavar_peso') | int(45) %}
+              {% set ns.items = ns.items + [dict(dominio='maquina_lavar', state='maquina_lavar_ativa', ativo=true, titulo_ui='Maquina de lavar: ' ~ maquina_estado, detalhe='Estado=' ~ maquina_estado ~ '; potencia=' ~ (maquina_potencia | round(1)) ~ ' W', prioridade='media' if maq_rel >= 40 else 'informativa', relevancia_local=maq_rel, origem='input_select.maquina_lavar_estado', fonte='estado_ciclo_potencia')] %}
+            {% endif %}
+
+            {% set micro_potencia = states('sensor.micro_ondas_potencia') | float(0) %}
+            {% set micro_corrente = states('sensor.micro_ondas_corrente') | float(0) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (micro_potencia > states('input_number.atividade_microondas_potencia_minima') | float(100) or micro_corrente > 1) %}
+            {% if micro_ativo %}
+              {% set micro_rel = states('input_number.atividade_microondas_peso') | int(60) %}
+              {% set ns.items = ns.items + [dict(dominio='microondas', state='microondas_ativo', ativo=true, titulo_ui='Microondas em uso', detalhe='Potencia=' ~ (micro_potencia | round(1)) ~ ' W; corrente=' ~ (micro_corrente | round(2)) ~ ' A', prioridade='media' if micro_rel >= 40 else 'informativa', relevancia_local=micro_rel, origem='sensor.micro_ondas_potencia', fonte='potencia_corrente')] %}
+            {% endif %}
+
+            {{ ns.items | to_json }}
+          atividades_secundarias: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              {% set dominante = 'microondas' %}
+            {% elif maquina_ativa %}
+              {% set dominante = 'maquina_lavar' %}
+            {% elif tv_ativa %}
+              {% set dominante = 'tv' %}
+            {% else %}
+              {% set dominante = 'sem_atividade' %}
+            {% endif %}
+            {% set todos = [] %}
+            {% if micro_ativo %}{% set todos = todos + ['microondas'] %}{% endif %}
+            {% if maquina_ativa %}{% set todos = todos + ['maquina_lavar'] %}{% endif %}
+            {% if tv_ativa %}{% set todos = todos + ['tv'] %}{% endif %}
+            {{ todos | reject('eq', dominante) | list | to_json }}
+          mensagem: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% set tv_titulo = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+            {% set tv_canal = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') %}
+            {% set tv_app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+            {% set tv_source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+            {% set tv_invalid = invalid + ['Live', 'Live TV', 'playing', 'on'] %}
+            {% if tv_titulo not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_titulo %}
+            {% elif tv_canal not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_canal %}
+            {% elif tv_app not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_app %}
+            {% elif tv_source not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_source %}
+            {% elif tv_contexto not in tv_invalid + ['TV desligada'] %}
+              {% set tv_ui = tv_contexto %}
+            {% else %}
+              {% set tv_ui = 'TV ligada' %}
+            {% endif %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or tv_contexto not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_estado = states('input_select.maquina_lavar_estado') %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or maquina_estado not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              Microondas em uso
+            {% elif maquina_ativa %}
+              Maquina de lavar: {{ maquina_estado }}
+            {% elif tv_ativa %}
+              {{ tv_ui }}
+            {% else %}
+              Nenhuma atividade operacional
+            {% endif %}
+          titulo_ui: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% set tv_titulo = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+            {% set tv_canal = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') %}
+            {% set tv_app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+            {% set tv_source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+            {% set tv_invalid = invalid + ['Live', 'Live TV', 'playing', 'on'] %}
+            {% if tv_titulo not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_titulo %}
+            {% elif tv_canal not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_canal %}
+            {% elif tv_app not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_app %}
+            {% elif tv_source not in tv_invalid %}
+              {% set tv_ui = 'TV: ' ~ tv_source %}
+            {% elif tv_contexto not in tv_invalid + ['TV desligada'] %}
+              {% set tv_ui = tv_contexto %}
+            {% else %}
+              {% set tv_ui = 'TV ligada' %}
+            {% endif %}
+            {% set tv_ativa = states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or tv_contexto not in invalid + ['TV desligada']) %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% set maquina_estado = states('input_select.maquina_lavar_estado') %}
+            {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or maquina_estado not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+            {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+            {% if micro_ativo %}
+              Microondas em uso
+            {% elif maquina_ativa %}
+              Maquina de lavar: {{ maquina_estado }}
+            {% elif tv_ativa %}
+              {{ tv_ui }}
+            {% else %}
+              Nenhuma atividade operacional
+            {% endif %}
+          fontes_ativas: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set fontes = [] %}
+            {% if states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+              {% set fontes = fontes + ['sensor.micro_ondas_potencia'] %}
+            {% endif %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% if states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+              {% set fontes = fontes + ['input_select.maquina_lavar_estado'] %}
+            {% endif %}
+            {% if states('input_boolean.atividade_tv_habilitada') != 'off' and states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] %}
+              {% set fontes = fontes + ['media_player.lg_webos_tv_oled55g3psa'] %}
+            {% elif states('input_boolean.atividade_tv_habilitada') != 'off' and states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada'] %}
+              {% set fontes = fontes + ['sensor.central_tv_contexto_fonte'] %}
+            {% endif %}
+            {{ fontes | to_json }}
+          motivo: >
+            {% set estado = states('sensor.casa_atividade_operacional_v20') %}
+            {% if estado == 'multiatividade' %}
+              Mais de uma atividade operacional ativa
+            {% elif estado == 'sem_atividade' %}
+              Nenhuma fonte inicial ativa ou habilitada
+            {% else %}
+              Atividade unica detectada em modo shadow
+            {% endif %}
+          tv_conteudo: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none, 'Live', 'Live TV', 'playing', 'on'] %}
+            {% set titulo = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+            {% set canal = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') %}
+            {% set app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+            {% set source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+            {% set contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% if titulo not in invalid %}
+              {{ titulo }}
+            {% elif canal not in invalid %}
+              {{ canal }}
+            {% elif app not in invalid %}
+              {{ app }}
+            {% elif source not in invalid %}
+              {{ source }}
+            {% elif contexto not in invalid + ['TV desligada'] %}
+              {{ contexto }}
+            {% else %}
+              TV ligada
+            {% endif %}
+          tv_canal: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') | default('', true) }}"
+          tv_app: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') | default('', true) }}"
+          tv_source: "{{ state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') | default('', true) }}"
+          tv_titulo_ui: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none, 'Live', 'Live TV', 'playing', 'on'] %}
+            {% set titulo = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+            {% set canal = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_channel') %}
+            {% set app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+            {% set source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+            {% set contexto = states('sensor.central_tv_contexto_fonte') %}
+            {% if titulo not in invalid %}
+              TV: {{ titulo }}
+            {% elif canal not in invalid %}
+              TV: {{ canal }}
+            {% elif app not in invalid %}
+              TV: {{ app }}
+            {% elif source not in invalid %}
+              TV: {{ source }}
+            {% elif contexto not in invalid + ['TV desligada'] %}
+              {{ contexto }}
+            {% else %}
+              TV ligada
+            {% endif %}
+          maquina_estado: "{{ states('input_select.maquina_lavar_estado') }}"
+          maquina_potencia: "{{ states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) }}"
+          microondas_potencia: "{{ states('sensor.micro_ondas_potencia') | float(0) }}"
+          microondas_corrente: "{{ states('sensor.micro_ondas_corrente') | float(0) }}"

@@ -366,10 +366,9 @@ template:
           - sensor.casa_vazamento_estado_v20
           - sensor.casa_banho_estado_v20
           - sensor.casa_chuva_estado_v20
+          - sensor.casa_atividade_operacional_v20
           - binary_sensor.sensor_chuva_girasol_rain
           - sensor.intensidade_da_chuva
-          - media_player.lg_webos_tv_oled55g3psa
-          - sensor.central_tv_contexto_fonte
 
       - platform: state
         id: porta_timeout
@@ -391,8 +390,6 @@ template:
           {% set timeout_min = states('input_number.casa_timeout_porta_aberta_minutos') | int(5) %}
           {% set porta_sala_timeout = 'binary_sensor.sensor_porta_sala_contact' %}
           {% set porta_sala = 'sensor.casa_porta_sala_estado_v20' %}
-          {% set tv_contexto = states('sensor.central_tv_contexto_fonte') %}
-          {% set tv_ativa = tv_contexto not in invalid + ['TV desligada'] %}
           {% set evento = '' %}
 
           {% set publica_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') %}
@@ -483,14 +480,66 @@ template:
             {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Backup Google com falha' %}
           {% elif publica_backup and eid == 'sensor.casa_backup_google_estado_v20' and new == 'ok' and old == 'falha' %}
             {% set evento = now().strftime('%H:%M') ~ ' ✅ Backup Google normalizado' %}
-          {% elif publica_tv and eid == 'media_player.lg_webos_tv_oled55g3psa' and new not in invalid + ['off', 'standby'] and old in invalid + ['off', 'standby'] %}
-            {% set evento = now().strftime('%H:%M') ~ ' ' ~ (tv_contexto if tv_ativa else '📺 TV ligada') %}
-          {% elif publica_tv and eid == 'media_player.lg_webos_tv_oled55g3psa' and new in ['off', 'standby'] and old not in invalid + ['off', 'standby'] %}
-            {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
-          {% elif publica_tv and eid == 'sensor.central_tv_contexto_fonte' and new not in invalid + ['TV desligada'] and old != new %}
-            {% set evento = now().strftime('%H:%M') ~ ' ' ~ new %}
-          {% elif publica_tv and eid == 'sensor.central_tv_contexto_fonte' and new == 'TV desligada' and old not in invalid + ['TV desligada'] %}
-            {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
+          {% elif eid == 'sensor.casa_atividade_operacional_v20' and new != old and new not in invalid %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set titulo = state_attr('sensor.casa_atividade_operacional_v20', 'titulo_ui') | default('', true) | string | trim %}
+            {% set mensagem = state_attr('sensor.casa_atividade_operacional_v20', 'mensagem') | default('', true) | string | trim %}
+            {% set dominante = state_attr('sensor.casa_atividade_operacional_v20', 'atividade_dominante') | default('', true) %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set ns = namespace(partes=[], icones='', restante='') %}
+            {% if 'tv' in dominios %}
+              {% set tv_item = atividades | selectattr('dominio', 'eq', 'tv') | list | first | default({}, true) %}
+              {% set tv_titulo = tv_item.titulo_ui | default(titulo if dominante == 'tv' else 'TV ligada', true) %}
+              {% set ns.partes = ns.partes + ['TV'] %}
+              {% set ns.icones = ns.icones ~ '📺' %}
+              {% if dominante == 'tv' or new == 'tv_ativa' %}
+                {% set ns.restante = tv_titulo if tv_titulo not in invalid + [''] else 'TV ligada' %}
+                {% if not ns.restante.startswith('📺') %}
+                  {% set ns.restante = '📺 ' ~ ns.restante %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            {% if 'microondas' in dominios %}
+              {% set ns.partes = ns.partes + ['Microondas'] %}
+              {% set ns.icones = ns.icones ~ '🍿' %}
+              {% if dominante == 'microondas' or new == 'microondas_ativo' %}
+                {% set ns.restante = '🍿 Microondas em uso' %}
+              {% endif %}
+            {% endif %}
+            {% if 'maquina_lavar' in dominios %}
+              {% set maquina_item = atividades | selectattr('dominio', 'eq', 'maquina_lavar') | list | first | default({}, true) %}
+              {% set maquina_titulo = maquina_item.titulo_ui | default('Máquina de lavar ativa', true) %}
+              {% set ns.partes = ns.partes + ['Máquina'] %}
+              {% set ns.icones = ns.icones ~ '🧺' %}
+              {% if dominante == 'maquina_lavar' or new == 'maquina_lavar_ativa' %}
+                {% set ns.restante = maquina_titulo if maquina_titulo not in invalid + [''] else '🧺 Máquina em execução' %}
+              {% endif %}
+            {% endif %}
+            {% set resumo_ativo = ns.partes | join(' + ') %}
+            {% if new == 'multiatividade' and old != 'multiatividade' and resumo_ativo | length > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ ns.icones ~ ' ' ~ resumo_ativo ~ ' ativos' %}
+            {% elif old == 'multiatividade' and new != 'multiatividade' and ns.restante | length > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ ns.restante %}
+            {% elif old == 'multiatividade' and new == 'sem_atividade' %}
+              {% set evento = now().strftime('%H:%M') ~ ' Atividades simultâneas encerradas' %}
+            {% elif new == 'microondas_ativo' and old != 'microondas_ativo' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas em uso' %}
+            {% elif old == 'microondas_ativo' and new != 'microondas_ativo' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas finalizado' %}
+            {% elif new == 'maquina_lavar_ativa' and old != 'maquina_lavar_ativa' %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ (titulo if titulo not in invalid + [''] else '🧺 Máquina em execução') %}
+            {% elif old == 'maquina_lavar_ativa' and new != 'maquina_lavar_ativa' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina finalizada' %}
+            {% elif publica_tv and new == 'tv_ativa' and old != 'tv_ativa' %}
+              {% set tv_evento = titulo if titulo not in invalid + [''] else mensagem if mensagem not in invalid + [''] else 'TV ligada' %}
+              {% if not tv_evento.startswith('📺') %}
+                {% set tv_evento = '📺 ' ~ tv_evento %}
+              {% endif %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ tv_evento %}
+            {% elif publica_tv and old == 'tv_ativa' and new != 'tv_ativa' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
+            {% endif %}
           {% endif %}
 
           {% if evento == '' %}
