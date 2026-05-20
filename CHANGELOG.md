@@ -29,6 +29,37 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Análise documental iniciada; nenhuma alteração de produção foi realizada.
 - Esta etapa foca em mapear dependências reais antes de qualquer limpeza ou migração.
 
+## [v20.1i-disabled-package-isolation] - 2026-05-20
+
+### Added
+
+- Documentação da validação operacional V20.1F em `docs/validacao_operacional_v20_1f.md`.
+- Investigação da entidade ativa V19 em `docs/investigacao_casa_tv_ativa_v19.md`.
+- Investigação do carregamento efetivo de package V19 em `docs/investigacao_carregamento_v19.md`.
+- Arquivo histórico V19 arquivado em `archive/packages_disabled/status_casa_v19.yaml`.
+- Documento histórico de desativação V19 arquivado em `archive/packages_disabled/DESATIVACAO_V19.md`.
+
+### Changed
+
+- Artefatos históricos V19 foram movidos para fora da árvore `packages/`, impedindo carregamento por `homeassistant.packages: !include_dir_named packages/` após próximo restart/reload controlado.
+- O diretório `packages/_disabled/` foi removido por estar vazio.
+
+### Validated
+
+- Validação pós-isolamento V20.1J documentada em `docs/validacao_pos_isolamento_v20_1j.md`.
+- `binary_sensor.casa_tv_ativa_v19` permaneceu existente apenas como resíduo `unavailable`.
+- A entidade V19 não alternou após teste real da TV.
+- `sensor.status_casa` permaneceu funcional com valor `⚠️ Backup Google com falha`.
+- `sensor.casa_timeline` permaneceu funcional com valor `22:37 📺 TV desligada`.
+
+### Notes
+
+- Não houve edição de `.storage/core.entity_registry`.
+- Não houve edição de `.storage/core.restore_state`.
+- Nenhuma entidade foi removida manualmente.
+- Nenhuma lógica produtiva, dashboard ou automação foi alterada.
+- Limpeza futura de entidades residuais V19 deve ocorrer apenas em fase própria.
+
 ## [v20.2-shadow-phaseA] - 2026-05-19
 
 ### Added

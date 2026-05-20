@@ -6,7 +6,9 @@
 - V20.1A = implementada
 - V20.1B = camada oficial de produção
 - V20.1C = auditoria de legado concluída em diagnóstico
-- V20.1D = análise de dependências iniciada
+- V20.1D/E = checkpoint documental de dependências e impacto concluído
+- V20.1F/G/H = validação e investigação de V19 concluídas
+- V20.1I/J = isolamento controlado de packages desativados aplicado e validado
 - V20.2 = parcialmente implementada em shadow mode/paralelo
 - V21+ = planejamento futuro
 
@@ -152,7 +154,7 @@ Direções:
 
 ### V20.1D - Legacy Dependency Analysis
 
-Status: iniciada.
+Status: concluída em checkpoint documental com V20.1E.
 
 Objetivo: mapear dependências reais do legado antes de qualquer limpeza, remoção ou migração.
 
@@ -187,6 +189,106 @@ Matriz de prontidão prevista:
 | TV | Parcial | Sim | Sim | Parcial | Médio | Não |
 | Segurança/alarme | Não | Não | Sim | Não | Crítico | Não |
 | Recovery/ações físicas | Não | Não | Sim | Não | Crítico | Não |
+
+### V20.1E - Cleanup Impact Simulation
+
+Status: concluída.
+
+Objetivo: simular impacto de limpeza de candidatos de legado sem executar remoção.
+
+Resultado:
+
+- Relatório criado em `docs/impacto_limpeza_v20_1e.md`.
+- Candidatos em `_disabled/` foram inicialmente classificados como seguros do ponto de vista documental.
+- `.storage/core.entity_registry` e `.storage/core.restore_state` permaneceram fora de escopo de limpeza.
+- Nenhum YAML produtivo, dashboard, automação ou entidade foi alterado.
+
+### V20.1F - Operational Validation
+
+Status: concluída em investigação documental.
+
+Objetivo: validar operacionalmente os candidatos de limpeza antes de qualquer remoção.
+
+Resultado:
+
+- Relatório criado em `docs/validacao_operacional_v20_1f.md`.
+- `packages/_disabled/status_casa_v19.yaml` foi reclassificado como requer observação.
+- Foi identificado histórico recente de `binary_sensor.casa_tv_ativa_v19`.
+- Limpeza de V19 permaneceu bloqueada.
+
+### V20.1G - Active V19 Dependency Trace
+
+Status: concluída.
+
+Objetivo: investigar por que `binary_sensor.casa_tv_ativa_v19` ainda possuía eventos recentes.
+
+Resultado:
+
+- Relatório criado em `docs/investigacao_casa_tv_ativa_v19.md`.
+- A entidade foi classificada como realmente ativa.
+- A origem foi atribuída ao template V19 preservado em package.
+- Não foi encontrado consumo direto por `sensor.status_casa`, automações, scripts ou dashboards oficiais.
+
+### V20.1H - Effective Package Loading Investigation
+
+Status: concluída.
+
+Objetivo: determinar por que o package V19 em `_disabled` continuava efetivo.
+
+Resultado:
+
+- Relatório criado em `docs/investigacao_carregamento_v19.md`.
+- Causa raiz identificada: isolamento inefetivo por manter artefatos históricos dentro da árvore `packages/`.
+- `packages/_disabled/` foi confirmado como convenção documental insuficiente para desativação operacional neste ambiente.
+
+### V20.1I - Disabled Package Isolation
+
+Status: aplicado e validado pela V20.1J.
+
+Objetivo: impedir que artefatos históricos em `_disabled` sejam carregados por `homeassistant.packages`.
+
+Alterações controladas:
+
+- Criado `archive/packages_disabled/`.
+- Movido `packages/_disabled/status_casa_v19.yaml` para `archive/packages_disabled/status_casa_v19.yaml`.
+- Movido `packages/_disabled/DESATIVACAO_V19.md` para `archive/packages_disabled/DESATIVACAO_V19.md`.
+- Removido `packages/_disabled/` por estar vazio.
+
+Limites:
+
+- `.storage/core.entity_registry` não foi editado.
+- `.storage/core.restore_state` não foi editado.
+- Nenhuma entidade foi removida manualmente.
+- Nenhuma lógica produtiva foi alterada.
+- Nenhum dashboard ou automação foi alterado.
+
+Validação V20.1J:
+
+- `binary_sensor.casa_tv_ativa_v19` existe, mas ficou `unavailable`.
+- A entidade não alternou após teste real da TV.
+- `sensor.status_casa` existe e manteve valor `⚠️ Backup Google com falha`.
+- `sensor.casa_timeline` existe e manteve valor `22:37 📺 TV desligada`.
+- Registros persistidos em `.storage` seguem intocados até fase própria.
+
+### V20.1J - Post-Isolation Validation
+
+Status: aprovada.
+
+Objetivo: validar se a movimentação dos artefatos V19 para `archive/packages_disabled/` impediu o carregamento do template legado.
+
+Resultado:
+
+- Relatório criado em `docs/validacao_pos_isolamento_v20_1j.md`.
+- O isolamento de `packages/_disabled/` funcionou.
+- `binary_sensor.casa_tv_ativa_v19` ficou apenas como resíduo `unavailable`.
+- Não houve alternância da entidade V19 após teste real da TV.
+- Não houve impacto aparente em `sensor.status_casa`.
+- Não houve impacto aparente em `sensor.casa_timeline`.
+
+Recomendação:
+
+- Commits documentais e de isolamento controlado estão liberados.
+- Limpeza de `.storage`, entidades residuais e dashboard oculto `teste-4` deve permanecer fora desta fase.
 
 ## V20.2 - Dedicated Engines + UX/Operational Layout
 
