@@ -60,6 +60,23 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Nenhuma lógica produtiva, dashboard ou automação foi alterada.
 - Limpeza futura de entidades residuais V19 deve ocorrer apenas em fase própria.
 
+## [v20.1k-v19-residue-documentation] - 2026-05-20
+
+### Added
+
+- Saneamento documental dos resíduos V19 pós-isolamento em `docs/saneamento_residuos_v20_1k.md`.
+- Classificação dos resíduos restantes em registry, restore_state, recorder, dashboard oculto e documentação.
+
+### Notes
+
+- Nenhum arquivo `.storage` foi editado.
+- Nenhuma entidade foi removida.
+- Nenhum YAML produtivo foi alterado.
+- Nenhum dashboard foi alterado.
+- Entidades V19 residuais foram tratadas como candidatas a limpeza futura, não como dependência ativa.
+- Dashboard oculto `teste-4` foi classificado como não remover automaticamente.
+- A referência documental obsoleta em `packages/status_casa.yaml` foi fechada separadamente no commit `6cbfd18 docs: update archived V19 package reference`.
+
 ## [v20.2-shadow-phaseA] - 2026-05-19
 
 ### Added

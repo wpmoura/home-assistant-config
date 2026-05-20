@@ -9,6 +9,7 @@
 - V20.1D/E = checkpoint documental de dependências e impacto concluído
 - V20.1F/G/H = validação e investigação de V19 concluídas
 - V20.1I/J = isolamento controlado de packages desativados aplicado e validado
+- V20.1K = saneamento documental dos resíduos V19 pós-isolamento concluído
 - V20.2 = parcialmente implementada em shadow mode/paralelo
 - V21+ = planejamento futuro
 
@@ -289,6 +290,26 @@ Recomendação:
 
 - Commits documentais e de isolamento controlado estão liberados.
 - Limpeza de `.storage`, entidades residuais e dashboard oculto `teste-4` deve permanecer fora desta fase.
+
+### V20.1K - V19 Residue Documentation Cleanup
+
+Status: concluída em análise documental.
+
+Objetivo: mapear e classificar resíduos V19 restantes após o isolamento de `packages/_disabled/`, sem remover nada.
+
+Resultado:
+
+- Relatório criado em `docs/saneamento_residuos_v20_1k.md`.
+- Entidades V19 residuais foram classificadas como candidatas a limpeza futura, com estado final `unavailable`.
+- `.storage/core.entity_registry` foi classificado como candidato a limpeza futura, sem edição manual.
+- `.storage/core.restore_state` foi classificado como não remover automaticamente.
+- Dashboard oculto `teste-4` foi classificado como não remover automaticamente.
+- Comentário antigo em `packages/status_casa.yaml` foi identificado como referência documental obsoleta e corrigido na V20.1K.1 pelo commit `6cbfd18 docs: update archived V19 package reference`.
+
+Recomendação:
+
+- V20.2A pode avançar sem bloquear por resíduos V19.
+- Limpeza de registry, restore_state e dashboard oculto deve ser fase própria, reversível e validada pela UI do Home Assistant.
 
 ## V20.2 - Dedicated Engines + UX/Operational Layout
 
