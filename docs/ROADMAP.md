@@ -5,7 +5,7 @@
 - V20.0 = concluída e congelada
 - V20.1A = implementada
 - V20.1B = camada oficial de produção
-- V20.1C = auditoria de legado planejada
+- V20.1C = auditoria de legado iniciada
 - V20.2 = parcialmente implementada em shadow mode/paralelo
 - V21+ = planejamento futuro
 
@@ -141,11 +141,13 @@ Decisão:
 
 ### V20.1C - Legacy Decommission Audit
 
-Status: planejada.
+Status: iniciada em diagnóstico.
 
 Objetivo: auditar o legado antes de qualquer desativação controlada.
 
 Direções:
+- Documento inicial criado em `docs/auditoria_legado_v20_1c.md`.
+- Inventário preliminar de V19/V20.2 e pacotes de suporte em análise.
 
 - mapear dependências diretas e indiretas
 - identificar consumidores do legado

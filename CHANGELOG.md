@@ -2,6 +2,20 @@
 
 Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepachangelog.com/), com versões orientadas por baseline arquitetural da Central Operacional.
 
+## [v20.1c-legacy-audit] - 2026-05-20
+
+### Added
+
+- Início da auditoria de legado V20.1C com diagnóstico formal de dependências.
+- Documento de inventário criado em `docs/auditoria_legado_v20_1c.md`.
+- Identificação preliminar de `packages/_disabled/status_casa_v19.yaml`, `.storage` com registros V19 e motores V20.2 em shadow.
+- Confirmação inicial de que `ui-lovelace.yaml` não consome `_v20_2` no escopo desta busca.
+
+### Notes
+
+- Auditoria de legado iniciada; sem alterações de YAML de produção nesta fase.
+- Próximo passo: detalhar classificação de automações e scripts por risco e dependência.
+
 ## [v20.2-shadow-phaseA] - 2026-05-19
 
 ### Added
