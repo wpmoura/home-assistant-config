@@ -322,7 +322,7 @@ template:
         entity_id: binary_sensor.movimento_alto_banheiro_occupancy
         to: "off"
         for:
-          minutes: "{{ states('input_number.casa_timeout_banho_minutos') | int(3) }}"
+          minutes: 2
 
     sensor:
       - name: Casa Banho Estado V20
@@ -344,7 +344,7 @@ template:
           fonte_real: binary_sensor.movimento_alto_banheiro_occupancy
           estado_real: "{{ states('binary_sensor.movimento_alto_banheiro_occupancy') }}"
           classificacao: evento_semantico_humano
-          timeout_encerramento_minutos: "{{ states('input_number.casa_timeout_banho_minutos') | int(3) }}"
+          timeout_encerramento_minutos: 2
           publicacao_controlada_por: input_boolean.casa_timeline_evento_banho
           observacao: "Sensor do box/chuveiro; nao tratar como movimento generico"
 
@@ -514,6 +514,15 @@ template:
               {% set ns.icones = ns.icones ~ '🧺' %}
               {% if dominante == 'maquina_lavar' or new == 'maquina_lavar_ativa' %}
                 {% set ns.restante = maquina_titulo if maquina_titulo not in invalid + [''] else '🧺 Máquina em execução' %}
+              {% endif %}
+            {% endif %}
+            {% if 'banho' in dominios %}
+              {% set banho_item = atividades | selectattr('dominio', 'eq', 'banho') | list | first | default({}, true) %}
+              {% set banho_titulo = banho_item.titulo_ui | default('Banho em andamento', true) %}
+              {% set ns.partes = ns.partes + ['Banho'] %}
+              {% set ns.icones = ns.icones ~ '🚿' %}
+              {% if dominante == 'banho' or new == 'banho_ativo' %}
+                {% set ns.restante = '🚿 ' ~ banho_titulo %}
               {% endif %}
             {% endif %}
             {% set resumo_ativo = ns.partes | join(' + ') %}
