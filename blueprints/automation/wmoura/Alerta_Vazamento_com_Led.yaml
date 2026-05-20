@@ -1,0 +1,188 @@
+blueprint:
+  name: Alerta de Vazamento com LED, restauração e não perturbe
+  description: >
+    Acende uma luz em vermelho e envia notificação ao detectar vazamento.
+    Após o tempo configurado, pode restaurar o estado anterior da luz
+    ou desligá-la sempre.
+    Permite bloquear a sinalização visual no horário de não perturbe.
+    Quando o local seca, envia outra notificação.
+
+  domain: automation
+
+  input:
+    sensor_vazamento:
+      name: Sensor de Vazamento
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: moisture
+
+    luz_sinalizacao:
+      name: Luz de Alerta
+      selector:
+        entity:
+          domain: light
+
+    notify_service:
+      name: Serviço de notificação
+      default: notify.mobile_app_iphonewm
+      selector:
+        text:
+
+    mensagem_vazamento:
+      name: Mensagem de vazamento
+      default: "💦 Vazamento detectado na lavanderia!"
+      selector:
+        text:
+
+    mensagem_seco:
+      name: Mensagem de área seca
+      default: "😌 O vazamento próximo à máquina de lavar cessou!"
+      selector:
+        text:
+
+    titulo_vazamento:
+      name: Título da notificação de vazamento
+      default: "Alerta de Vazamento"
+      selector:
+        text:
+
+    titulo_seco:
+      name: Título da notificação de área seca
+      default: "Área Secou"
+      selector:
+        text:
+
+    duracao_alerta_min:
+      name: Duração da luz vermelha
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    acao_final_luz:
+      name: Ação final da luz
+      description: Escolha se a luz deve restaurar o estado anterior ou desligar ao final
+      default: desligar
+      selector:
+        select:
+          options:
+            - label: Restaurar estado anterior
+              value: restaurar
+            - label: Sempre desligar
+              value: desligar
+
+    usar_nao_perturbe:
+      name: Usar horário de não perturbe
+      default: true
+      selector:
+        boolean:
+
+    horario_nao_perturbe_inicio:
+      name: Início do não perturbe
+      default: "22:30:00"
+      selector:
+        time: {}
+
+    horario_nao_perturbe_fim:
+      name: Fim do não perturbe
+      default: "06:30:00"
+      selector:
+        time: {}
+
+trigger:
+  - platform: state
+    entity_id: !input sensor_vazamento
+    to: "on"
+    id: vazamento
+
+  - platform: state
+    entity_id: !input sensor_vazamento
+    to: "off"
+    id: seco
+
+variables:
+  v_usar_nao_perturbe: !input usar_nao_perturbe
+  v_np_inicio: !input horario_nao_perturbe_inicio
+  v_np_fim: !input horario_nao_perturbe_fim
+  v_acao_final_luz: !input acao_final_luz
+  v_scene_id_restore: alerta_vazamento_restore
+
+  em_horario_nao_perturbe: >-
+    {% set agora = now().hour * 60 + now().minute %}
+    {% set ini = (strptime(v_np_inicio, "%H:%M:%S").hour * 60) + strptime(v_np_inicio, "%H:%M:%S").minute %}
+    {% set fim = (strptime(v_np_fim, "%H:%M:%S").hour * 60) + strptime(v_np_fim, "%H:%M:%S").minute %}
+    {% if not v_usar_nao_perturbe %}
+      false
+    {% elif ini < fim %}
+      {{ ini <= agora < fim }}
+    {% else %}
+      {{ agora >= ini or agora < fim }}
+    {% endif %}
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: vazamento
+        sequence:
+          - service: !input notify_service
+            data:
+              title: !input titulo_vazamento
+              message: !input mensagem_vazamento
+
+          - if:
+              - condition: template
+                value_template: "{{ not em_horario_nao_perturbe }}"
+            then:
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ v_acao_final_luz == 'restaurar' }}"
+                    sequence:
+                      - continue_on_error: true
+                        service: scene.create
+                        data:
+                          scene_id: "{{ v_scene_id_restore }}"
+                          snapshot_entities:
+                            - !input luz_sinalizacao
+
+              - service: light.turn_on
+                target:
+                  entity_id: !input luz_sinalizacao
+                data:
+                  rgb_color: [255, 0, 0]
+                  brightness_pct: 100
+
+              - delay:
+                  minutes: !input duracao_alerta_min
+
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ v_acao_final_luz == 'restaurar' }}"
+                    sequence:
+                      - continue_on_error: true
+                        service: scene.turn_on
+                        target:
+                          entity_id: scene.alerta_vazamento_restore
+                default:
+                  - service: light.turn_off
+                    target:
+                      entity_id: !input luz_sinalizacao
+
+      - conditions:
+          - condition: trigger
+            id: seco
+        sequence:
+          - service: !input notify_service
+            data:
+              title: !input titulo_seco
+              message: !input mensagem_seco
+
+mode: parallel
+max: 10

@@ -1,0 +1,170 @@
+input_number:
+  casa_peso_internet_critica:
+    name: Casa - Peso Internet Crítica
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:network-off
+    initial: 100
+
+  casa_peso_energia_concessionaria:
+    name: Casa - Peso Energia Concessionária
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:transmission-tower-off
+    initial: 100
+
+  casa_peso_failover_4g:
+    name: Casa - Peso Failover 4G
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:signal-4g
+    initial: 85
+
+  casa_peso_4g_indisponivel:
+    name: Casa - Peso 4G Indisponível
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:router-wireless-off
+    initial: 65
+
+  casa_peso_backup_google:
+    name: Casa - Peso Backup Google
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:cloud-alert
+    initial: 60
+
+  casa_peso_tv:
+    name: Casa - Peso TV
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:television
+    initial: 25
+
+  casa_peso_porta:
+    name: Casa - Peso Porta
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:door-open
+    initial: 35
+
+  casa_peso_chuva:
+    name: Casa - Peso Chuva
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:weather-rainy
+    initial: 20
+
+  casa_peso_vazamento:
+    name: Casa - Peso Vazamento
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:water-alert
+    initial: 45
+
+  casa_peso_push:
+    name: Casa - Peso Push
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    icon: mdi:bell-alert
+    initial: 30
+
+  casa_timeout_evento_temporario:
+    name: Casa - Timeout Evento Temporário
+    min: 30
+    max: 900
+    step: 30
+    mode: slider
+    unit_of_measurement: s
+    icon: mdi:timer-outline
+    initial: 120
+
+  casa_confianca_minima:
+    name: Casa - Confiança Mínima
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:shield-check
+    initial: 50
+
+input_boolean:
+  casa_mostrar_eventos_baixa_relevancia:
+    name: Casa - Mostrar Eventos Baixa Relevância
+    icon: mdi:filter-variant
+    initial: false
+
+  casa_mostrar_tv_na_timeline:
+    name: Casa - Mostrar TV na Timeline
+    icon: mdi:television-classic
+    initial: true
+
+  casa_mostrar_chuva_na_timeline:
+    name: Casa - Mostrar Chuva na Timeline
+    icon: mdi:weather-rainy
+    initial: true
+
+  casa_mostrar_push_na_timeline:
+    name: Casa - Mostrar Push na Timeline
+    icon: mdi:bell
+    initial: true
+
+  casa_event_engine_ativo:
+    name: Casa - Event Engine Ativo
+    icon: mdi:timeline-clock-outline
+    initial: true
+
+input_select:
+  casa_criticidade_vazamento:
+    name: Casa - Criticidade Vazamento
+    icon: mdi:water-alert
+    options:
+      - baixa
+      - média
+      - alta
+      - crítica
+    initial: média
+
+  casa_criticidade_backup_google:
+    name: Casa - Criticidade Backup Google
+    icon: mdi:cloud-alert
+    options:
+      - baixa
+      - média
+      - alta
+      - crítica
+    initial: alta
+
+  casa_criticidade_porta:
+    name: Casa - Criticidade Porta
+    icon: mdi:door-open
+    options:
+      - baixa
+      - média
+      - alta
+      - crítica
+    initial: média
+
+# V19 DESATIVADO - Todos os sensores V19 foram movidos para /config/packages/_disabled/status_casa_v19.yaml
+# Data: 13 de maio de 2026

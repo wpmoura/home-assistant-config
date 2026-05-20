@@ -1,0 +1,140 @@
+input_boolean:
+  carro_em_uso:
+    name: Carro em uso
+    icon: mdi:car
+
+input_datetime:
+  ultima_saida_carro:
+    name: Última saída com carro
+    has_date: true
+    has_time: true
+
+  ultimo_retorno_carro:
+    name: Último retorno com carro
+    has_date: true
+    has_time: true
+
+counter:
+  carro_viagens:
+    name: Viagens do carro
+    icon: mdi:counter
+
+template:
+  - sensor:
+      - name: "Dias sem usar o carro"
+        unique_id: dias_sem_usar_o_carro
+        unit_of_measurement: "dias"
+        state: >
+          {% set dt = states('input_datetime.ultimo_retorno_carro') %}
+          {% if dt in ['unknown', 'unavailable', '', 'none'] %}
+            0
+          {% else %}
+            {{ (now().date() - as_datetime(dt).date()).days }}
+          {% endif %}
+        icon: mdi:calendar-clock
+
+      - name: "Resumo uso do carro"
+        unique_id: resumo_uso_do_carro
+        state: >
+          {% if is_state('input_boolean.carro_em_uso', 'on') %}
+            Em uso
+          {% else %}
+            Parado
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.carro_em_uso', 'on') %}
+            mdi:car-connected
+          {% else %}
+            mdi:car-off
+          {% endif %}
+
+automation:
+  - alias: "Carro - Iniciar uso ao sair de casa"
+    id: carro_iniciar_uso_ao_sair_de_casa
+    trigger:
+      - platform: state
+        entity_id: person.wmoura
+        from: "home"
+        to: "not_home"
+        for:
+          minutes: 1
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.carro_em_uso
+        state: "off"
+
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.carro_em_uso
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.ultima_saida_carro
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - service: counter.increment
+        target:
+          entity_id: counter.carro_viagens
+
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: "Carro"
+          message: "🚗 Uso do carro iniciado"
+
+    mode: single
+
+  - alias: "Carro - Finalizar uso ao voltar para casa"
+    id: carro_finalizar_uso_ao_voltar_para_casa
+    trigger:
+      - platform: state
+        entity_id: person.wmoura
+        to: "home"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.carro_em_uso
+        state: "on"
+
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.carro_em_uso
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.ultimo_retorno_carro
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: "Carro"
+          message: "🏠 Uso do carro finalizado"
+
+    mode: single
+
+  - alias: "Carro - Alerta carro parado"
+    id: carro_alerta_carro_parado
+    trigger:
+      - platform: time
+        at: "09:00:00"
+
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.dias_sem_usar_o_carro
+        above: 5
+
+      - condition: state
+        entity_id: input_boolean.carro_em_uso
+        state: "off"
+
+    action:
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: "Carro parado"
+          message: "⚠️ O carro está sem uso há {{ states('sensor.dias_sem_usar_o_carro') }} dias. Vale verificar bateria e rodar um pouco."
+
+    mode: single

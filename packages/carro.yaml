@@ -1,0 +1,260 @@
+input_number:
+  carro_odometro:
+    name: Odômetro atual
+    icon: mdi:speedometer
+    min: 0
+    max: 500000
+    step: 1
+    unit_of_measurement: km
+    mode: box
+
+  carro_litros_abastecidos:
+    name: Litros abastecidos
+    icon: mdi:gas-station
+    min: 0
+    max: 100
+    step: 0.01
+    unit_of_measurement: L
+    mode: box
+
+  carro_valor_abastecimento:
+    name: Valor do abastecimento
+    icon: mdi:currency-brl
+    min: 0
+    max: 1000
+    step: 0.01
+    unit_of_measurement: BRL
+    mode: box
+
+  carro_odometro_ultimo_abastecimento:
+    name: Odômetro do último abastecimento
+    icon: mdi:counter
+    min: 0
+    max: 500000
+    step: 1
+    unit_of_measurement: km
+    mode: box
+
+  carro_km_ultima_troca_oleo:
+    name: Km da última troca de óleo
+    icon: mdi:oil
+    min: 0
+    max: 500000
+    step: 1
+    unit_of_measurement: km
+    mode: box
+
+  carro_km_meta_troca_oleo:
+    name: Meta troca de óleo
+    icon: mdi:road-variant
+    min: 1000
+    max: 30000
+    step: 500
+    unit_of_measurement: km
+    mode: box
+    initial: 10000
+
+input_datetime:
+  carro_data_ultimo_abastecimento:
+    name: Data do último abastecimento
+    icon: mdi:calendar
+    has_date: true
+    has_time: false
+
+  carro_data_ultima_troca_oleo:
+    name: Data da última troca de óleo
+    icon: mdi:calendar-clock
+    has_date: true
+    has_time: false
+
+input_text:
+  carro_nome_posto:
+    name: Nome do posto
+    icon: mdi:gas-station-outline
+    max: 100
+
+  carro_observacao_abastecimento:
+    name: Observação do abastecimento
+    icon: mdi:text
+    max: 255
+
+template:
+  - sensor:
+      - name: Carro km rodados desde último abastecimento
+        unique_id: carro_km_rodados_desde_ultimo_abastecimento
+        icon: mdi:map-marker-distance
+        unit_of_measurement: km
+        state: >
+          {% set atual = states('input_number.carro_odometro') | float(0) %}
+          {% set anterior = states('input_number.carro_odometro_ultimo_abastecimento') | float(0) %}
+          {% set valor = atual - anterior %}
+          {{ iif(valor >= 0, valor, 0) }}
+
+      - name: Carro consumo médio último abastecimento
+        unique_id: carro_consumo_medio_ultimo_abastecimento
+        icon: mdi:chart-line
+        unit_of_measurement: km/L
+        state: >
+          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') | float(0) %}
+          {% set litros = states('input_number.carro_litros_abastecidos') | float(0) %}
+          {% if litros > 0 and km > 0 %}
+            {{ (km / litros) | round(2) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: Carro preço por litro
+        unique_id: carro_preco_por_litro
+        icon: mdi:fuel
+        unit_of_measurement: BRL/L
+        state: >
+          {% set valor = states('input_number.carro_valor_abastecimento') | float(0) %}
+          {% set litros = states('input_number.carro_litros_abastecidos') | float(0) %}
+          {% if litros > 0 %}
+            {{ (valor / litros) | round(3) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: Carro custo por km
+        unique_id: carro_custo_por_km
+        icon: mdi:cash
+        unit_of_measurement: BRL/km
+        state: >
+          {% set valor = states('input_number.carro_valor_abastecimento') | float(0) %}
+          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') | float(0) %}
+          {% if km > 0 %}
+            {{ (valor / km) | round(3) }}
+          {% else %}
+            0
+          {% endif %}
+
+      - name: Carro km desde última troca de óleo
+        unique_id: carro_km_desde_ultima_troca_oleo
+        icon: mdi:oil-level
+        unit_of_measurement: km
+        state: >
+          {% set atual = states('input_number.carro_odometro') | float(0) %}
+          {% set troca = states('input_number.carro_km_ultima_troca_oleo') | float(0) %}
+          {% set valor = atual - troca %}
+          {{ iif(valor >= 0, valor, 0) }}
+
+      - name: Carro km restantes troca de óleo
+        unique_id: carro_km_restantes_troca_oleo
+        icon: mdi:car-wrench
+        unit_of_measurement: km
+        state: >
+          {% set meta = states('input_number.carro_km_meta_troca_oleo') | float(10000) %}
+          {% set rodado = states('sensor.carro_km_desde_ultima_troca_oleo') | float(0) %}
+          {% set restante = meta - rodado %}
+          {{ restante | round(0) }}
+
+      - name: Carro status troca de óleo
+        unique_id: carro_status_troca_oleo
+        icon: mdi:alert-circle-outline
+        state: >
+          {% set restante = states('sensor.carro_km_restantes_troca_oleo') | float(0) %}
+          {% if restante <= 0 %}
+            Vencida
+          {% elif restante <= 1000 %}
+            Atenção
+          {% else %}
+            Ok
+          {% endif %}
+
+script:
+  carro_registrar_abastecimento:
+    alias: Carro - Registrar abastecimento
+    sequence:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.carro_odometro_ultimo_abastecimento
+        data:
+          value: "{{ states('input_number.carro_odometro') | float(0) }}"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.carro_data_ultimo_abastecimento
+        data:
+          date: "{{ now().strftime('%Y-%m-%d') }}"
+
+      - service: persistent_notification.create
+        data:
+          title: "Carro"
+          message: >
+            Abastecimento registrado com sucesso.
+            Odômetro: {{ states('input_number.carro_odometro') }} km |
+            Litros: {{ states('input_number.carro_litros_abastecidos') }} L |
+            Valor: R$ {{ states('input_number.carro_valor_abastecimento') }}
+
+  carro_registrar_troca_oleo:
+    alias: Carro - Registrar troca de óleo
+    sequence:
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.carro_km_ultima_troca_oleo
+        data:
+          value: "{{ states('input_number.carro_odometro') | float(0) }}"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.carro_data_ultima_troca_oleo
+        data:
+          date: "{{ now().strftime('%Y-%m-%d') }}"
+
+      - service: persistent_notification.create
+        data:
+          title: "Carro"
+          message: >
+            Troca de óleo registrada com sucesso em
+            {{ states('input_number.carro_odometro') }} km.
+
+automation:
+  - id: carro_alerta_troca_oleo_vencida
+    alias: Carro - Alerta troca de óleo vencida
+    trigger:
+      - platform: state
+        entity_id: sensor.carro_status_troca_oleo
+        to: "Vencida"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Manutenção do carro"
+          message: >
+            A troca de óleo está vencida.
+            Rodados: {{ states('sensor.carro_km_desde_ultima_troca_oleo') }} km |
+            Meta: {{ states('input_number.carro_km_meta_troca_oleo') }} km
+
+  - id: carro_alerta_troca_oleo_atencao
+    alias: Carro - Alerta troca de óleo em atenção
+    trigger:
+      - platform: state
+        entity_id: sensor.carro_status_troca_oleo
+        to: "Atenção"
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Manutenção do carro"
+          message: >
+            Falta pouco para a troca de óleo.
+            Restam {{ states('sensor.carro_km_restantes_troca_oleo') }} km.
+
+recorder:
+  include:
+    entities:
+      - input_number.carro_odometro
+      - input_number.carro_litros_abastecidos
+      - input_number.carro_valor_abastecimento
+      - input_number.carro_odometro_ultimo_abastecimento
+      - input_number.carro_km_ultima_troca_oleo
+      - input_number.carro_km_meta_troca_oleo
+      - input_datetime.carro_data_ultimo_abastecimento
+      - input_datetime.carro_data_ultima_troca_oleo
+      - input_text.carro_nome_posto
+      - sensor.carro_km_rodados_desde_ultimo_abastecimento
+      - sensor.carro_consumo_medio_ultimo_abastecimento
+      - sensor.carro_preco_por_litro
+      - sensor.carro_custo_por_km
+      - sensor.carro_km_desde_ultima_troca_oleo
+      - sensor.carro_km_restantes_troca_oleo
+      - sensor.carro_status_troca_oleo

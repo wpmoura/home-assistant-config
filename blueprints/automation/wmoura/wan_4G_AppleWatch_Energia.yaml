@@ -1,0 +1,295 @@
+blueprint:
+  name: Wilson - 4G com contexto de energia + auto-recovery avançado
+  description: >
+    Monitora o link 4G e só envia alerta se a casa ainda tiver energia.
+    Quando o 4G cair, pode reiniciar automaticamente o modem via tomada inteligente,
+    aguardar estabilização, validar retorno do link e repetir a tentativa algumas vezes.
+    Se não resolver, envia alerta crítico.
+  domain: automation
+
+  input:
+    sensor_link_4g:
+      name: Sensor do link 4G
+      description: Troque pela sua entidade real do 4G
+      default: binary_sensor.link_4g
+      selector:
+        entity: {}
+
+    estado_4g_down:
+      name: Estado 4G indisponível
+      description: Ex.off, disconnected, unavailable
+      default: "off"
+      selector:
+        text:
+
+    estado_4g_up:
+      name: Estado 4G ativo
+      description: Ex. on, connected
+      default: "on"
+      selector:
+        text:
+
+    helper_falta_energia:
+      name: Helper de falta de energia
+      description: O mesmo input_boolean usado no BP de energia
+      default: input_boolean.energia_falta
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    notify_service:
+      name: Serviço de notificação
+      description: Ex. notify.mobile_app_iphonewm
+      default: notify.mobile_app_iphonewm
+      selector:
+        text:
+
+    atraso_confirmacao_queda_seg:
+      name: Confirmar queda após
+      description: Evita alertas por oscilação rápida
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 5
+          unit_of_measurement: s
+          mode: box
+
+    tomada_modem:
+      name: Tomada do modem 4G
+      description: Tomada inteligente onde o modem 4G está ligado
+      selector:
+        entity:
+          filter:
+            - domain: switch
+
+    habilitar_recovery:
+      name: Habilitar auto-recovery
+      description: Reinicia o modem quando o 4G cair
+      default: true
+      selector:
+        boolean:
+
+    tempo_desligado_tomada_seg:
+      name: Tempo com a tomada desligada
+      description: Quanto tempo a tomada fica desligada antes de religar
+      default: 10
+      selector:
+        number:
+          min: 5
+          max: 120
+          step: 5
+          unit_of_measurement: s
+          mode: box
+
+    espera_estabilizacao_min:
+      name: Espera após religar o modem
+      description: Tempo para o modem inicializar e o 4G estabilizar
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 15
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    max_tentativas:
+      name: Número máximo de tentativas
+      description: Quantas vezes tentar reiniciar e validar
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 5
+          step: 1
+          mode: box
+
+    notificar_retorno_4g:
+      name: Notificar quando o 4G voltar
+      default: true
+      selector:
+        boolean:
+
+    registrar_logbook:
+      name: Registrar no logbook
+      default: true
+      selector:
+        boolean:
+
+variables:
+  v_sensor_link_4g: !input sensor_link_4g
+  v_estado_4g_down: !input estado_4g_down
+  v_estado_4g_up: !input estado_4g_up
+  v_helper_falta_energia: !input helper_falta_energia
+  v_habilitar_recovery: !input habilitar_recovery
+  v_notificar_retorno_4g: !input notificar_retorno_4g
+  v_registrar_logbook: !input registrar_logbook
+  v_max_tentativas: !input max_tentativas
+
+triggers:
+  - trigger: state
+    entity_id: !input sensor_link_4g
+    to: !input estado_4g_down
+    for:
+      seconds: !input atraso_confirmacao_queda_seg
+
+  - trigger: state
+    entity_id: !input sensor_link_4g
+    to: !input estado_4g_up
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.to_state is not none and trigger.to_state.state == v_estado_4g_down }}
+          - condition: state
+            entity_id: !input helper_falta_energia
+            state: "off"
+        sequence:
+          - action: !input notify_service
+            data:
+              message: "📴 4G offline • reiniciando modem"
+
+          - if:
+              - condition: template
+                value_template: "{{ v_registrar_logbook }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: 4G
+                  message: "4G caiu com energia presente. Iniciando auto-recovery."
+                  entity_id: !input sensor_link_4g
+
+          - if:
+              - condition: template
+                value_template: "{{ v_habilitar_recovery }}"
+            then:
+              - repeat:
+                  count: !input max_tentativas
+                  sequence:
+                    - if:
+                        - condition: state
+                          entity_id: !input sensor_link_4g
+                          state: !input estado_4g_up
+                      then:
+                        - stop: "4G já voltou; encerrando tentativas."
+
+                    - action: switch.turn_off
+                      target:
+                        entity_id: !input tomada_modem
+
+                    - delay:
+                        seconds: !input tempo_desligado_tomada_seg
+
+                    - action: switch.turn_on
+                      target:
+                        entity_id: !input tomada_modem
+
+                    - action: !input notify_service
+                      data:
+                        message: >-
+                          🔄 Tentativa {{ repeat.index }}/{{ v_max_tentativas }} •
+                          aguardando o modem estabilizar
+
+                    - wait_template: >
+                        {{ is_state(v_sensor_link_4g, v_estado_4g_up) }}
+                      timeout:
+                        minutes: !input espera_estabilizacao_min
+                      continue_on_timeout: true
+
+                    - if:
+                        - condition: state
+                          entity_id: !input sensor_link_4g
+                          state: !input estado_4g_up
+                      then:
+                        - if:
+                            - condition: template
+                              value_template: "{{ v_notificar_retorno_4g }}"
+                          then:
+                            - action: !input notify_service
+                              data:
+                                message: >-
+                                  ✅ 4G restabelecido após a tentativa
+                                  {{ repeat.index }}/{{ v_max_tentativas }}
+
+                        - if:
+                            - condition: template
+                              value_template: "{{ v_registrar_logbook }}"
+                          then:
+                            - action: logbook.log
+                              data:
+                                name: 4G
+                                message: >-
+                                  4G restabelecido após a tentativa
+                                  {{ repeat.index }}/{{ v_max_tentativas }}.
+                                entity_id: !input sensor_link_4g
+
+                        - stop: "4G restabelecido com sucesso."
+
+                    - if:
+                        - condition: template
+                          value_template: "{{ repeat.index < v_max_tentativas }}"
+                      then:
+                        - action: !input notify_service
+                          data:
+                            message: >-
+                              ⚠️ 4G ainda offline após a tentativa
+                              {{ repeat.index }}/{{ v_max_tentativas }}
+
+              - if:
+                  - condition: state
+                    entity_id: !input sensor_link_4g
+                    state: !input estado_4g_down
+                then:
+                  - action: !input notify_service
+                    data:
+                      message: >-
+                        🚨 Falha crítica no 4G • não voltou após
+                        {{ v_max_tentativas }} tentativas
+
+                  - if:
+                      - condition: template
+                        value_template: "{{ v_registrar_logbook }}"
+                    then:
+                      - action: logbook.log
+                        data:
+                          name: 4G
+                          message: >-
+                            Falha crítica: 4G não voltou após
+                            {{ v_max_tentativas }} tentativas de recovery.
+                          entity_id: !input sensor_link_4g
+
+            else:
+              - action: !input notify_service
+                data:
+                  message: "📵 4G offline • auto-recovery desativado"
+
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.to_state is not none and trigger.to_state.state == v_estado_4g_up }}
+          - condition: template
+            value_template: "{{ v_notificar_retorno_4g }}"
+          - condition: state
+            entity_id: !input helper_falta_energia
+            state: "off"
+        sequence:
+          - action: !input notify_service
+            data:
+              message: "✅ O link 4G voltou ao normal."
+
+          - if:
+              - condition: template
+                value_template: "{{ v_registrar_logbook }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: 4G
+                  message: "Link 4G restabelecido."
+                  entity_id: !input sensor_link_4g
+
+mode: single

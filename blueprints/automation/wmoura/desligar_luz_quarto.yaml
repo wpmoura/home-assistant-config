@@ -1,0 +1,76 @@
+blueprint:
+  name: Wilson - Apagar Luz do Quarto (Presença / Ausência)
+  description: Desliga a luz quando não há presença após um tempo e dentro de uma faixa horária.
+  domain: automation
+  input:
+    presence_sensor:
+      name: Sensor de presença
+      selector:
+        entity:
+          domain: binary_sensor
+#
+    light_target:
+      name: Luz ou lâmpada
+      selector:
+        entity:
+          domain: light
+    delay_minutes:
+      name: Tempo de ausência (minutos)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutos
+    time_after:
+      name: Início do horário
+      default: "08:00:00"
+      selector:
+        time: {}
+    time_before:
+      name: Fim do horário
+      default: "23:00:00"
+      selector:
+        time: {}
+    days:
+      name: Dias da semana
+      default:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+
+trigger:
+  - platform: state
+    entity_id: !input presence_sensor
+    from: 'on'
+    to: 'off'
+    for:
+      minutes: !input delay_minutes
+
+condition:
+  - condition: time
+    after: !input time_after
+    before: !input time_before
+    weekday: !input days
+
+action:
+  - service: light.turn_off
+    target:
+      entity_id: !input light_target
+
+mode: single

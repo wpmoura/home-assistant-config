@@ -1,0 +1,5 @@
+- platform: command_line
+  name: "Temperatura RPi5"
+  command: "ssh -i /config/ssh/id_rsa -o StrictHostKeyChecking=no wmoura@192.168.60.18 'cat /sys/class/thermal/thermal_zone0/temp'"
+  value_template: "{{ (value | int / 1000) | round(1) }}"
+  unit_of_measurement: "°C"

@@ -1,0 +1,672 @@
+############################################################
+# CENTRAL DE MENSAGENS V4
+# Arquitetura Operacional Consolidada + aliases de dashboard
+############################################################
+
+############################################################
+# HELPERS
+############################################################
+
+input_text:
+
+  central_mensagem_atual:
+    name: Central - Mensagem Atual
+    max: 255
+
+  central_mensagem_detalhe:
+    name: Central - Detalhe
+    max: 255
+
+  central_mensagem_origem:
+    name: Central - Origem
+    max: 100
+
+  central_ultimo_evento:
+    name: Central - Último Evento
+    max: 255
+
+  central_ultima_notificacao:
+    name: Central - Última Notificação
+    max: 255
+
+input_select:
+
+  central_mensagem_prioridade:
+    name: Central - Prioridade
+
+    options:
+      - normal
+      - baixa
+      - media
+      - alta
+      - critica
+
+    initial: normal
+
+  central_modo_notificacao:
+    name: Central - Modo de Notificação
+    icon: mdi:message-alert-outline
+    options:
+      - Normal
+      - Silencioso
+      - Apenas Crítico
+      - Manutenção
+    initial: Normal
+
+  central_criticidade_vazamento:
+    name: Central - Criticidade Vazamento
+    icon: mdi:water-alert-outline
+    options:
+      - Baixa
+      - Média
+      - Alta
+      - Crítica
+    initial: Baixa
+
+input_boolean:
+
+  central_alerta_ativo:
+    name: Central - Alerta Ativo
+
+  central_notificacoes_silenciosas:
+    name: Central - Notificações Silenciosas
+    icon: mdi:bell-off-outline
+
+input_datetime:
+
+  central_ultimo_evento_data:
+    name: Central - Data Último Evento
+    has_date: true
+    has_time: true
+
+############################################################
+# TEMPLATE SENSORS
+############################################################
+
+template:
+
+  ##########################################################
+  # CENTRAL
+  ##########################################################
+
+  - sensor:
+
+      - name: Central Mensagem Prioridade Peso
+        unique_id: central_mensagem_prioridade_peso
+
+        state: >
+          {% set p = states('input_select.central_mensagem_prioridade') %}
+
+          {% if p == 'critica' %}
+            50
+          {% elif p == 'alta' %}
+            40
+          {% elif p == 'media' %}
+            30
+          {% elif p == 'baixa' %}
+            20
+          {% else %}
+            10
+          {% endif %}
+
+      - name: Central Mensagem Resumo
+        unique_id: central_mensagem_resumo
+
+        state: >
+          {% set mensagem = states('input_text.central_mensagem_atual') %}
+          {% set prioridade = states('input_select.central_mensagem_prioridade') %}
+
+          {% if mensagem in ['unknown', 'unavailable', '', none] %}
+            🏠 Casa operando normalmente
+
+          {% elif prioridade == 'critica' %}
+            🚨 {{ mensagem }}
+
+          {% elif prioridade == 'alta' %}
+            ⚠️ {{ mensagem }}
+
+          {% elif prioridade == 'media' %}
+            🟡 {{ mensagem }}
+
+          {% elif prioridade == 'baixa' %}
+            🔵 {{ mensagem }}
+
+          {% else %}
+            🏠 {{ mensagem }}
+
+          {% endif %}
+
+      - name: Central Mensagem Detalhada
+        unique_id: central_mensagem_detalhada
+
+        state: >
+          {% set detalhe = states('input_text.central_mensagem_detalhe') %}
+
+          {% if detalhe in ['unknown', 'unavailable', '', none] %}
+            Nenhum detalhe adicional
+
+          {% else %}
+            {{ detalhe }}
+
+          {% endif %}
+
+  ##########################################################
+  # CONECTIVIDADE
+  ##########################################################
+
+  - binary_sensor:
+
+      - name: Internet WAN Principal OK
+        unique_id: internet_wan_principal_ok
+
+        state: >
+          {% set google = states('sensor.cloud_gateway_ultra_wm_google_wan_latency') | float(0) %}
+          {% set cloudflare = states('sensor.cloud_gateway_ultra_wm_cloudflare_wan_latency') | float(0) %}
+          {% set microsoft = states('sensor.cloud_gateway_ultra_wm_microsoft_wan_latency') | float(0) %}
+
+          {{ google > 0 or cloudflare > 0 or microsoft > 0 }}
+
+      - name: Internet WAN2 4G OK
+        unique_id: internet_wan2_4g_ok
+
+        state: >
+          {% set google = states('sensor.cloud_gateway_ultra_wm_google_wan2_latency') | float(0) %}
+          {% set cloudflare = states('sensor.cloud_gateway_ultra_wm_cloudflare_wan2_latency') | float(0) %}
+          {% set microsoft = states('sensor.cloud_gateway_ultra_wm_microsoft_wan2_latency') | float(0) %}
+
+          {{ google > 0 or cloudflare > 0 or microsoft > 0 }}
+
+      - name: Internet Backup 4G Indisponível
+        unique_id: internet_backup_4g_indisponivel
+        device_class: problem
+
+        state: >
+          {{ is_state('binary_sensor.internet_wan_principal_ok', 'on')
+             and is_state('binary_sensor.internet_wan2_4g_ok', 'off') }}
+
+      - name: Internet em Failover 4G
+        unique_id: internet_em_failover_4g
+        device_class: problem
+
+        state: >
+          {{ is_state('binary_sensor.internet_wan_principal_ok', 'off')
+             and is_state('binary_sensor.internet_wan2_4g_ok', 'on') }}
+
+      - name: Internet Crítica
+        unique_id: internet_critica
+        device_class: problem
+
+        state: >
+          {{ is_state('binary_sensor.internet_wan_principal_ok', 'off')
+             and is_state('binary_sensor.internet_wan2_4g_ok', 'off') }}
+
+  - sensor:
+
+      - name: Internet Estado Operacional
+        unique_id: internet_estado_operacional
+
+        state: >
+          {% set wan = is_state('binary_sensor.internet_wan_principal_ok', 'on') %}
+          {% set wan2 = is_state('binary_sensor.internet_wan2_4g_ok', 'on') %}
+
+          {% if wan and wan2 %}
+            normal
+
+          {% elif wan and not wan2 %}
+            backup_4g_indisponivel
+
+          {% elif not wan and wan2 %}
+            failover_4g
+
+          {% else %}
+            critica
+
+          {% endif %}
+
+      - name: Internet Estado Operacional Resumo
+        unique_id: internet_estado_operacional_resumo
+
+        state: >
+          {% set estado = states('sensor.internet_estado_operacional') %}
+
+          {% if estado == 'normal' %}
+            🌐 Internet normal com redundância ativa
+
+          {% elif estado == 'backup_4g_indisponivel' %}
+            ⚠️ Backup 4G indisponível
+
+          {% elif estado == 'failover_4g' %}
+            🟡 Operando em internet backup 4G
+
+          {% elif estado == 'critica' %}
+            🚨 Conectividade externa indisponível
+
+          {% else %}
+            ❔ Estado operacional desconhecido
+
+          {% endif %}
+
+
+  ##########################################################
+  # SENSORES DE COMPATIBILIDADE / DASHBOARD
+  ##########################################################
+
+  - binary_sensor:
+
+      - name: Internet Operacional
+        unique_id: internet_operacional
+        icon: mdi:web-check
+        device_class: connectivity
+        state: >
+          {{ is_state('binary_sensor.internet_wan_principal_ok', 'on')
+             or is_state('binary_sensor.internet_wan2_4g_ok', 'on') }}
+
+      - name: Backup 4G Operacional
+        unique_id: backup_4g_operacional
+        icon: mdi:cellphone-wireless
+        device_class: connectivity
+        state: >
+          {{ is_state('binary_sensor.internet_wan2_4g_ok', 'on') }}
+
+  - sensor:
+
+      - name: Backup Google Status
+        unique_id: backup_google_status
+        icon: mdi:cloud-upload
+        state: >
+          {% set s = states('sensor.backup_state') %}
+          {% if s in ['unknown', 'unavailable', '', none] %}
+            desconhecido
+          {% elif s in ['error', 'failed', 'failure'] %}
+            erro
+          {% elif s in ['backed_up', 'backing_up', 'idle', 'ok', 'completed'] %}
+            ok
+          {% else %}
+            {{ s }}
+          {% endif %}
+        attributes:
+          origem: sensor.backup_state
+          estado_original: "{{ states('sensor.backup_state') }}"
+
+      - name: Central Alerta Principal
+        unique_id: central_alerta_principal
+        icon: mdi:alert-circle-outline
+        state: >
+          {% if is_state('input_boolean.central_alerta_ativo', 'on') %}
+            {{ states('sensor.central_mensagem_resumo') }}
+          {% else %}
+            🏠 Casa operando normalmente
+          {% endif %}
+        attributes:
+          alerta_ativo: "{{ states('input_boolean.central_alerta_ativo') }}"
+          prioridade: "{{ states('input_select.central_mensagem_prioridade') }}"
+          detalhe: "{{ states('sensor.central_mensagem_detalhada') }}"
+          origem: "{{ states('input_text.central_mensagem_origem') }}"
+
+      - name: Central Atividade Relevante Fonte
+        unique_id: central_atividade_relevante_fonte
+        icon: mdi:home-search
+        state: >
+          {% if states('sensor.casa_atividades_ativas') not in ['unknown', 'unavailable', '', none] %}
+            {{ states('sensor.casa_atividades_ativas') }}
+          {% elif states('sensor.casa_atividade_eletrodomesticos') not in ['unknown', 'unavailable', '', none, 'Inativo'] %}
+            {{ states('sensor.casa_atividade_eletrodomesticos') }}
+          {% else %}
+            Nenhuma atividade relevante no momento
+          {% endif %}
+
+      - name: Central Última Mensagem
+        unique_id: central_ultima_mensagem
+        icon: mdi:message-text-clock-outline
+        state: >
+          {% set msg = states('input_text.central_ultimo_evento') %}
+          {% if msg in ['unknown', 'unavailable', '', none] %}
+            Nenhum evento registrado
+          {% else %}
+            {{ msg }}
+          {% endif %}
+        attributes:
+          data_hora: "{{ states('input_datetime.central_ultimo_evento_data') }}"
+          origem: "{{ states('input_text.central_mensagem_origem') }}"
+          prioridade: "{{ states('input_select.central_mensagem_prioridade') }}"
+
+      - name: Central Categoria Alerta
+        unique_id: central_categoria_alerta
+        icon: mdi:shape-outline
+        state: >
+          {% set origem = states('input_text.central_mensagem_origem') %}
+          {% set internet = states('sensor.internet_estado_operacional') %}
+          {% set backup = states('sensor.backup_google_status') %}
+
+          {% if is_state('input_boolean.central_alerta_ativo', 'on') and origem not in ['unknown', 'unavailable', '', none] %}
+            {{ origem }}
+          {% elif internet in ['critica', 'failover_4g', 'backup_4g_indisponivel'] %}
+            conectividade
+          {% elif backup == 'erro' %}
+            backup
+          {% else %}
+            normal
+          {% endif %}
+
+############################################################
+# SCRIPTS
+############################################################
+
+script:
+
+  ##########################################################
+  # PUBLICAR MENSAGEM
+  ##########################################################
+
+  central_publicar_mensagem:
+
+    alias: Central - Publicar Mensagem
+    mode: queued
+
+    fields:
+
+      prioridade:
+        required: true
+
+      titulo:
+        required: true
+
+      detalhe:
+        required: false
+
+      origem:
+        required: false
+
+    sequence:
+
+      - variables:
+
+          nova_prioridade: >
+            {{ prioridade | default('normal') }}
+
+          novo_titulo: >
+            {{ titulo | default('Evento') }}
+
+          novo_detalhe: >
+            {{ detalhe | default('Sem detalhes adicionais') }}
+
+          nova_origem: >
+            {{ origem | default('sistema') }}
+
+          prioridade_atual: >
+            {{ states('input_select.central_mensagem_prioridade') }}
+
+          peso_novo: >
+            {% if nova_prioridade == 'critica' %}
+              50
+            {% elif nova_prioridade == 'alta' %}
+              40
+            {% elif nova_prioridade == 'media' %}
+              30
+            {% elif nova_prioridade == 'baixa' %}
+              20
+            {% else %}
+              10
+            {% endif %}
+
+          peso_atual: >
+            {% if prioridade_atual == 'critica' %}
+              50
+            {% elif prioridade_atual == 'alta' %}
+              40
+            {% elif prioridade_atual == 'media' %}
+              30
+            {% elif prioridade_atual == 'baixa' %}
+              20
+            {% else %}
+              10
+            {% endif %}
+
+      - condition: template
+        value_template: >
+          {{ peso_novo | int >= peso_atual | int }}
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_atual
+        data:
+          value: "{{ novo_titulo }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_detalhe
+        data:
+          value: "{{ novo_detalhe }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_origem
+        data:
+          value: "{{ nova_origem }}"
+
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.central_mensagem_prioridade
+        data:
+          option: "{{ nova_prioridade }}"
+
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.central_alerta_ativo
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_ultimo_evento
+        data:
+          value: "{{ novo_titulo }}"
+
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.central_ultimo_evento_data
+        data:
+          datetime: >
+            {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+  ##########################################################
+  # LIMPAR MENSAGEM
+  ##########################################################
+
+  central_limpar_mensagem:
+
+    alias: Central - Limpar Mensagem
+
+    sequence:
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_atual
+        data:
+          value: "Casa operando normalmente"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_detalhe
+        data:
+          value: "Nenhum alerta ativo"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.central_mensagem_origem
+        data:
+          value: "central"
+
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.central_mensagem_prioridade
+        data:
+          option: "normal"
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.central_alerta_ativo
+
+############################################################
+# AUTOMAÇÕES
+############################################################
+
+automation:
+
+  ##########################################################
+  # BACKUP COM ERRO
+  ##########################################################
+
+  - id: central_backup_erro
+
+    alias: Central - Backup com erro
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: sensor.backup_state
+        to: "error"
+
+    action:
+
+      - service: script.central_publicar_mensagem
+        data:
+          prioridade: alta
+          titulo: "Backup Google com falha"
+
+          detalhe: >
+            Verifique o sistema de backup externo.
+
+          origem: "backup"
+
+  ##########################################################
+  # BACKUP NORMALIZADO
+  ##########################################################
+
+  - id: central_backup_ok
+
+    alias: Central - Backup normalizado
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: sensor.backup_state
+        from: "error"
+
+    condition:
+      - condition: template
+        value_template: >
+          {{ states('input_text.central_mensagem_origem') == 'backup' }}
+
+    action:
+      - service: script.central_limpar_mensagem
+
+  ##########################################################
+  # BACKUP 4G INDISPONÍVEL
+  ##########################################################
+
+  - id: central_conectividade_backup_4g_indisponivel
+
+    alias: Central - Backup 4G indisponível
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_backup_4g_indisponivel
+        to: "on"
+        for:
+          minutes: 3
+
+    action:
+
+      - service: script.central_publicar_mensagem
+        data:
+          prioridade: media
+
+          titulo: "Backup 4G indisponível"
+
+          detalhe: >
+            A internet principal está funcionando,
+            mas a WAN2/4G não responde.
+
+          origem: "conectividade"
+
+  ##########################################################
+  # FAILOVER 4G
+  ##########################################################
+
+  - id: central_conectividade_failover_4g
+
+    alias: Central - Operando em failover 4G
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_em_failover_4g
+        to: "on"
+        for:
+          minutes: 2
+
+    action:
+
+      - service: script.central_publicar_mensagem
+        data:
+          prioridade: alta
+
+          titulo: "Internet principal indisponível"
+
+          detalhe: >
+            A casa está operando pela internet backup 4G.
+
+          origem: "conectividade"
+
+  ##########################################################
+  # INTERNET CRÍTICA
+  ##########################################################
+
+  - id: central_conectividade_critica
+
+    alias: Central - Conectividade crítica
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_critica
+        to: "on"
+        for:
+          minutes: 2
+
+    action:
+
+      - service: script.central_publicar_mensagem
+        data:
+          prioridade: critica
+
+          titulo: "Conectividade externa indisponível"
+
+          detalhe: >
+            Nem a internet principal nem o backup 4G respondem.
+
+          origem: "conectividade"
+
+  ##########################################################
+  # INTERNET NORMALIZADA
+  ##########################################################
+
+  - id: central_conectividade_normalizada
+
+    alias: Central - Conectividade normalizada
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: sensor.internet_estado_operacional
+        to: "normal"
+        for:
+          minutes: 3
+
+    condition:
+      - condition: template
+        value_template: >
+          {{ states('input_text.central_mensagem_origem') == 'conectividade' }}
+
+    action:
+      - service: script.central_limpar_mensagem

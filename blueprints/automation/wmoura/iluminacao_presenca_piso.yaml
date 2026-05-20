@@ -1,0 +1,129 @@
+blueprint:
+  name: Iluminação com presença e piso - Wilson v2
+  description: Liga luz ao detectar movimento no piso (ou movimento geral) com opção de tempo extra após ausência.
+  domain: automation
+  input:
+    movimento_sensor:
+      name: Sensor de movimento
+      selector:
+        entity:
+          domain: binary_sensor
+    luz:
+      name: Luz
+      selector:
+        entity:
+          domain: light
+    brilho:
+      name: Brilho (%)
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+    temperatura_cor:
+      name: Temperatura de Cor (Kelvin)
+      default: 2240
+      selector:
+        number:
+          min: 1500
+          max: 6500
+          step: 100
+    horario_inicio:
+      name: Início do horário
+      default: '23:30:00'
+      selector:
+        time: {}
+    horario_fim:
+      name: Fim do horário
+      default: '06:10:00'
+      selector:
+        time: {}
+    dias_semana:
+      name: Dias da Semana
+      default:
+        - seg
+        - ter
+        - qua
+        - qui
+        - sex
+        - sab
+        - dom
+      selector:
+        select:
+          multiple: true
+          options:
+            - seg
+            - ter
+            - qua
+            - qui
+            - sex
+            - sab
+            - dom
+    usar_tempo_extra:
+      name: Usar tempo extra após ausência?
+      default: false
+      selector:
+        boolean: {}
+    tempo_extra_ausencia:
+      name: Tempo extra (segundos)
+      default: 420
+      selector:
+        number:
+          min: 60
+          max: 1800
+          step: 60
+
+trigger:
+  - platform: state
+    entity_id: !input movimento_sensor
+    to: 'on'
+  - platform: state
+    entity_id: !input movimento_sensor
+    to: 'off'
+
+condition:
+  - condition: time
+    after: !input horario_inicio
+    before: !input horario_fim
+    weekday: !input dias_semana
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input movimento_sensor
+            state: 'on'
+        sequence:
+          - service: light.turn_on
+            data:
+              brightness_pct: !input brilho
+              color_temp_kelvin: !input temperatura_cor
+            target:
+              entity_id: !input luz
+      - conditions:
+          - condition: state
+            entity_id: !input movimento_sensor
+            state: 'off'
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ not (input.usar_tempo_extra | default(false)) }}"
+                sequence:
+                  - service: light.turn_off
+                    target:
+                      entity_id: !input luz
+              - conditions:
+                  - condition: template
+                    value_template: "{{ input.usar_tempo_extra | default(false) }}"
+                sequence:
+                  - delay:
+                      seconds: !input tempo_extra_ausencia
+                  - condition: state
+                    entity_id: !input movimento_sensor
+                    state: 'off'
+                  - service: light.turn_off
+                    target:
+                      entity_id: !input luz
+mode: restart

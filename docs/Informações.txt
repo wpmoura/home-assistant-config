@@ -1,0 +1,11 @@
+Sensores para teste:
+Chuva - binary_sensor.sensor_chuva_girasol_rain
+ativar testes - input_boolean.casa_teste_motor_v20_ativo
+Validar testes - binary_sensor.casa_teste_motor_v20_passou
+Cenário de teste- input_select.casa_teste_motor_v20_cenario
+Porta da sala - binary_sensor.sensor_porta_sala_contact
+Chuveiro - binary_sensor.movimento_alto_banheiro_occupancy
+
+sensor.casa_relevancia_contextual_v20_2 =
+sensor.casa_evento_relevante_v20_2 =
+sensor.casa_motivo_relevancia_v20_2 =

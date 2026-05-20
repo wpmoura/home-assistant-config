@@ -1,0 +1,2293 @@
+- id: '1658407908972'
+  alias: 'Corredor - Parou Movimento  '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.movimento_corredor_occupancy
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: time
+    after: '23:00:00'
+    before: 06:20:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - data: {}
+    target:
+      entity_id: light.desktop_light
+    action: light.turn_off
+    enabled: false
+  - data: {}
+    target:
+      entity_id:
+      - light.aqara_hub_2311_lightbulb_2311_2
+    action: light.turn_off
+  mode: single
+- id: '1658407983148'
+  alias: 'Corredor - Iniciou Movimento '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.movimento_corredor_occupancy
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '23:00:00'
+    before: 06:20:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    data:
+      brightness_pct: 30
+    target:
+      entity_id: light.aqara_hub_2311_lightbulb_2311_2
+  mode: single
+- id: '1658715883076'
+  alias: 'Banheiro - Iniciou Movimento '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_movimento_banheiro_occupancy_2
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '22:00:00'
+    before: 06:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - data:
+      brightness: 5
+      color_temp: 500
+    target:
+      entity_id: light.desktop_light
+    action: light.turn_on
+  mode: single
+- id: '1658922111032'
+  alias: Home Office - Iniciar o expediente
+  description: ''
+  trigger:
+  - platform: time
+    at: 08:27:00
+  condition:
+  - type: is_motion
+    condition: device
+    device_id: d1641a2a351683ac12423abd21d748a9
+    entity_id: binary_sensor.presence_sensor_master_bedroom_occupancy
+    domain: binary_sensor
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - condition: time
+    after: 08:27:00
+    before: 09:30:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  action:
+  - service: script.turn_on
+    data: {}
+    target:
+      entity_id: script.inicio_do_trabalho
+  - service: script.turn_on
+    data: {}
+    target:
+      entity_id: script.home_office_iniciar_expediente_strip_light
+  - service: script.turn_on
+    data: {}
+    target:
+      entity_id: script.teste
+  mode: single
+- id: '1659754267648'
+  alias: 'Banheiro - Parou Movimento '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_movimento_banheiro_occupancy_2
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: time
+    after: '22:00:00'
+    before: 06:00:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - data: {}
+    target:
+      entity_id: light.desktop_light
+    action: light.turn_off
+  mode: single
+- id: '1660270262154'
+  alias: Home Office - Rotina Ligar Home office Voice
+  description: ''
+  triggers:
+  - entity_id:
+    - input_boolean.office
+    from: 'off'
+    to: 'on'
+    trigger: state
+  conditions: []
+  actions:
+  - data: {}
+    target:
+      entity_id: script.teste
+    action: script.turn_on
+  - data: {}
+    action: light.turn_on
+    target:
+      entity_id: light.smart_lampada_wifi_1
+  - data: {}
+    target:
+      entity_id:
+      - switch.regua_zigbee_br_l1
+    action: switch.turn_on
+  - data: {}
+    target:
+      entity_id: switch.regua_zigbee_br_l5
+    action: switch.turn_on
+  mode: single
+- id: '1660344556646'
+  alias: 'Cozinha - Iniciou Movimento '
+  description: ''
+  triggers:
+  - type: motion
+    device_id: cba3930254edfa46e6684e87266092f8
+    entity_id: binary_sensor.sensor_movimento_cozinha_occupancy
+    domain: binary_sensor
+    trigger: device
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_movimento_cozinha_occupancy_2
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: time
+    after: '22:00:00'
+    before: 06:30:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - data:
+      brightness: 5
+      color_temp: 500
+    target:
+      entity_id: light.desktop_light
+    action: light.turn_on
+  mode: single
+- id: '1660344617666'
+  alias: 'Cozinha - Parou Movimento '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_movimento_cozinha_occupancy_2
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: time
+    after: '23:00:00'
+    before: 06:30:00
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+  actions:
+  - data: {}
+    target:
+      entity_id: light.desktop_light
+    action: light.turn_off
+  mode: single
+- id: '1660365267987'
+  alias: Desliga everything
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - input_boolean.everything
+    from: 'on'
+    to: 'off'
+  condition: []
+  action:
+  - service: script.desliga_tudo
+    data: {}
+  mode: single
+- id: '1661522048133'
+  alias: Home Office  - Sem Conexão com Internet
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_internet
+    from: 'on'
+    to: 'off'
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.rede_modem_zte
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.mikrotik_ether1_port
+    data: {}
+  - data:
+      message: Internet não responde, fluxo de dados por 4G!
+    action: notify.mobile_app_iphone14
+  - action: script.home_office_religar_link_fibra_apos_10min
+    data: {}
+  mode: single
+- id: '1662142325333'
+  alias: Lab - Moeda - Dólar abaixo de ...
+  description: ''
+  triggers:
+  - entity_id: sensor.yahoofinance_usdbrl_x
+    below: 4.9
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 08:30:00
+    before: '18:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  actions:
+  - data:
+      message: Dólar abaixo de ...
+    action: notify.mobile_app_iphone14
+  - data:
+      rgb_color:
+      - 85
+      - 247
+      - 74
+      brightness: 255
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+    action: light.turn_on
+  - data:
+      volume_level: 0.25
+    target:
+      device_id: d1abf12fdd6abf4adc2154af63df3e1f
+    action: media_player.volume_set
+  - data:
+      message: Dolar down
+      target:
+      - media_player.moura_s_echo_dot
+      data:
+        type: announce
+    action: notify.alexa_media
+  - data:
+      transition: 10
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+    action: light.turn_off
+  mode: single
+- id: '1662650425226'
+  alias: 'Lab - Moeda - Euro abaixo de ... '
+  description: ''
+  triggers:
+  - entity_id: sensor.yahoofinance_usdbrl_x
+    below: 5.11
+    trigger: numeric_state
+  conditions:
+  - condition: time
+    after: 08:30:00
+    before: '18:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  actions:
+  - data:
+      message: Euro abaixo de 5,11
+    action: notify.mobile_app_iphone
+  - data:
+      rgb_color:
+      - 85
+      - 247
+      - 74
+      brightness: 255
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+    action: light.turn_on
+  - data:
+      volume_level: 0.25
+    target:
+      device_id: d1abf12fdd6abf4adc2154af63df3e1f
+    action: media_player.volume_set
+  - data:
+      message: Euro down
+      target:
+      - media_player.moura_s_echo_dot
+      data:
+        type: announce
+    action: notify.alexa_media
+  - data:
+      transition: 10
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+    action: light.turn_off
+  mode: single
+- id: muda_tema_automaticamente
+  alias: Lab - Muda o Tema Automaticamente
+  description: ''
+  triggers:
+  - event: start
+    trigger: homeassistant
+  - entity_id: sun.sun
+    to: above_horizon
+    trigger: state
+  - event: sunset
+    offset: +00:30:00
+    trigger: sun
+  actions:
+  - service_template: frontend.set_theme
+    data_template:
+      name: "{% if states.sun.sun.state == \"above_horizon\" %}\n  Google Light Theme\n{%
+        else %}\n  Google Dark Theme\n{% endif %}\n"
+  initial_state: 'true'
+- id: '1681595718463'
+  alias: Home Office - Internet - Retorno da Conexão
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_internet
+    from: 'off'
+    to: 'on'
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      message: Já temos internet !
+    action: notify.mobile_app_iphone14
+  mode: single
+- id: '1691174584945'
+  alias: Lab - Rotina Desligar Home office Voice
+  description: ''
+  triggers:
+  - entity_id:
+    - input_boolean.office
+    from: 'on'
+    to: 'off'
+    trigger: state
+  conditions: []
+  actions:
+  - data: {}
+    target:
+      entity_id:
+      - light.smart_lampada_wifi_1
+    action: light.turn_off
+  - data: {}
+    target:
+      entity_id:
+      - switch.regua_zigbee_br_l3
+      - switch.regua_zigbee_br_l5
+    action: switch.turn_off
+  - data: {}
+    action: script.1691176415030
+  mode: single
+- id: '1693086859692'
+  alias: Homeoffice - Ligar Regua USB
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - input_boolean.usb
+    from: 'off'
+    to: 'on'
+  condition: []
+  action:
+  - service: switch.turn_on
+    data: {}
+    target:
+      entity_id: switch.regua_zigbee_br_l5
+  mode: single
+- id: '1693087140413'
+  alias: Home office - Desliga Regua USB
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - input_boolean.usb
+    to: 'off'
+    from: 'on'
+  condition: []
+  action:
+  - service: switch.turn_off
+    data: {}
+    target:
+      entity_id: switch.regua_zigbee_br_l5
+  mode: single
+- id: '1716093216282'
+  alias: Home office - Queda link Fibra
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_fribaforte
+    from: 'on'
+    to: 'off'
+    trigger: state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:59:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+    enabled: true
+  actions:
+  - data:
+      message: Link Fibra caiu!
+    action: notify.mobile_app_iphone14
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+    enabled: false
+  - data:
+      rgb_color:
+      - 255
+      - 234
+      - 0
+      brightness_pct: 100
+    target:
+      entity_id: light.luz_led_mesa
+    enabled: true
+    action: light.turn_on
+  mode: single
+- id: '1716300793574'
+  alias: Home Office - Retorno Link Fibra
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_fribaforte
+    from: 'off'
+    to: 'on'
+    trigger: state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:59:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+    enabled: true
+  actions:
+  - data:
+      message: Link Fibra tá on!
+    action: notify.mobile_app_iphone14
+  mode: single
+- id: '1718756095997'
+  alias: Home office - Queda link principal - Fibra
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_fribaforte
+    from: 'on'
+    to: 'off'
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.rede_modem_zte
+    state: 'on'
+  actions:
+  - if: []
+    then:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.mikrotik_ether1_port
+      data: {}
+    - data:
+        message: Fluxo de dados por 4G!
+      action: notify.mobile_app_iphone14
+    - action: script.home_office_religar_link_fibra_apos_10min
+      data: {}
+    else:
+    - data:
+        message: 'A casa caiu. Estamos sem Internet GERAL '
+      action: notify.mobile_app_iphone14
+  mode: single
+- id: '1718759520103'
+  alias: LAB  - Caiu link contingência
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_modem_zte
+    from: 'on'
+    to: 'off'
+    trigger: state
+  conditions: []
+  actions:
+  - if:
+    - condition: time
+      after: 06:00:00
+      before: '23:59:00'
+      weekday:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+      - sat
+      - sun
+      enabled: true
+    then:
+    - action: notify.mobile_app_iphonewm
+      data:
+        message: "\U0001F631Link de contingência caiu!"
+    - data:
+        rgb_color:
+        - 255
+        - 247
+        - 0
+        brightness_pct: 100
+      target:
+        entity_id:
+        - light.luz_led_mesa
+      enabled: true
+      action: light.turn_on
+    - if:
+      - condition: state
+        entity_id: binary_sensor.rede_fribaforte
+        state: 'on'
+      then:
+      - action: notify.mobile_app_iphonewm
+        data:
+          message: ' Link contingência caiu !'
+      else:
+      - action: notify.mobile_app_iphonewm
+        data:
+          message: ' Todos os links estão fora !'
+      - data:
+          rgb_color:
+          - 255
+          - 0
+          - 0
+          brightness_pct: 100
+        target:
+          entity_id: light.yeelight_strip6_0x156f44f7
+        enabled: true
+        action: light.turn_on
+      - delay:
+          hours: 0
+          minutes: 2
+          seconds: 0
+          milliseconds: 0
+      - data: {}
+        target:
+          entity_id: light.yeelight_strip6_0x156f44f7
+        action: light.turn_off
+    else: []
+  mode: single
+- id: '1718759853794'
+  alias: Home Office - Retorno Contingência ZTE
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.rede_modem_zte
+    from: 'off'
+    to: 'on'
+    trigger: state
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: '23:59:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+    enabled: true
+  actions:
+  - action: notify.mobile_app_iphonewm
+    data:
+      message: " \U0001F605Link Contingência tá on!u"
+  - data:
+      rgb_color:
+      - 0
+      - 255
+      - 98
+      brightness_pct: 100
+    target:
+      entity_id: light.luz_led_mesa
+    enabled: true
+    action: light.turn_on
+  - delay:
+      hours: 0
+      minutes: 1
+      seconds: 0
+      milliseconds: 0
+  - data: {}
+    target:
+      entity_id:
+      - light.luz_led_mesa
+    action: light.turn_off
+  mode: single
+- id: '1735407830346'
+  alias: Quarto - Está chovendo
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_chuva_girasol_rain
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: '☔️ Chovendo agora! '
+  mode: single
+- id: '1736274955814'
+  alias: Quarto - Parou de chover
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_chuva_girasol_rain
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: " \U0001F302 Sem chuva, agora !"
+  mode: single
+- id: '1737049446498'
+  alias: Home office - Baixar Mesa
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.altura_mesa
+    from: 'on'
+    to: 'off'
+  conditions: []
+  actions:
+  - action: scene.turn_on
+    data: {}
+    target:
+      device_id: 0d0eb80d897d412aa3f058de2ff5414f
+  mode: single
+- id: '1737049554385'
+  alias: Home office - Cena Memória 4
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.altura_mesa
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: scene.turn_on
+    data: {}
+    target:
+      device_id: b1fb087169eabf93eaa47492e479aa69
+  mode: single
+- id: '1737049690501'
+  alias: Home office -  Levantar Mesa
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.altura_mesa
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: scene.turn_on
+    data: {}
+    target:
+      device_id: b1fb087169eabf93eaa47492e479aa69
+  mode: single
+- id: beda4eccd9534a01b347bfcda565cc75
+  alias: Home office - Notificar mudança de conexão ativa
+  description: Envia uma notificação quando a conexão ativa muda entre Fibra e 4G.
+  triggers:
+  - entity_id:
+    - sensor.fibra_status
+    - sensor.rede_4g_status
+    trigger: state
+  conditions:
+  - condition: template
+    value_template: "{% if trigger.entity_id == 'sensor.mikrotik_ether1_tx' %}\n  {{
+      trigger.to_state.state != trigger.from_state.state }}\n{% elif trigger.entity_id
+      == 'sensor.mikrotik_ether2_tx' %}\n  {{ trigger.to_state.state != trigger.from_state.state
+      }}\n{% else %}\n  false\n{% endif %}"
+  actions:
+  - data:
+      message: "{% if is_state('sensor.mikrotik_ether1_tx', 'ativo') %}\n  A conexão
+        ativa agora é a Fibra (ether1).\n{% elif is_state('sensor.mikrotik_ether2_tx',
+        'ativo') %}\n  A conexão ativa agora é o 4G (ether2).\n{% else %}\n  Não há
+        conexão ativa no momento.\n{% endif %}        "
+    action: notify.mobile_app_iphone14
+- id: '1737522009319'
+  alias: Home Office - Notificar mudança de conexão ativa_WM
+  description: Envia uma notificação quando a conexão ativa muda entre Fibra e 4G.
+  triggers:
+  - entity_id:
+    - sensor.fibra_status
+    - sensor.rede_4g_status
+    trigger: state
+  conditions:
+  - condition: template
+    value_template: "{% if trigger.entity_id == 'sensor.mikrotik_ether1_tx' %}\n  {{
+      trigger.to_state.state != trigger.from_state.state }}\n{% elif trigger.entity_id
+      == 'sensor.mikrotik_ether2_tx' %}\n  {{ trigger.to_state.state != trigger.from_state.state
+      }}\n{% else %}\n  false\n{% endif %}"
+  actions:
+  - data:
+      message: "{% if is_state('sensor.mikrotik_ether1_tx', 'ativo') %}\n  A conexão
+        ativa agora é a Fibra (ether1).\n{% elif is_state('sensor.mikrotik_ether2_tx',
+        'ativo') %}\n  A conexão ativa agora é o 4G (ether2).\n{% else %}\n  Não há
+        conexão ativa no momento.\n{% endif %}        "
+    action: notify.mobile_app_iphone14
+  mode: single
+- id: 2354b9af0ff94a2dbfbd472c6991ec4f
+  alias: Home Office - Monitorar falta de energia e desligar após 30 minutos
+  description: Envia alertas periódicos durante falta de energia, informa quando a
+    energia é restabelecida e desliga o sistema após 30 minutos.
+  triggers:
+  - entity_id: sensor.Energia_Concessionaria
+    to: 'off'
+    trigger: state
+  - entity_id: sensor.Energia_Concessionaria
+    to: 'on'
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: sensor.Energia_Concessionaria
+        state: 'on'
+      sequence:
+      - target:
+          entity_id: input_boolean.energia_falta
+        action: input_boolean.turn_off
+        data: {}
+      - data:
+          message: A energia foi restabelecida. O sistema voltou ao funcionamento
+            normal.
+        action: notify.mobile_app_iphone14
+    - conditions:
+      - condition: state
+        entity_id: sensor.Energia_Concessionaria
+        state: 'off'
+      sequence:
+      - target:
+          entity_id: input_boolean.energia_falta
+        action: input_boolean.turn_on
+        data: {}
+      - data:
+          message: Falta de energia detectada. O monitoramento começou.
+        action: notify.mobile_app_iphone14
+      - delay: 00:05:00
+      - repeat:
+          count: 5
+          sequence:
+          - data:
+              message: "{% if repeat.index == 5 %}\n  A energia não foi restabelecida
+                em 30 minutos. O sistema será desligado agora.\n{% else %}\n  Falta
+                de energia detectada. Por favor, verifique o sistema. Tempo decorrido:
+                {{ repeat.index * 5 }} minutos.\n{% endif %}"
+            action: notify.mobile_app_iphone14
+          - delay:
+              minutes: 5
+      - condition: state
+        entity_id: sensor.Energia_Concessionaria
+        state: 'off'
+      - action: hassio.host_shutdown
+        data: {}
+        enabled: false
+  mode: restart
+- id: f28140c6fe9b45448dd8b393d075640d
+  alias: Quarto - Monitorar estado do umidificador
+  description: Verifica se o umidificador está sem água com base na potência e no
+    estado da tomada, incluindo um delay para estabilização.
+  triggers:
+  - entity_id: switch.tomada_mesa_tomada_1
+    to: 'on'
+    trigger: state
+  - entity_id: sensor.tomada_mesa_potencia
+    below: 15
+    trigger: numeric_state
+  conditions:
+  - condition: state
+    entity_id: switch.tomada_mesa_tomada_1
+    state: 'on'
+  - condition: template
+    value_template: '{{ states(''sensor.tomada_mesa_potencia'') | float > 0 }}  #
+      Garante que a potência não seja zero devido ao desligamento da tomada'
+  actions:
+  - delay: 00:00:35
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.tomada_mesa_potencia
+        below: 15
+      sequence:
+      - data:
+          message: O umidificador está sem água. Por favor, reabasteça-o.
+        action: notify.mobile_app_iphone14
+  mode: restart
+- id: '1738422640496'
+  alias: Lab - Notificar quando downloads forem concluídos_WM
+  description: Envia uma notificação quando não houver mais downloads no qBittorrent.
+  triggers:
+  - entity_id: sensor.qbittorrent_download_speed
+    below: 0.1
+    for:
+      minutes: 2
+    trigger: numeric_state
+  - entity_id: sensor.qbittorrent_status
+    to: idle
+    trigger: state
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.qbittorrent_download_speed
+    below: 0.1
+  - condition: state
+    entity_id: sensor.qbittorrent_status
+    state: idle
+  actions:
+  - data:
+      message: Todos os downloads no qBittorrent foram concluídos.
+    action: notify.mobile_app_iphone14
+  mode: single
+- id: ee0c6a269cc44e099bd788bbc0755772
+  alias: Quarto  - Notificação intensidade de Chuva
+  description: ''
+  triggers:
+  - entity_id: sensor.intensidade_da_chuva
+    to: Forte
+    trigger: state
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: '⛈️ Chove forte agora! '
+- id: '1738725529224'
+  alias: Home Office - Desliga Pi-Hole por 5 min
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.desligatemppihole
+    from: 'off'
+    to: 'on'
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.pi_hole
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+  - action: switch.turn_off
+    target:
+      entity_id: switch.pi_hole
+    data: {}
+  - delay:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.pi_hole
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.pi_hole
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.pi_hole
+  - action: input_boolean.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: input_boolean.desligatemppihole
+  mode: single
+- id: '1739194250700'
+  alias: Sala - Porta da sala abriu
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_porta_sala_contact
+    - sensor.porta
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: time
+    after: 08:00:00
+    before: '23:00:00'
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+    - sat
+    - sun
+    enabled: false
+  actions:
+  - action: notify.mobile_app_iphonewm
+    data:
+      message: '  ⚠️ Porta da Sala abriu !'
+  mode: single
+- id: '1741347643810'
+  alias: LAB  - Alarme - Armado Modo Casa
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.home_alarm
+    to: armed_home
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F6E1️Alarme foi ativado no modo casa! "
+  - action: script.1743352611708
+    metadata: {}
+    data:
+      onde_anunciar:
+      - media_player.echo_show_de_wilson_2
+      volume: 0.5
+      mensagem: Alarme ligado modo Casa
+  mode: single
+- id: '1741347761801'
+  alias: LAB - Alarme - Desarmado
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.home_alarm
+    to: disarmed
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F513Alarme foi desarmado !"
+  - action: media_player.media_stop
+    metadata: {}
+    data: {}
+    target:
+      entity_id: media_player.echo_show_de_wilson_2
+  mode: single
+- id: '1741347871317'
+  alias: LAB - Alarme - Armado Modo Ausente
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.home_alarm
+    to: armed_away
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F6E1️Alarme foi ativado no modo Ausente"
+  mode: single
+- id: '1741348286077'
+  alias: LAB - Alarme - Dispara alarme casa
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.sensor_porta_sala_contact
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_home
+  actions:
+  - action: alarm_control_panel.alarm_trigger
+    metadata: {}
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1741353399828'
+  alias: LAB - Alarme - Alarme disparado
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.home_alarm
+    to: triggered
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: Alarme disparado! Verifique sua casa !
+  - action: media_player.play_media
+    metadata: {}
+    data:
+      media_content_id: http://192.168.50.237:8123/local/efeitos sonoros/alarme.mp3
+      media_content_type: custom
+    target:
+      entity_id: media_player.echo_show_de_wilson_2
+  mode: single
+- id: '1741359116337'
+  alias: LAB - Alarme - Alarme disparado
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - alarm_control_panel.home_alarm
+    to: triggered
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F6A8Alarme disparado! Verifique sua casa !"
+  - action: notify.alexa_media
+    metadata: {}
+    data:
+      message: <audio src='http://192.168.50.237:8123/local/efeitos sonoros/alarme.mp3'/>
+      title: Aviso
+      target: media_player.echo_show_de_wilson_2
+      data:
+        type: tts
+    enabled: false
+  mode: single
+- id: '1741641419440'
+  alias: Quarto - Hora de dormir 0:45
+  description: ''
+  triggers:
+  - trigger: time
+    at: 00:45:00
+  conditions:
+  - condition: state
+    entity_id: light.quartogrande
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.quartogrande
+    data:
+      brightness_pct: 40
+  - delay:
+      hours: 0
+      minutes: 5
+      seconds: 0
+      milliseconds: 0
+  - action: light.turn_on
+    target:
+      entity_id: light.quartogrande
+    data:
+      brightness_pct: 20
+  - delay:
+      hours: 0
+      minutes: 5
+      seconds: 0
+      milliseconds: 0
+  - action: light.turn_off
+    target:
+      entity_id: light.quartogrande
+    data: {}
+  mode: single
+- id: '1741641500888'
+  alias: Quarto - Hora de dormir 1:30
+  description: ''
+  triggers:
+  - trigger: time
+    at: 01:30:00
+  conditions: []
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.quartogrande
+    data: {}
+  mode: single
+- id: '1741641550501'
+  alias: Quarto - Hora de dormir 2:30
+  description: ''
+  triggers:
+  - trigger: time
+    at: 02:30:00
+  conditions: []
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.quartogrande
+    data: {}
+  mode: single
+- id: '1741641583330'
+  alias: Quarto - Hora de dormir 3:30
+  description: ''
+  triggers:
+  - trigger: time
+    at: 03:30:00
+  conditions: []
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id: light.quartogrande
+    data: {}
+  mode: single
+- alias: Salvar Último Nível de Água
+  trigger:
+  - platform: state
+    entity_id: sensor.nivel_de_agua_do_umidificador
+  action:
+  - service: input_number.set_value
+    target:
+      entity_id: input_number.nivel_atual_umidificador
+    data:
+      value: '{{ states(''sensor.nivel_de_agua_do_umidificador'') }}'
+  id: e9ad05511b6d44bd81b1feb2ab1bcff1
+- id: '1743452727258'
+  alias: Lab - Liga input_boolean.hd_backup
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l4
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.hd_backup
+  mode: single
+- id: '1743452975044'
+  alias: Lab - Desligar input_boolean.hd_backup
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l4
+    to: 'off'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_off
+    data: {}
+  mode: single
+- id: '1743455128141'
+  alias: Lab - Liga input_boolean.impressora
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l2
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.impressora
+  mode: single
+- id: '1743455530412'
+  alias: Lab - Desliga input_boolean.impressora
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l2
+    to: 'off'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id:
+      - input_boolean.impressora
+    data: {}
+  mode: single
+- id: '1743456375480'
+  alias: Lab - input_boolean.monitor_aoc
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l3
+    to: 'on'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.monitor_aoc
+  mode: single
+- id: '1743457493501'
+  alias: Lab - Desliga input_boolean.monitor_aoc
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - switch.regua_zigbee_br_l3
+    to: 'off'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id:
+      - input_boolean.monitor_aoc
+    data: {}
+  mode: single
+- id: '1743564656600'
+  alias: Quarto - Ligar Ar Condicionado  - Frio e Umidificador
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - climate.ar_cond_quarto_9_000
+    to: cool
+  conditions: []
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.tomada_mesa_tomada_1
+    data: {}
+  mode: single
+- id: '1743565284745'
+  alias: Cozinha - Liga Microondas
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_micro_ondas
+    to: 'on'
+  conditions: []
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.micro_ondas_tomada_1
+    data: {}
+  mode: single
+- id: '1743565365161'
+  alias: LAB - Desliga Agenda Micro Ondas
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_micro_ondas
+    to: 'off'
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.micro_ondas_tomada_1
+    data: {}
+  mode: single
+- id: '1743632046208'
+  alias: 'LAB - Liga Estabilizador via Agenda '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_estabilidador
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: switch.estabilizador_tomada_1
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.estabilizador_tomada_1
+    data: {}
+  mode: single
+- id: '1743632262209'
+  alias: LAB - Desliga Estabilizador via Agenda
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_estabilidador
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: switch.estabilizador_tomada_1
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.estabilizador_tomada_1
+    data: {}
+  mode: single
+- id: '1743632379663'
+  alias: LAB - Liga Agenda Maq. de Lavar
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_maq_de_lavar
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: switch.maq_de_lavar_tomada_1
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.maq_de_lavar_tomada_1
+    data: {}
+  mode: single
+- id: '1743632476295'
+  alias: LAB - Desliga Agenda Maq. de Lavar
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_maq_de_lavar
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: switch.maq_de_lavar_tomada_1
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.maq_de_lavar_tomada_1
+    data: {}
+  mode: single
+- id: '1743632883172'
+  alias: LAB - Liga Agenda Micro Ondas
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_micro_ondas
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: switch.micro_ondas_tomada_1
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.micro_ondas_tomada_1
+    data: {}
+  mode: single
+- id: '1743633234836'
+  alias: LAB - Liga Agenda Monitor DELL
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_monitor_dell
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: switch.regua_zigbee_br_l1
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.regua_zigbee_br_l1
+    data: {}
+  mode: single
+- id: '1743633540845'
+  alias: LAB - Desligar Agenda Monitor DELL
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_monitor_dell
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: switch.regua_zigbee_br_l1
+    state: 'on'
+  - condition: numeric_state
+    entity_id: sensor.estabilizador_potencia
+    above: 70
+  actions:
+  - action: script.1743352611708
+    metadata: {}
+    data:
+      onde_anunciar:
+      - media_player.echo_show_de_wilson_2
+      volume: 0.5
+      mensagem: Wilson, seu monitor Dell será desligado em 10 min.
+  - delay:
+      hours: 0
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+  - if:
+    - condition: state
+      entity_id: input_boolean.naodesliguemonitorhoje
+      state: 'off'
+    then:
+    - action: switch.turn_off
+      target:
+        entity_id:
+        - switch.regua_zigbee_br_l1
+      data: {}
+  mode: single
+- id: '1743716722225'
+  alias: Quarto - Desliga Ar Condicionado e Umidificador
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - climate.ar_cond_quarto_9_000
+    to: 'off'
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.tomada_mesa_tomada_1
+    data: {}
+  mode: single
+- id: '1743885739261'
+  alias: Quarto - Liga luz de segurança - Levantar no meio da noite 23:30 às 6:10
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.movimento_piso_quarto_maior_occupancy
+    to: 'on'
+  conditions:
+  - condition: time
+    before: 06:10:00
+    after: '23:30:00'
+    enabled: true
+  actions:
+  - action: light.turn_on
+    data:
+      color_temp_kelvin: 3864
+      brightness_pct: 24
+    target:
+      entity_id: light.luz_led_mesa
+  mode: single
+- id: '1744029533133'
+  alias: LAB - Liga Automação Luz Segurança
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - schedule.agenda_luz_de_seguranca
+    to: 'on'
+  conditions: []
+  actions:
+  - action: automation.turn_on
+    target:
+      entity_id:
+      - automation.quarto_liga_luz_de_seguranca_lenvantar_no_meio_da_noite
+      - automation.quarto_desliga_luz_seguranca
+    data: {}
+  mode: single
+- id: '1744318069502'
+  alias: Area de Serviço - Maquina de Lavar - avisar Jacira andamento da lavagem de
+    roupas
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.maq_de_lavar_potencia
+    above: 190
+  conditions:
+  - condition: state
+    entity_id: input_boolean.lavando_roupas
+    state: 'off'
+  actions:
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.lavando_roupas
+    data: {}
+  - action: script.1743352611708
+    metadata: {}
+    data:
+      onde_anunciar:
+      - media_player.moura_s_echo_dot_2
+      volume: 1
+      mensagem: Olá Jacira. Começamos a lavar as suas roupas. Quando estiver terminado
+        de lavar te aviso!
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F9FA Iniciou a lavagem de roupas! "
+  - delay:
+      hours: 1
+      minutes: 25
+      seconds: 0
+      milliseconds: 0
+  - action: script.1743352611708
+    metadata: {}
+    data:
+      onde_anunciar:
+      - media_player.moura_s_echo_dot_2
+      volume: 1
+      mensagem: Oi Jacira. Fique esperta, sua lavadoura  está quase acabando de bater
+        roupas
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: '✅ Roupas Lavadas! '
+  - action: input_boolean.turn_off
+    target:
+      entity_id:
+      - input_boolean.lavando_roupas
+    data: {}
+  mode: single
+- id: '1744730420360'
+  alias: Quarto - Ligar Ar Condicionado - Auto e Umidificador
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - climate.ar_cond_quarto_9_000
+    to: auto
+  conditions: []
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.tomada_mesa_tomada_1
+    data: {}
+  mode: single
+- id: '1744739113296'
+  alias: LAB - Notificar Início do Home Assistant - WM
+  description: ''
+  triggers:
+  - event_type: homeassistant_start
+    trigger: event
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "  \U0001F3E0 Home Assistant foi reiniciado!         Última inicialização:
+        {{ states('sensor.uptime') }}.         Tempo desde o boot:          {% set
+        now = now().timestamp() | float %}         {% set boot_time = states('sensor.uptime')
+        | as_timestamp | float %}         {% set uptime_seconds = now - boot_time
+        %}         {{ (uptime_seconds // 86400) | int }} dias,         {{ ((uptime_seconds
+        % 86400) // 3600) | int }} horas,         {{ ((uptime_seconds % 3600) // 60)
+        | int }} minutos e         {{ (uptime_seconds % 60) | int }} segundos."
+  mode: single
+- id: '1744739786255'
+  alias: Notificação de Pesagem - WM
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.mi_smart_scale_eda1_mass
+    trigger: state
+    to:
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: '⚖️ Balança foi ativada! '
+  mode: single
+- id: '1744850244873'
+  alias: LAB - Querida Cheguei
+  description: ''
+  triggers:
+  - trigger: zone
+    entity_id: person.wmoura
+    zone: zone.home
+    event: enter
+  conditions:
+  - condition: state
+    entity_id: schedule.agenda_estabilidador
+    state: 'on'
+  - condition: state
+    entity_id: switch.estabilizador_tomada_1
+    state: 'off'
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: " \U0001F519 Cheguei !"
+  - action: switch.turn_on
+    target:
+      entity_id: switch.estabilizador_tomada_1
+    data: {}
+  mode: single
+- id: '1744850289841'
+  alias: LAB - Querida Fui
+  description: ''
+  triggers:
+  - trigger: zone
+    entity_id: person.wmoura
+    zone: zone.home
+    event: leave
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: "\U0001F51C  Fui ! "
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.tomada_smart_tomada_2
+      - light.quartogrande
+    data: {}
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.regua_zigbee_br_l1
+      - switch.tomada_smart_tomada_1
+      - switch.tomada_smart_tomada_2
+    data: {}
+  - action: fan.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: fan.luz_ventilador_smart
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.estabilizador_tomada_1
+    data: {}
+  mode: single
+- id: '1745528675043'
+  alias: Área de Serviços - Ciclos da Máquina de Lavar
+  description: ''
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.maq_de_lavar_potencia
+    above: 5
+    below: 10
+  conditions:
+  - condition: state
+    entity_id: input_boolean.lavando_roupas
+    state: 'on'
+  actions:
+  - action: counter.increment
+    target:
+      entity_id: counter.ciclos_lava_roupa
+    data: {}
+  - action: notify.mobile_app_iphonewm
+    metadata: {}
+    data:
+      message: Enxendo
+  - if:
+    - condition: numeric_state
+      entity_id: counter.ciclos_lava_roupa
+      above: 0
+      below: 2
+    then:
+    - action: notify.mobile_app_iphonewm
+      metadata: {}
+      data:
+        message: Máquina Enchendo!
+  mode: single
+- id: '1746567222353'
+  alias: Quarto  Gestão luz - 17:30 as 22:30 todos os dias
+  description: ''
+  use_blueprint:
+    path: wmoura/Luz com Movimento (com Grace Period e Horário).yaml
+    input:
+      sensor_movimento: binary_sensor.sensor_movimento_quarto_maior_occupancy
+      luz:
+        entity_id:
+        - light.quartogrande
+      tempo_ausencia: 7
+      hora_inicio: '17:30:00'
+      hora_fim: '22:30:00'
+- id: '1746567333590'
+  alias: Quarto - Gestão Luz Mesa - Horario comercial
+  description: ''
+  use_blueprint:
+    path: wmoura/Luz com Movimento (com Grace Period e Horário).yaml
+    input:
+      sensor_movimento: binary_sensor.sensor_movimento_quarto_maior_occupancy
+      luz:
+        entity_id: light.smart_lampada_wifi_1
+      tempo_ausencia: 5
+      hora_inicio: 08:30:00
+      hora_fim: '19:00:00'
+      dias:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+- id: '1748097344812'
+  alias: LAB - Pi-hole Caiu !!
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.pi_hole_status_2
+    from:
+    to: unknown
+    trigger: state
+  conditions: []
+  actions:
+  - action: notify.mobile_app_iphonewm
+    data:
+      message: "\U0001F62C Pi-Hole Caiu !"
+  - data:
+      rgb_color:
+      - 212
+      - 0
+      - 255
+      brightness_pct: 100
+    target:
+      entity_id: light.yeelight_strip6_0x156f44f7
+    enabled: true
+    action: light.turn_on
+  - delay:
+      hours: 0
+      minutes: 2
+      seconds: 0
+      milliseconds: 0
+  - data: {}
+    target:
+      entity_id: light.yeelight_strip6_0x156f44f7
+    action: light.turn_off
+  mode: single
+- id: '1748207048993'
+  alias: Corredor - Apaga luz corredor pela manhã
+  description: ''
+  use_blueprint:
+    path: wmoura/desligar_lampadas_em_horario_fixo.yaml
+    input:
+      target_lights:
+        entity_id: light.aqara_hub_2311_lightbulb_2311_2
+      scheduled_time: 06:15:00
+- id: ativar_cena_boa_noite
+  alias: Ativar Cena Boa Noite ao Ativar Modo Dormir
+  description: ''
+  trigger:
+  - platform: state
+    entity_id: input_boolean.modo_dormir_ativo
+    to: 'on'
+  condition: []
+  action:
+  - service: scene.turn_on
+    target:
+      entity_id: scene.boa_noite
+  - service: notify.mobile_app_iphonewm
+    data:
+      message: "\U0001F634 Modo Dormir ativado. Cena 'Boa Noite' executada."
+  mode: single
+- id: '1748207221178'
+  alias: Registrar ativação do modo dormir
+  trigger:
+  - platform: state
+    entity_id: input_boolean.modo_dormir_ativo
+    to: 'on'
+  action:
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.ultima_ativacao_modo_dormir
+    data:
+      value: '{{ now().strftime(''%d/%m/%Y %H:%M:%S'') }}'
+- id: '1748207300000'
+  alias: Ativar alarme automaticamente e notificar
+  trigger:
+  - platform: state
+    entity_id: input_boolean.modo_dormir_ativo
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: disarmed
+  action:
+  - service: alarm_control_panel.alarm_arm_home
+    data:
+      entity_id: alarm_control_panel.home_alarm
+      code: '1234'
+  - service: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.alarme_ativado_automaticamente
+- id: '1748207300000'
+  alias: Desativar alarme ao acordar
+  trigger:
+  - platform: state
+    entity_id: input_boolean.wilson_dormindo
+    to: 'off'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_home
+  action:
+  - service: alarm_control_panel.alarm_disarm
+    data:
+      entity_id: alarm_control_panel.home_alarm
+      code: '1234'
+- id: '1775945739999'
+  alias: Note HA uptime
+  description: ''
+  use_blueprint:
+    path: wmoura/Uptime_HA_Hostv2.yaml
+- id: '1776052791290'
+  alias: 'Quarto  - Desligar luz segurança '
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.movimento_piso_quarto_maior_occupancy
+    to:
+    - 'off'
+  conditions:
+  - condition: time
+    before: 06:10:00
+    after: '23:30:00'
+    enabled: true
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.luz_led_mesa
+    data: {}
+  mode: single
+- id: maquina_lavar_inicio_ciclo
+  alias: Máquina de lavar - início do ciclo
+  description: Marca o ciclo como ativo quando a máquina começa a consumir energia.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    above: 6
+    for:
+      seconds: 20
+  condition:
+  - condition: state
+    entity_id: input_boolean.maquina_lavar_ciclo_ativo
+    state: 'off'
+  action:
+  - service: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.maquina_lavar_ciclo_ativo
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.maquina_lavar_estado
+    data:
+      option: Enchendo
+  mode: single
+- id: maquina_lavar_maquina_estados
+  alias: Máquina de lavar - máquina de estados
+  description: Atualiza o estado da lavagem com base na potência e no contexto do
+    ciclo.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    above: 6
+    below: 12
+    for:
+      seconds: 15
+    id: faixa_baixa_enchendo
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    above: 150
+    below: 235
+    for:
+      seconds: 20
+    id: faixa_lavando
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    below: 6
+    for:
+      minutes: 2
+    id: faixa_molho
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    above: 15
+    below: 45
+    for:
+      seconds: 20
+    id: faixa_esvaziando
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    above: 250
+    for:
+      seconds: 15
+    id: faixa_centrifugando
+  condition:
+  - condition: state
+    entity_id: input_boolean.maquina_lavar_ciclo_ativo
+    state: 'on'
+  action:
+  - variables:
+      estado_atual: '{{ states(''input_select.maquina_lavar_estado'') }}'
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: faixa_baixa_enchendo
+      - condition: template
+        value_template: '{{ estado_atual in [''Esvaziando'', ''Centrifugando''] }}
+
+          '
+      - condition: template
+        value_template: '{{ estado_atual != ''Enxaguando'' }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Enxaguando
+    - conditions:
+      - condition: trigger
+        id: faixa_baixa_enchendo
+      - condition: template
+        value_template: '{{ estado_atual not in [''Enchendo'', ''Esvaziando'', ''Centrifugando'']
+          }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Enchendo
+    - conditions:
+      - condition: trigger
+        id: faixa_lavando
+      - condition: template
+        value_template: '{{ estado_atual != ''Lavando'' }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Lavando
+    - conditions:
+      - condition: trigger
+        id: faixa_molho
+      - condition: template
+        value_template: '{{ estado_atual in [''Lavando'', ''Enchendo'', ''Enxaguando'']
+          }}
+
+          '
+      - condition: template
+        value_template: '{{ estado_atual != ''Molho'' }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Molho
+    - conditions:
+      - condition: trigger
+        id: faixa_esvaziando
+      - condition: template
+        value_template: '{{ estado_atual != ''Esvaziando'' }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Esvaziando
+    - conditions:
+      - condition: trigger
+        id: faixa_centrifugando
+      - condition: template
+        value_template: '{{ estado_atual != ''Centrifugando'' }}
+
+          '
+      sequence:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.maquina_lavar_estado
+        data:
+          option: Centrifugando
+  mode: restart
+- id: maquina_lavar_fim_ciclo
+  alias: Máquina de lavar - fim do ciclo
+  description: Marca o ciclo como finalizado quando a potência fica muito baixa por
+    alguns minutos.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.maq_de_lavar_potencia
+    below: 3
+    for:
+      minutes: 4
+  condition:
+  - condition: state
+    entity_id: input_boolean.maquina_lavar_ciclo_ativo
+    state: 'on'
+  - condition: template
+    value_template: "{{ states('input_select.maquina_lavar_estado') in\n   ['Centrifugando',
+      'Esvaziando', 'Enxaguando', 'Lavando', 'Molho', 'Enchendo'] }}\n"
+  action:
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.maquina_lavar_estado
+    data:
+      option: Finalizada
+  - delay:
+      seconds: 10
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.maquina_lavar_ciclo_ativo
+  mode: single
+- id: maquina_lavar_notificacao_fim
+  alias: Máquina de lavar - notificar fim
+  description: Envia notificação quando a lavagem termina.
+  trigger:
+  - platform: state
+    entity_id: input_select.maquina_lavar_estado
+    to: Finalizada
+  action:
+  - service: notify.mobile_app_iphonewm
+    data:
+      title: Máquina de lavar
+      message: "Lavagem concluída \U0001F9FA"
+  mode: single
+- id: maquina_lavar_reset_desligada
+  alias: Máquina de lavar - reset para desligada
+  description: Depois de um tempo em finalizada, volta o estado para desligada.
+  trigger:
+  - platform: state
+    entity_id: input_select.maquina_lavar_estado
+    to: Finalizada
+    for:
+      minutes: 10
+  action:
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.maquina_lavar_estado
+    data:
+      option: Desligada
+  mode: single
+- id: '1776549416058'
+  alias: Monitora Baterias
+  description: ''
+  use_blueprint:
+    path: wmoura/Testa bateria de todos dispositivos.yaml
+    input:
+      day: 7
+      actions:
+      - action: notify.mobile_app_iphonewm
+        metadata: {}
+        data:
+          message: ⚠️ Use 20% ou 25%
+          title: '{{sensors}} '
+- id: '1776724341550'
+  alias: Coloca o tema Claro
+  description: ''
+  triggers:
+  - event: start
+    trigger: homeassistant
+  - entity_id: sun.sun
+    to: above_horizon
+    trigger: state
+  - event: sunset
+    offset: +00:30:00
+    trigger: sun
+  conditions: []
+  actions:
+  - service_template: frontend.set_theme
+    data_template:
+      name: "{% if states.sun.sun.state == \"above_horizon\" %}\n  Google Light Theme\n{%
+        else %}\n  Google Light Theme\n{% endif %}\n"
+  mode: single
+  initial_state: 'true'
+- id: '1776732233501'
+  alias: Gestão de Energia - UPS
+  description: ''
+  use_blueprint:
+    path: wmoura/Gestão de Energia - UPS.yaml
+    input:
+      intervalo_alerta_min: 1
+      notify_service: notify.mobile_app_iphonewm
+- id: '1776732366716'
+  alias: Gestão modem 4G
+  description: ''
+  use_blueprint:
+    path: wmoura/wan_4G_AppleWatch_Energia.yaml
+    input:
+      sensor_link_4g: binary_sensor.rede_modem_zte
+      atraso_confirmacao_queda_seg: 10
+      tomada_modem: switch.0xa4c1381045aeb344
+      tempo_desligado_tomada_seg: 3
+      espera_estabilizacao_min: 1
+      max_tentativas: 1
+- id: '1777074586799'
+  alias: Corredor - Gestão Luz Segurança versus portas
+  description: ''
+  use_blueprint:
+    path: wmoura/luz_seguranca_portas_noite.yaml
+    input:
+      sensores_porta:
+      - binary_sensor.0x00158d0006b0a28b_contact
+      - binary_sensor.sensor_porta_sec_quarto_contact
+      - binary_sensor.sensor_porta_banheiro_contact
+      luz_seguranca: light.aqara_hub_2311_lightbulb_2311_2
+      horario_inicio: '23:00:00'
+- id: '1777164103610'
+  alias: Quarto Maior  - Gestão Luz da Mesa - 17:30 as 22:30 - dias de semana
+  description: ''
+  use_blueprint:
+    path: wmoura/Luz com Movimento (com Grace Period e Horário).yaml
+    input:
+      sensor_movimento: binary_sensor.sensor_movimento_quarto_maior_occupancy
+      luz:
+        entity_id:
+        - light.smart_lampada_wifi_1
+      tempo_ausencia: 7
+      hora_inicio: '17:30:00'
+      hora_fim: '22:30:00'
+      dias:
+      - mon
+      - tue
+      - wed
+      - thu
+      - fri
+- id: '1777341457291'
+  alias: Gestão tomada teste humidificador
+  description: ''
+  use_blueprint:
+    path: wmoura/Pós-retorno de energia.yaml
+    input:
+      sensor_energia: binary_sensor.energia_concessionaria
+      tomadas_criticas:
+      - switch.tomada_mesa_tomada_1
+      modo_acao: alertar
+- id: '1777423497558'
+  alias: Cozinha - Gestão Energia Geladeira
+  description: ''
+  use_blueprint:
+    path: wmoura/monitoramento_energia_v5.yaml
+    input:
+      nome_equipamento: Geladeira
+      sensor_potencia: sensor.geladeira_potencia
+      sensor_corrente: sensor.geladeira_corrente
+      sensor_tensao: sensor.geladeira_voltagem
+      tomada_switch: switch.geladeira_tomada_1
+      limite_potencia_alta: 300
+      tempo_potencia_alta: 15
+- id: '1777424244998'
+  alias: Dispensa - Gestão Energia Cervejeira
+  description: ''
+  use_blueprint:
+    path: wmoura/monitoramento_energia_v5.yaml
+    input:
+      nome_equipamento: Cervejeira
+      sensor_potencia: sensor.cervejeira_power
+      sensor_corrente: sensor.cervejeira_current
+      sensor_tensao: sensor.cervejeira_voltage
+      tomada_switch: switch.cervejeira
+      limite_potencia_alta: 400
+      tempo_potencia_alta: 10
+      limite_corrente_alta: 5.5
+- id: '1777424726293'
+  alias: Cozinha - Gestão energia Geladeira
+  description: ''
+  use_blueprint:
+    path: wmoura/monitoramento_energia_v6.yaml
+    input:
+      nome_equipamento: Geladeira
+      sensor_potencia: sensor.geladeira_potencia
+      sensor_corrente: sensor.geladeira_corrente
+      sensor_tensao: sensor.geladeira_voltagem
+      tomada_switch: switch.geladeira_tomada_1
+- id: '1777425009523'
+  alias: Dispensa - Gestão Energia Cervejeira
+  description: ''
+  use_blueprint:
+    path: wmoura/monitoramento_energia_v6.yaml
+    input:
+      nome_equipamento: Cervejeira
+      sensor_potencia: sensor.cervejeira_power
+      sensor_corrente: sensor.cervejeira_current
+      sensor_tensao: sensor.cervejeira_voltage
+      tomada_switch: switch.cervejeira
+      limite_potencia_alta: 400
+      tempo_potencia_alta: 10
+      limite_corrente_alta: 3
+      tensao_minima: 198
+      tensao_maxima: 242

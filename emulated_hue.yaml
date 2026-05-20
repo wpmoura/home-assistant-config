@@ -1,0 +1,20 @@
+# emulated_hue.yaml
+host_ip: 192.168.50.237
+listen_port: 80
+expose_by_default: false
+entities:
+  switch.regua_zigbee_br_l1: # Monitor Dell
+    hidden: false
+  switch.regua_zigbee_br_l2: # Tomada impressora
+    hidden: false
+  switch.regua_zigbee_br_l3: # Monitor AOC
+    hidden: false
+  switch.regua_zigbee_br_l4: # HD Backup
+    hidden: false
+  switch.regua_zigbee_br_l5: # Tomada USB
+    hidden: false
+  input_boolean.office:
+    hidden: false
+  input_boolean.sistema_rpi:
+    hidden: false
+    name: "Sistema rpi"

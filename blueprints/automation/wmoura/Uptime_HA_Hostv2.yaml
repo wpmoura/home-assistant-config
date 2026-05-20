@@ -1,0 +1,92 @@
+blueprint:
+  name: "Notificações HA - Uptime HA + Host (Intervalo Configurável) v2"
+  description: >
+    Envia notificações com o uptime do Home Assistant e do host,
+    em formato leve para iPhone e Apple Watch, com intervalo configurável.
+  domain: automation
+  input:
+    prefixo_mensagem:
+      name: "Texto inicial da notificação"
+      description: "Exemplo: 🟢 HA Principal"
+      default: "🟢 HA Principal"
+      selector:
+        text: {}
+
+    notify_service:
+      name: "Serviço de notificação"
+      description: "Exemplo: notify.mobile_app_iphonewm"
+      default: notify.mobile_app_iphonewm
+      selector:
+        text: {}
+
+    ha_uptime_entity:
+      name: "Entidade de uptime do Home Assistant"
+      description: "Exemplo: sensor.uptime"
+      default: sensor.uptime
+      selector:
+        entity:
+          domain: sensor
+
+    host_uptime_entity:
+      name: "Entidade de uptime do host/sistema"
+      description: "Exemplo: sensor.last_boot"
+      default: sensor.last_boot
+      selector:
+        entity:
+          domain: sensor
+
+    intervalo_horas:
+      name: "Intervalo em horas"
+      description: "A cada quantas horas deseja receber a notificação"
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 24
+          step: 1
+          mode: slider
+
+trigger:
+  - platform: time_pattern
+    minutes: "0"
+
+variables:
+  prefixo_mensagem: !input prefixo_mensagem
+  ha_uptime_entity: !input ha_uptime_entity
+  host_uptime_entity: !input host_uptime_entity
+  intervalo_horas: !input intervalo_horas
+
+condition:
+  - condition: template
+    value_template: >-
+      {{ (now().hour % (intervalo_horas | int(1))) == 0 }}
+
+action:
+  - service: !input notify_service
+    data:
+      message: >-
+        {% macro format(ts) -%}
+          {%- if ts in ['unknown','unavailable','',none] -%}
+            indisponível
+          {%- else -%}
+            {%- set diff = (as_timestamp(now()) - as_timestamp(ts)) | int -%}
+            {%- set d = (diff // 86400) -%}
+            {%- set h = ((diff % 86400) // 3600) -%}
+            {%- set m = ((diff % 3600) // 60) -%}
+            {%- if d > 0 -%}
+              {{- d }}d {{ h }}h
+            {%- elif h > 0 -%}
+              {{- h }}h {{ m }}m
+            {%- else -%}
+              {{- m }}m
+            {%- endif -%}
+          {%- endif -%}
+        {%- endmacro %}
+
+        {% set ha = states(ha_uptime_entity) -%}
+        {% set host = states(host_uptime_entity) -%}
+
+        {{ prefixo_mensagem }}
+        🏠 {{ format(ha) }} | 🖥 {{ format(host) }}
+
+mode: single

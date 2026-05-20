@@ -1,0 +1,412 @@
+# template_sensorstot_v2_moderno.yaml
+# Arquivo modernizado para uso em configuration.yaml com:
+# template: !include template_sensorstot.yaml
+#
+# Ajustes aplicados:
+# - Removido friendly_name inválido em template moderno.
+# - Corrigido sensor solto custo_energetico_diario.
+# - Corrigidos sensores numéricos que retornavam texto.
+# - Corrigidos filtros float sem default.
+# - Removidos comentários dentro do retorno de state.
+# - Removido binary_sensor Todos Dormindo para evitar duplicidade de unique_id com modo_dormir.
+
+# =========================================================
+# PESOS / BALANÇA
+# =========================================================
+- sensor:
+    - name: "Peso Moura"
+      unique_id: peso_moura
+      unit_of_measurement: "kg"
+      device_class: weight
+      state_class: measurement
+      availability: >
+        {% set peso = states('sensor.mi_smart_scale_eda1_mass') | float(0) %}
+        {{ 87 <= peso <= 100 }}
+      state: >
+        {{ states('sensor.mi_smart_scale_eda1_mass') | float(0) | round(1) }}
+
+    - name: "Peso Camila"
+      unique_id: peso_camila
+      unit_of_measurement: "kg"
+      device_class: weight
+      state_class: measurement
+      availability: >
+        {% set peso = states('sensor.mi_smart_scale_eda1_mass') | float(0) %}
+        {{ 71 <= peso <= 86 }}
+      state: >
+        {{ states('sensor.mi_smart_scale_eda1_mass') | float(0) | round(1) }}
+
+    - name: "Peso Fernanda"
+      unique_id: peso_fernanda
+      unit_of_measurement: "kg"
+      device_class: weight
+      state_class: measurement
+      availability: >
+        {% set peso = states('sensor.mi_smart_scale_eda1_mass') | float(0) %}
+        {{ 59 <= peso <= 70 }}
+      state: >
+        {{ states('sensor.mi_smart_scale_eda1_mass') | float(0) | round(1) }}
+
+    - name: "Peso Jacira"
+      unique_id: peso_jacira
+      unit_of_measurement: "kg"
+      device_class: weight
+      state_class: measurement
+      availability: >
+        {% set peso = states('sensor.mi_smart_scale_eda1_mass') | float(0) %}
+        {{ 50 <= peso <= 57 }}
+      state: >
+        {{ states('sensor.mi_smart_scale_eda1_mass') | float(0) | round(1) }}
+
+# =========================================================
+# ESTADOS OPERACIONAIS / TEXTO
+# =========================================================
+- sensor:
+    - name: "Energia Concessionaria"
+      unique_id: energia_concessionaria
+      icon: mdi:transmission-tower
+      state: >-
+        {% if states('sensor.ups_voltagem') in ['unknown', 'unavailable', 'none', ''] %}
+          off
+        {% else %}
+          on
+        {% endif %}
+
+    - name: "qBittorrent Sem Transferências"
+      unique_id: qbittorrent_sem_transferencias
+      icon: mdi:download
+      state: >
+        {% set download = states('sensor.qbittorrent_download_speed') | float(0) %}
+        {% set upload = states('sensor.qbittorrent_upload_speed') | float(0) %}
+        {% if download == 0 and upload == 0 %}
+          idle
+        {% else %}
+          active
+        {% endif %}
+
+    - name: "Intensidade da Chuva"
+      unique_id: intensidade_da_chuva
+      icon: mdi:weather-pouring
+      state: >
+        {% set chuva_mv = states('sensor.sensor_chuva_girasol_rain_intensity') %}
+        {% if chuva_mv | lower in ['unknown', 'unavailable', 'none', ''] %}
+          Indisponível
+        {% else %}
+          {% set chuva_mv_float = chuva_mv | float(0) %}
+          {% if chuva_mv_float <= 500 %}
+            Fraca
+          {% elif chuva_mv_float <= 2000 %}
+            Moderada
+          {% else %}
+            Forte
+          {% endif %}
+        {% endif %}
+
+# =========================================================
+# UMIDIFICADOR
+# =========================================================
+- sensor:
+    - name: "Consumo de Água do Umidificador"
+      unique_id: consumo_de_agua_do_umidificador
+      unit_of_measurement: "L/min"
+      state_class: measurement
+      icon: mdi:water-percent
+      state: >
+        {% set potencia = states('sensor.tomada_mesa_potencia') | float(0) %}
+        {% if potencia > 20 %}
+          {{ ((4 / 3) / 360) | round(5) }}
+        {% elif 18 <= potencia < 21 %}
+          {{ ((4 / 4) / 360) | round(5) }}
+        {% elif 15 <= potencia < 18 %}
+          {{ ((4 / 5) / 360) | round(5) }}
+        {% elif 10 <= potencia < 15 %}
+          {{ ((4 / 6) / 360) | round(5) }}
+        {% elif 5 <= potencia < 10 %}
+          {{ ((4 / 8) / 360) | round(5) }}
+        {% else %}
+          0
+        {% endif %}
+
+    - name: "Tempo de Operação do Umidificador"
+      unique_id: tempo_de_operacao_do_umidificador
+      unit_of_measurement: "min"
+      state_class: measurement
+      icon: mdi:timer-outline
+      state: >
+        {% set switch_entity = 'switch.tomada_mesa_tomada_1' %}
+        {% if states(switch_entity) not in ['unknown', 'unavailable', 'none', ''] and is_state(switch_entity, 'on') %}
+          {% set total_segundos = as_timestamp(states[switch_entity].last_changed) %}
+          {{ ((as_timestamp(now()) - total_segundos) / 60) | round(1) }}
+        {% else %}
+          0
+        {% endif %}
+
+    - name: "Nível de Água do Umidificador"
+      unique_id: nivel_de_agua_do_umidificador
+      unit_of_measurement: "L"
+      state_class: measurement
+      icon: mdi:cup-water
+      state: >
+        {% set consumo_por_minuto = states('sensor.consumo_de_agua_do_umidificador') | float(0) %}
+        {% set nivel_atual = states('input_number.nivel_atual_umidificador') | float(4) %}
+        {% set tempo_operando = states('sensor.tempo_de_operacao_do_umidificador') | float(0) %}
+        {% if is_state('switch.tomada_mesa_tomada_1', 'on') %}
+          {% set novo_nivel = nivel_atual - (consumo_por_minuto * tempo_operando) %}
+          {{ [novo_nivel, 0] | max | round(2) }}
+        {% else %}
+          {{ nivel_atual | round(2) }}
+        {% endif %}
+
+# =========================================================
+# CONSUMO ESTIMADO - LÂMPADAS / CARGAS
+# =========================================================
+- sensor:
+    - name: "top1_consumo_energia"
+      unique_id: top1_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.top1', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.top1.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.top1_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "top2_consumo_energia"
+      unique_id: top2_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.top2', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.top2.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.top2_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "luz_mesa_consumo_energia"
+      unique_id: luz_mesa_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% if is_state('light.smart_lampada_wifi_1', 'on') %}
+          {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.smart_lampada_wifi_1.last_changed)) / 60) | float(0) %}
+          {{ (9 * minutos / 60000) | round(5) }}
+        {% else %}
+          0
+        {% endif %}
+
+    - name: "luz_banheiro_consumo_energia"
+      unique_id: luz_banheiro_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.luz_banheiro', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.luz_banheiro.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.luz_banheiro_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "luz_quarto_menor_1_consumo_energia"
+      unique_id: luz_quarto_menor_1_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.luz_quarto_menor_1', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.luz_quarto_menor_1.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.luz_quarto_menor_1_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "luz_quarto_menor_2_consumo_energia"
+      unique_id: luz_quarto_menor_2_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.luz_quarto_menor_2', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.luz_quarto_menor_2.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.luz_quarto_menor_2_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "luz_cozinha_1_consumo_energia"
+      unique_id: luz_cozinha_1_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.luz_cozinha_1', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.luz_cozinha_1.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.luz_cozinha_1_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+    - name: "luz_cozinha_2_consumo_energia"
+      unique_id: luz_cozinha_2_consumo_energia
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-on
+      state: >
+        {% set ligado = is_state('light.luz_cozinha_2', 'on') %}
+        {% set minutos = ((as_timestamp(now()) - as_timestamp(states.light.luz_cozinha_2.last_changed)) / 60) if ligado else 0 %}
+        {% set anterior = states('sensor.luz_cozinha_2_consumo_energia') | float(0) %}
+        {{ (9 * (minutos + (anterior * 1000 / 9 * 60)) / 60000) | round(5) }}
+
+# =========================================================
+# CONSUMO SIMULADO
+# =========================================================
+- sensor:
+    - name: "chuveiro_consumo_diario"
+      unique_id: chuveiro_consumo_diario
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:shower-head
+      state: >
+        {% set potencia = states('input_number.potencia_chuveiro') | float(0) %}
+        {% set horas = states('input_number.horas_uso_chuveiro') | float(0) %}
+        {{ (potencia * horas / 1000) | round(2) }}
+
+    - name: "filtro_de_agua_consumo_diario"
+      unique_id: filtro_de_agua_consumo_diario
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:water-pump
+      state: >
+        {% set potencia = 100 %}
+        {% set horas = 24 %}
+        {% set fator_ciclo = 0.0758 %}
+        {{ (potencia * horas * fator_ciclo / 1000) | round(2) }}
+
+    - name: "iluminacao_comum_consumo"
+      unique_id: iluminacao_comum_consumo
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:lightbulb-group
+      state: >
+        {% set potencia_total = 300 %}
+        {% set horas = states('input_number.horas_iluminacao') | float(0) %}
+        {{ (potencia_total * horas / 1000) | round(2) }}
+
+    - name: "consumo_total_simulado"
+      unique_id: consumo_total_simulado
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      icon: mdi:counter
+      state: >
+        {% set sensores = [
+          'sensor.chuveiro_consumo_diario',
+          'sensor.cervejeira_consumo_diario',
+          'sensor.filtro_de_agua_consumo_diario',
+          'sensor.iluminacao_comum_consumo'
+        ] %}
+        {% set total = namespace(value=0) %}
+        {% for entidade in sensores %}
+          {% set total.value = total.value + (states(entidade) | float(0)) %}
+        {% endfor %}
+        {{ total.value | round(2) }}
+
+    - name: "custo_energetico_diario"
+      unique_id: custo_energetico_diario
+      unit_of_measurement: "BRL"
+      icon: mdi:cash
+      state: >
+        {% set consumo = states('sensor.consumo_total_simulado') | float(0) %}
+        {% set tarifa = states('input_number.valor_kwh') | float(0.5) %}
+        {{ (consumo * tarifa) | round(2) }}
+
+# =========================================================
+# MÁQUINA / CONTEXTO DA CASA
+# =========================================================
+- sensor:
+    - name: "Máquina Lavar - Ciclo"
+      unique_id: maquina_lavar_ciclo
+      state: >
+        {{ states('input_select.maquina_lavar_estado') }}
+      icon: >
+        {% set s = states('input_select.maquina_lavar_estado') %}
+        {% if s == 'Desligada' %}
+          mdi:washing-machine-off
+        {% elif s == 'Enchendo' %}
+          mdi:water-sync
+        {% elif s == 'Molho' %}
+          mdi:timer-sand
+        {% elif s in ['Lavando', 'Enxaguando'] %}
+          mdi:washing-machine
+        {% elif s == 'Esvaziando' %}
+          mdi:pump
+        {% elif s == 'Centrifugando' %}
+          mdi:fan
+        {% elif s == 'Finalizada' %}
+          mdi:check-circle
+        {% else %}
+          mdi:washing-machine-alert
+        {% endif %}
+
+    - name: "Dispositivos Indisponíveis"
+      unique_id: dispositivos_indisponiveis
+      unit_of_measurement: "dispositivos"
+      state_class: measurement
+      icon: mdi:alert-circle-outline
+      state: >
+        {{ states | selectattr('state', 'eq', 'unavailable') | list | count }}
+
+    - name: "Casa Atividade Eletrodomésticos"
+      unique_id: casa_atividade_eletrodomesticos
+      icon: mdi:home-lightning-bolt
+      state: >
+        {% set atividades = [] %}
+
+        {% set maquina_ciclo = states('sensor.maquina_lavar_ciclo') %}
+        {% set maquina_status = states('sensor.maquina_lavar_status') %}
+        {% set maquina_power = states('sensor.maquina_lavar_potencia') | float(0) %}
+        {% set estados_inativos = [
+          'unknown', 'unavailable', 'none', '',
+          'idle', 'Idle',
+          'desligada', 'Desligada',
+          'inativo', 'Inativo',
+          'finalizado', 'Finalizado',
+          'finalizada', 'Finalizada',
+          'parada', 'Parada',
+          'off', 'Off'
+        ] %}
+
+        {% if maquina_ciclo not in estados_inativos %}
+          {% set atividades = atividades + ['🧺 Máquina: ' ~ maquina_ciclo] %}
+        {% elif maquina_status not in estados_inativos %}
+          {% set atividades = atividades + ['🧺 Máquina: ' ~ maquina_status] %}
+        {% elif maquina_power > 5 %}
+          {% set atividades = atividades + ['🧺 Máquina em uso'] %}
+        {% endif %}
+
+        {% set tv_estado = states('media_player.lg_webos_tv_oled55g3psa') %}
+        {% set tv_source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+        {% set tv_title = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+
+        {% if tv_estado in ['on', 'playing', 'paused', 'idle'] %}
+          {% if tv_source not in [none, '', 'unknown', 'unavailable'] %}
+            {% set atividades = atividades + ['📺 TV: ' ~ tv_source] %}
+          {% elif tv_title not in [none, '', 'unknown', 'unavailable'] %}
+            {% set atividades = atividades + ['📺 TV: ' ~ tv_title] %}
+          {% else %}
+            {% set atividades = atividades + ['📺 TV ligada'] %}
+          {% endif %}
+        {% endif %}
+
+        {% set micro_power = states('sensor.micro_ondas_potencia') | float(0) %}
+        {% set micro_corrente = states('sensor.micro_ondas_corrente') | float(0) %}
+        {% if micro_power > 100 or micro_corrente > 1 %}
+          {% set atividades = atividades + ['🍲 Microondas em uso'] %}
+        {% endif %}
+
+        {{ atividades | join(' • ') if atividades | length > 0 else 'Inativo' }}

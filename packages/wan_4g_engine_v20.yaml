@@ -1,0 +1,328 @@
+###############################################################################
+# WAN / 4G Engine V20
+# Central Operacional da Casa
+# Objetivo: criar camada determinística para WAN, 4G e failover
+###############################################################################
+
+input_boolean:
+  casa_wan_engine_v20_habilitada:
+    name: Casa WAN Engine V20 Habilitada
+    icon: mdi:wan
+
+  casa_wan_forcar_failover_v20:
+    name: Casa WAN Forçar Failover V20
+    icon: mdi:router-wireless-off
+
+input_number:
+  casa_wan_confianca_minima_v20:
+    name: Casa WAN Confiança Mínima V20
+    min: 0
+    max: 100
+    step: 5
+    mode: slider
+    unit_of_measurement: "%"
+    icon: mdi:shield-check
+    initial: 60
+
+  casa_modem_4g_potencia_minima_v20:
+    name: Casa Modem 4G Potência Mínima V20
+    min: 0
+    max: 30
+    step: 1
+    mode: slider
+    unit_of_measurement: "W"
+    icon: mdi:flash
+    initial: 2
+
+template:
+  - binary_sensor:
+
+      #########################################################################
+      # WAN Principal — Estado Bruto
+      #########################################################################
+
+      - name: Casa WAN Principal Online Raw V20
+        unique_id: casa_wan_principal_online_raw_v20
+        icon: mdi:wan
+        state: >
+          {% set unifi_wan =
+            is_state('binary_sensor.unifi_wan_online', 'on')
+            or is_state('binary_sensor.wan_online', 'on')
+            or is_state('binary_sensor.internet_wan', 'on')
+          %}
+          {% set ping_ok =
+            is_state('binary_sensor.ping_1_1_1_1', 'on')
+            or is_state('binary_sensor.ping_8_8_8_8', 'on')
+            or is_state('binary_sensor.internet_ping', 'on')
+          %}
+          {{ unifi_wan or ping_ok }}
+
+      #########################################################################
+      # WAN Principal — Estado Estável
+      #########################################################################
+
+      - name: Casa WAN Principal Online V20
+        unique_id: casa_wan_principal_online_v20
+        icon: mdi:wan
+        delay_on:
+          seconds: 30
+        delay_off:
+          seconds: 90
+        state: >
+          {{ is_state('input_boolean.casa_wan_engine_v20_habilitada', 'on')
+             and is_state('binary_sensor.casa_wan_principal_online_raw_v20', 'on') }}
+
+      #########################################################################
+      # Link 4G — Estado Bruto
+      #########################################################################
+
+      - name: Casa Link 4G Online Raw V20
+        unique_id: casa_link_4g_online_raw_v20
+        icon: mdi:signal-4g
+        state: >
+          {% set unifi_4g =
+            is_state('binary_sensor.unifi_wan2_online', 'on')
+            or is_state('binary_sensor.link_4g_online', 'on')
+            or is_state('binary_sensor.modem_4g_online', 'on')
+          %}
+          {% set modem_power_ok =
+            states('sensor.modem_4g_power') | float(0)
+            >= states('input_number.casa_modem_4g_potencia_minima_v20') | float(2)
+          %}
+          {% set modem_tomada_on =
+            is_state('switch.modem_4g_tomada', 'on')
+            or is_state('switch.tomada_modem_4g', 'on')
+          %}
+          {{ unifi_4g or (modem_tomada_on and modem_power_ok) }}
+
+      #########################################################################
+      # Link 4G — Estado Estável
+      #########################################################################
+
+      - name: Casa Link 4G Online V20
+        unique_id: casa_link_4g_online_v20
+        icon: mdi:signal-4g
+        delay_on:
+          seconds: 45
+        delay_off:
+          seconds: 90
+        state: >
+          {{ is_state('input_boolean.casa_wan_engine_v20_habilitada', 'on')
+             and is_state('binary_sensor.casa_link_4g_online_raw_v20', 'on') }}
+
+      #########################################################################
+      # Modem 4G Operacional
+      #########################################################################
+
+      - name: Casa Modem 4G Operacional V20
+        unique_id: casa_modem_4g_operacional_v20
+        icon: mdi:router-wireless
+        delay_on:
+          seconds: 30
+        delay_off:
+          seconds: 90
+        state: >
+          {% set tomada_on =
+            is_state('switch.modem_4g_tomada', 'on')
+            or is_state('switch.tomada_modem_4g', 'on')
+          %}
+          {% set power_ok =
+            states('sensor.modem_4g_power') | float(0)
+            >= states('input_number.casa_modem_4g_potencia_minima_v20') | float(2)
+          %}
+          {% set link_ok = is_state('binary_sensor.casa_link_4g_online_v20', 'on') %}
+          {{ tomada_on and power_ok and link_ok }}
+
+      #########################################################################
+      # Failover Ativo
+      #########################################################################
+
+      - name: Casa Failover Ativo V20
+        unique_id: casa_failover_ativo_v20
+        icon: mdi:router-network
+        delay_on:
+          seconds: 30
+        delay_off:
+          seconds: 120
+        state: >
+          {% set wan_off = is_state('binary_sensor.casa_wan_principal_online_v20', 'off') %}
+          {% set link_4g_on = is_state('binary_sensor.casa_link_4g_online_v20', 'on') %}
+          {% set forcar = is_state('input_boolean.casa_wan_forcar_failover_v20', 'on') %}
+          {{ forcar or (wan_off and link_4g_on) }}
+
+      #########################################################################
+      # Internet Degradada
+      #########################################################################
+
+      - name: Casa Internet Degradada V20
+        unique_id: casa_internet_degradada_v20
+        icon: mdi:alert-network
+        delay_on:
+          seconds: 60
+        delay_off:
+          seconds: 120
+        state: >
+          {{ is_state('binary_sensor.casa_failover_ativo_v20', 'on')
+             or (
+               is_state('binary_sensor.casa_wan_principal_online_v20', 'off')
+               and is_state('binary_sensor.casa_link_4g_online_v20', 'off')
+             ) }}
+
+      #########################################################################
+      # Internet Indisponível
+      #########################################################################
+
+      - name: Casa Internet Indisponivel V20
+        unique_id: casa_internet_indisponivel_v20
+        icon: mdi:network-off
+        delay_on:
+          seconds: 90
+        delay_off:
+          seconds: 120
+        state: >
+          {{ is_state('binary_sensor.casa_wan_principal_online_v20', 'off')
+             and is_state('binary_sensor.casa_link_4g_online_v20', 'off') }}
+
+  - sensor:
+
+      #########################################################################
+      # Estado Semântico da Internet
+      #########################################################################
+
+      - name: Casa Internet Estado Semantico V20
+        unique_id: casa_internet_estado_semantico_v20
+        icon: mdi:network
+        state: >
+          {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+            indisponivel
+          {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+            failover_4g
+          {% elif is_state('binary_sensor.casa_wan_principal_online_v20', 'on') %}
+            normal
+          {% else %}
+            instavel
+          {% endif %}
+        attributes:
+          narrativa: >
+            {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+              🚨 Internet indisponível — WAN e 4G fora do ar
+            {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+              ⚠️ Internet em failover — operando via 4G
+            {% elif is_state('binary_sensor.casa_wan_principal_online_v20', 'on') %}
+              ✅ Internet principal operacional
+            {% else %}
+              ⚠️ Internet instável — estado inconclusivo
+            {% endif %}
+          wan_principal_online: "{{ states('binary_sensor.casa_wan_principal_online_v20') }}"
+          link_4g_online: "{{ states('binary_sensor.casa_link_4g_online_v20') }}"
+          modem_4g_operacional: "{{ states('binary_sensor.casa_modem_4g_operacional_v20') }}"
+          failover_ativo: "{{ states('binary_sensor.casa_failover_ativo_v20') }}"
+          internet_degradada: "{{ states('binary_sensor.casa_internet_degradada_v20') }}"
+          internet_indisponivel: "{{ states('binary_sensor.casa_internet_indisponivel_v20') }}"
+
+      #########################################################################
+      # Score Operacional WAN
+      #########################################################################
+
+      - name: Casa WAN Score Operacional V20
+        unique_id: casa_wan_score_operacional_v20
+        icon: mdi:speedometer
+        unit_of_measurement: "%"
+        state: >
+          {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+            0
+          {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+            55
+          {% elif is_state('binary_sensor.casa_wan_principal_online_v20', 'on') %}
+            100
+          {% else %}
+            35
+          {% endif %}
+        attributes:
+          breakdown: >
+            {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+              WAN offline + 4G offline
+            {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+              WAN offline + 4G online
+            {% elif is_state('binary_sensor.casa_wan_principal_online_v20', 'on') %}
+              WAN principal online
+            {% else %}
+              Estado parcial ou instável
+            {% endif %}
+
+      #########################################################################
+      # Confiança WAN
+      #########################################################################
+
+      - name: Casa WAN Confianca V20
+        unique_id: casa_wan_confianca_v20
+        icon: mdi:shield-check
+        unit_of_measurement: "%"
+        state: >
+          {% set wan_known = states('binary_sensor.casa_wan_principal_online_v20') in ['on', 'off'] %}
+          {% set link4g_known = states('binary_sensor.casa_link_4g_online_v20') in ['on', 'off'] %}
+          {% set modem_known = states('binary_sensor.casa_modem_4g_operacional_v20') in ['on', 'off'] %}
+          {% set score =
+            (40 if wan_known else 0)
+            + (35 if link4g_known else 0)
+            + (25 if modem_known else 0)
+          %}
+          {{ score }}
+        attributes:
+          confianca_minima: "{{ states('input_number.casa_wan_confianca_minima_v20') }}"
+          status: >
+            {% set atual = states('sensor.casa_wan_confianca_v20') | float(0) %}
+            {% set minima = states('input_number.casa_wan_confianca_minima_v20') | float(60) %}
+            {{ 'confiavel' if atual >= minima else 'baixa_confianca' }}
+
+      #########################################################################
+      # Evento Dominante WAN
+      #########################################################################
+
+      - name: Casa WAN Evento Dominante V20
+        unique_id: casa_wan_evento_dominante_v20
+        icon: mdi:timeline-alert
+        state: >
+          {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+            internet_indisponivel
+          {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+            failover_4g
+          {% elif is_state('binary_sensor.casa_internet_degradada_v20', 'on') %}
+            internet_degradada
+          {% else %}
+            sem_evento
+          {% endif %}
+        attributes:
+          mensagem: >
+            {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+              🚨 Internet indisponível
+            {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+              ⚠️ Failover 4G ativo
+            {% elif is_state('binary_sensor.casa_internet_degradada_v20', 'on') %}
+              ⚠️ Internet degradada
+            {% else %}
+              ✅ Sem evento WAN relevante
+            {% endif %}
+          peso_operacional: >
+            {% if is_state('binary_sensor.casa_internet_indisponivel_v20', 'on') %}
+              100
+            {% elif is_state('binary_sensor.casa_failover_ativo_v20', 'on') %}
+              85
+            {% elif is_state('binary_sensor.casa_internet_degradada_v20', 'on') %}
+              60
+            {% else %}
+              0
+            {% endif %}
+
+automation:
+
+  - id: casa_wan_engine_v20_auto_habilitar
+    alias: Casa WAN Engine V20 - Auto habilitar
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.casa_wan_engine_v20_habilitada

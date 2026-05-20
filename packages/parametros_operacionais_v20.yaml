@@ -1,8 +1,10 @@
 ###############################################################################
-# Central Operacional V20 - Parametros complementares
+# Central Operacional V20.1 - Parametros complementares
 #
-# Helpers de preparacao para a futura matriz contextual de prioridade.
-# Nao altera score, automacoes ou dashboards.
+# Helpers de preparacao para a matriz contextual de prioridade e para a camada
+# de controle operacional da timeline/feed.
+#
+# Nao altera score, automacoes, dashboards produtivos ou entidades legadas.
 ###############################################################################
 
 input_number:
@@ -45,6 +47,26 @@ input_number:
     icon: mdi:door-clock
     initial: 5
 
+  casa_timeout_banho_minutos:
+    name: Casa - Timeout banho
+    min: 1
+    max: 30
+    step: 1
+    mode: slider
+    unit_of_measurement: min
+    icon: mdi:shower-head
+    initial: 3
+
+  casa_timeline_max_eventos:
+    name: Casa - Maximo de Eventos na Timeline
+    min: 3
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: eventos
+    icon: mdi:format-list-numbered
+    initial: 6
+
 input_boolean:
   casa_eventos_visiveis:
     name: Casa - Eventos Visiveis
@@ -55,3 +77,58 @@ input_boolean:
     name: Casa - Prioridade Contextual Ativa
     icon: mdi:vector-combine
     initial: false
+
+  casa_timeline_evento_tv:
+    name: Casa - Timeline TV
+    icon: mdi:television
+    initial: true
+
+  casa_timeline_evento_chuva:
+    name: Casa - Timeline Chuva
+    icon: mdi:weather-rainy
+    initial: true
+
+  casa_timeline_evento_porta_sala:
+    name: Casa - Timeline Porta Sala
+    icon: mdi:door-open
+    initial: true
+
+  casa_timeline_evento_portas_internas:
+    name: Casa - Timeline Portas Internas
+    icon: mdi:door
+    initial: false
+
+  casa_timeline_evento_janelas:
+    name: Casa - Timeline Janelas
+    icon: mdi:window-open-variant
+    initial: false
+
+  casa_timeline_evento_vazamento:
+    name: Casa - Timeline Vazamento
+    icon: mdi:water-alert
+    initial: false
+
+  casa_timeline_evento_banho:
+    name: Casa - Timeline Banho
+    icon: mdi:shower-head
+    initial: false
+
+  casa_timeline_evento_backup_google:
+    name: Casa - Timeline Backup Google
+    icon: mdi:cloud-alert
+    initial: true
+
+  casa_timeline_evento_energia:
+    name: Casa - Timeline Energia
+    icon: mdi:transmission-tower
+    initial: true
+
+  casa_timeline_evento_internet:
+    name: Casa - Timeline Internet
+    icon: mdi:wan
+    initial: true
+
+  casa_timeline_evento_failover:
+    name: Casa - Timeline Failover 4G
+    icon: mdi:router-wireless
+    initial: true

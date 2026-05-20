@@ -1,0 +1,62 @@
+# configuration.yaml (Arquivo Principal)
+# Configuração padrão do Home Assistant
+default_config:
+#    
+# Descoberta de dispositivos na rede
+ssdp:
+#
+#logger:
+#  default: debug
+#'
+# Sensores baseados em comandos (MANTIDO)
+sensor: !include sensor_commandline.yaml
+#
+# Customização de ícones e entidades
+homeassistant:
+  customize: !include customize.yaml
+  packages: !include_dir_named packages/
+
+# Configuração do Recorder (banco de dados)
+recorder: !include recorder.yaml
+
+# Variáveis booleanas para automações
+input_boolean: !include input_boolean.yaml
+#
+#
+input_text: !include input_text.yaml
+#
+# Variáveis numéricas para automações (ATUALIZADO)
+input_number: !include input_number.yaml
+#
+# Variáveis de entrada de seleção para automações (ATUALIZADO)
+input_select: !include input_select.yaml
+
+# Configuração de Text-to-Speech (TTS)
+tts:
+  - platform: google_translate
+
+# Inclusão de arquivos externos para automações, scripts e cenas
+automation: !include automations.yaml
+#automation: !include_dir_merge_list automations/
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Sensores para controlar o HA via Alexa (LNPBR)
+emulated_hue: !include emulated_hue.yaml
+
+# ========================================================
+# 🧩 SENSORES DE TEMPLATE (ORIGINAIS + NOVOS SIMULADORES)
+# ========================================================
+template: !include template_sensorstot.yaml
+#
+# Configuração do tema da interface
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Integração com Alexa
+alexa: !include alexa.yaml
+
+# Alarme
+alarm_control_panel: !include alarm_control_panel.yaml
+#
+utility_meter: !include utility_meter_ac.yaml

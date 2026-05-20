@@ -1,7 +1,7 @@
 # Central Operacional Home Assistant V20 - Release Baseline
 
 Data de congelamento: 2026-05-13  
-Status: baseline V20 congelada para início da V21
+Status: baseline V20.0 congelada
 
 ## Objetivo da V20
 
@@ -176,7 +176,7 @@ A baseline V20 preserva compatibilidade com o legado:
 
 ## Baseline congelada da V20
 
-A partir deste release, a V20 deve ser tratada como baseline congelada.
+A partir deste release, a V20.0 deve ser tratada como baseline congelada.
 
 Pode ser alterado sem quebrar compatibilidade:
 
@@ -185,6 +185,7 @@ Pode ser alterado sem quebrar compatibilidade:
 - Novos atributos diagnósticos em sensores V20.
 - Novos helpers opcionais que não mudem comportamento existente.
 - Correções de fallback que mantenham os mesmos entity IDs públicos.
+- Melhorias V20.1/V20.2 planejadas, desde que preservem os contratos públicos da V20.0.
 
 Não deve ser alterado diretamente:
 
@@ -261,7 +262,29 @@ Contratos finais sem versão. Protege dashboards e automações futuras de senso
 - Contexto humano e criticidade contextual ainda são iniciais.
 - Testes assistidos validam cenários selecionados, mas não substituem testes de transição real no Home Assistant.
 
-## Roadmap pós-V20
+## Roadmap pós-V20.0
+
+### V20.1 - Legacy Migration Layer + Operational Control Layer
+
+Planejar uma camada de controle operacional ainda pertencente ao ciclo V20:
+
+- Parametrização da quantidade máxima de linhas da timeline.
+- Helper operacional com mínimo `3`, máximo `100` e default `6`.
+- Ajuste do limite via painel administrativo.
+- Controles individuais por `input_boolean` para decidir o que entra na timeline/feed.
+- Exemplos de controles: TV, chuva, porta, backup e energia.
+- Semântica: ligado publica; desligado ignora.
+- Consolidação desses controles no painel administrativo.
+
+### V20.2 - Dedicated Engines + UX/Operational Layout
+
+Planejar a evolução de organização e experiência operacional ainda dentro do ciclo V20:
+
+- Evolução visual/UX da Central Operacional.
+- Layout operacional contextual.
+- Organização por motores especializados.
+- Melhorias de visualização da timeline/feed.
+- Preparação para filtros, contexto e drill-down.
 
 ### V21 - Criticidade contextual dinâmica
 

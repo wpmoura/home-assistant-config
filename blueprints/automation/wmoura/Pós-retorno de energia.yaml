@@ -1,0 +1,183 @@
+blueprint:
+  name: Pós-retorno de energia - Verificar e religar tomadas críticas
+  description: >
+    Após retorno de energia ou reinício do Home Assistant, aguarda estabilização,
+    verifica tomadas críticas desligadas/indisponíveis, alerta e opcionalmente religa.
+  domain: automation
+
+  input:
+    sensor_energia:
+      name: Sensor de energia da concessionária
+      selector:
+        entity: {}
+
+    estado_com_energia:
+      name: Estado que indica energia normal
+      default: "on"
+      selector:
+        text:
+
+    estado_sem_energia:
+      name: Estado que indica falta de energia
+      default: "off"
+      selector:
+        text:
+
+    tomadas_criticas:
+      name: Tomadas críticas
+      description: Exemplo -  geladeira, freezer, rede, NAS. Não inclua TV.
+      selector:
+        entity:
+          domain: switch
+          multiple: true
+
+    tempo_estabilizacao:
+      name: Tempo para aguardar após retorno da energia
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+          unit_of_measurement: min
+
+    modo_acao:
+      name: Ação
+      default: alertar_e_religar
+      selector:
+        select:
+          options:
+            - label: Apenas alertar
+              value: alertar
+            - label: Religar automaticamente
+              value: religar
+            - label: Alertar e religar automaticamente
+              value: alertar_e_religar
+
+    tentativas:
+      name: Tentativas de religar
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 5
+
+    intervalo_tentativas:
+      name: Intervalo entre tentativas
+      default: 30
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+
+    notify_service:
+      name: Serviço de notificação
+      default: notify.mobile_app_iphonewm
+      selector:
+        text:
+
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input sensor_energia
+    from: !input estado_sem_energia
+    to: !input estado_com_energia
+    id: retorno_energia
+
+  - platform: homeassistant
+    event: start
+    id: ha_start
+
+action:
+  - variables:
+      sensor_energia: !input sensor_energia
+      estado_com_energia: !input estado_com_energia
+      tomadas_criticas: !input tomadas_criticas
+      modo_acao: !input modo_acao
+      notify_service: !input notify_service
+      intervalo_tentativas: !input intervalo_tentativas
+
+  - delay:
+      minutes: !input tempo_estabilizacao
+
+  - condition: template
+    value_template: "{{ states(sensor_energia) == estado_com_energia }}"
+
+  - variables:
+      tomadas_desligadas: >
+        {{ expand(tomadas_criticas)
+          | selectattr('state','eq','off')
+          | map(attribute='entity_id')
+          | list }}
+      tomadas_indisponiveis: >
+        {{ expand(tomadas_criticas)
+          | selectattr('state','in',['unavailable','unknown'])
+          | map(attribute='entity_id')
+          | list }}
+      nomes_desligadas: >
+        {{ expand(tomadas_criticas)
+          | selectattr('state','eq','off')
+          | map(attribute='name')
+          | list
+          | join(', ') }}
+      nomes_indisponiveis: >
+        {{ expand(tomadas_criticas)
+          | selectattr('state','in',['unavailable','unknown'])
+          | map(attribute='name')
+          | list
+          | join(', ') }}
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ tomadas_desligadas | count > 0 or tomadas_indisponiveis | count > 0 }}
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ modo_acao in ['alertar','alertar_e_religar'] }}"
+                sequence:
+                  - action: "{{ notify_service }}"
+                    data:
+                      title: "⚠️ Tomadas críticas após retorno de energia"
+                      message: >
+                        Verifique os equipamentos críticos.
+                        Desligadas: {{ nomes_desligadas if nomes_desligadas else 'nenhuma' }}.
+                        Indisponíveis: {{ nomes_indisponiveis if nomes_indisponiveis else 'nenhuma' }}.
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ modo_acao in ['religar','alertar_e_religar'] and tomadas_desligadas | count > 0 }}"
+                sequence:
+                  - repeat:
+                      count: !input tentativas
+                      sequence:
+                        - action: switch.turn_on
+                          data:
+                            entity_id: "{{ tomadas_desligadas }}"
+                        - delay:
+                            seconds: !input intervalo_tentativas
+
+                  - variables:
+                      ainda_desligadas: >
+                        {{ expand(tomadas_criticas)
+                          | selectattr('state','eq','off')
+                          | map(attribute='name')
+                          | list
+                          | join(', ') }}
+
+                  - action: "{{ notify_service }}"
+                    data:
+                      title: "🔌 Religamento automático executado"
+                      message: >
+                        Tentei religar as tomadas críticas.
+                        Ainda desligadas: {{ ainda_desligadas if ainda_desligadas else 'nenhuma' }}.
+
+    default:
+      - action: "{{ notify_service }}"
+        data:
+          title: "✅ Tomadas críticas OK"
+          message: "Energia voltou e todas as tomadas críticas estão ligadas."

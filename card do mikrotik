@@ -1,0 +1,259 @@
+        {
+          "type": "sections",
+          "max_columns": 4,
+          "title": "Mikrotik",
+          "path": "mikrotik2",
+          "icon": "mdi:router",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [],
+              "column_span": 4
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading_style": "title",
+                  "icon": "mdi:router",
+                  "heading": "Mikrotik"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "binary_sensor.mikrotik_ether1_connection",
+                      "name": "ether1 (WAN) - FibraForte",
+                      "secondary_info": "none"
+                    },
+                    {
+                      "entity": "binary_sensor.mikrotik_ether2_connection",
+                      "name": "ether2 - (WAN) Modem 4g (Claro)",
+                      "secondary_info": "none"
+                    },
+                    {
+                      "entity": "binary_sensor.mikrotik_ether3_connection",
+                      "name": "ether3 - Switch5P Tp-link",
+                      "secondary_info": "none"
+                    },
+                    {
+                      "entity": "binary_sensor.mikrotik_ether4_connection",
+                      "name": "ether4 - HA",
+                      "secondary_info": "none"
+                    },
+                    {
+                      "entity": "binary_sensor.mikrotik_ether5_connection",
+                      "name": "ether5 - Hub Dell"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Roteador MikroTik RB750Gr3",
+                  "grid_options": {
+                    "rows": "auto"
+                  }
+                },
+                {
+                  "type": "gauge",
+                  "entity": "sensor.mikrotik_hex_hdd_usage"
+                },
+                {
+                  "type": "gauge",
+                  "entity": "sensor.mikrotik_hex_memory_usage"
+                },
+                {
+                  "graph": "line",
+                  "type": "sensor",
+                  "detail": 2,
+                  "entity": "sensor.mikrotik_hex_temperature",
+                  "grid_options": {
+                    "columns": 12,
+                    "rows": 3
+                  }
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "sensor.fibra_status",
+                      "icon": "mdi:toslink",
+                      "name": "Link Fibra"
+                    },
+                    {
+                      "entity": "sensor.rede_4g_status",
+                      "icon": "mdi:signal-4g",
+                      "secondary_info": "none",
+                      "name": "Link 4G"
+                    }
+                  ],
+                  "state_color": true,
+                  "show_header_toggle": true,
+                  "title": "Status Conexões",
+                  "grid_options": {
+                    "columns": 12,
+                    "rows": "auto"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "sensor.mikrotik_hex_uptime"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_hex_voltage"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_hex_wired_clients"
+                    }
+                  ],
+                  "state_color": true,
+                  "show_header_toggle": true,
+                  "title": "Sistema"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "switch.mikrotik_ether1_port",
+                      "secondary_info": "last-updated"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether1_rx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether1_tx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether1_rx_total"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether1_tx_total"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Link Fibra",
+                  "grid_options": {
+                    "columns": 12,
+                    "rows": "auto"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "switch.mikrotik_ether2_port",
+                      "secondary_info": "last-updated"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether2_rx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether2_tx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether2_rx_total"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether2_tx_total"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Link 4g",
+                  "grid_options": {
+                    "columns": 12,
+                    "rows": "auto"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "switch.mikrotik_ether3_port",
+                      "secondary_info": "last-updated"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether3_rx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether3_tx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether3_rx_total"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether3_tx_total"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Switch 5 portas TP-LINK"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "switch.mikrotik_ether4_port",
+                      "secondary_info": "last-updated"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether4_rx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether4_tx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether4_rx_total"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether4_tx_total"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Home Assistant"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "switch.mikrotik_ether5_port",
+                      "secondary_info": "last-updated"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether5_rx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether5_tx"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether5_rx_total"
+                    },
+                    {
+                      "entity": "sensor.mikrotik_ether5_tx_total"
+                    }
+                  ],
+                  "state_color": true,
+                  "title": "Hub Dell",
+                  "grid_options": {
+                    "columns": 12,
+                    "rows": "auto"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "update.mikrotik_hex_routerboard_firmware_update",
+                      "name": "Firmware update"
+                    },
+                    {
+                      "entity": "update.mikrotik_hex_routeros_update",
+                      "name": "RouterOS update"
+                    }
+                  ]
+                }
+              ],
+              "column_span": 3
+            }
+          ],
+          "cards": []
+        },

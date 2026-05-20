@@ -1,0 +1,266 @@
+blueprint:
+  name: Wilson - Energia / UPS com alertas e desligamento
+  description: >
+    Monitora a energia da concessionária, marca contexto de falta de energia,
+    envia alerta imediato quando a energia cai, depois alertas periódicos,
+    informa o tempo total sem energia quando ela volta e opcionalmente
+    desliga o host após um tempo configurável. Possui compensação de atraso
+    para considerar o tempo que o Home Assistant leva para perceber a queda.
+  domain: automation
+
+  input:
+    sensor_energia:
+      name: Sensor de energia
+      description: Sensor que representa a energia da concessionária
+      default: binary_sensor.energia_concessionaria
+      selector:
+        entity: {}
+
+    estado_sem_energia:
+      name: Estado sem energia
+      description: Valor do sensor quando falta energia
+      default: "off"
+      selector:
+        text:
+
+    estado_com_energia:
+      name: Estado com energia
+      description: Valor do sensor quando a energia voltou
+      default: "on"
+      selector:
+        text:
+
+    helper_falta_energia:
+      name: Helper de falta de energia
+      description: Boolean que fica ON durante a falta de energia
+      default: input_boolean.energia_falta
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+
+    notify_service:
+      name: Serviço de notificação
+      description: Serviço notify do celular
+      default: notify.mobile_app_iphone14
+      selector:
+        text:
+
+    intervalo_alerta_min:
+      name: Intervalo entre alertas
+      description: De quantos em quantos minutos deseja receber alertas após a primeira mensagem imediata
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    tempo_offset_min:
+      name: Tempo de compensação inicial
+      description: Tempo que o HA demora para detectar a falta de energia
+      default: 1.52
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.01
+          unit_of_measurement: min
+          mode: box
+
+    desligar_apos_min:
+      name: Desligar sistema após
+      description: Após quantos minutos sem energia o host deve desligar
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 240
+          step: 1
+          unit_of_measurement: min
+          mode: box
+
+    habilitar_desligamento:
+      name: Habilitar desligamento automático
+      description: Se ligado, o host será desligado quando atingir o tempo configurado
+      default: false
+      selector:
+        boolean:
+
+    registrar_logbook:
+      name: Registrar no logbook
+      description: Registra início, andamento e retorno da energia
+      default: true
+      selector:
+        boolean:
+
+variables:
+  v_sensor_energia: !input sensor_energia
+  v_estado_sem_energia: !input estado_sem_energia
+  v_estado_com_energia: !input estado_com_energia
+  v_helper_falta_energia: !input helper_falta_energia
+  v_intervalo_alerta_min: !input intervalo_alerta_min
+  v_tempo_offset_min: !input tempo_offset_min
+  v_desligar_apos_min: !input desligar_apos_min
+  v_habilitar_desligamento: !input habilitar_desligamento
+  v_registrar_logbook: !input registrar_logbook
+
+triggers:
+  - trigger: state
+    entity_id: !input sensor_energia
+    to: !input estado_sem_energia
+
+  - trigger: state
+    entity_id: !input sensor_energia
+    to: !input estado_com_energia
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state is not none and trigger.to_state.state == v_estado_com_energia }}"
+        sequence:
+          - variables:
+              minutos_sem_energia: >
+                {% if is_state(v_helper_falta_energia, 'on') %}
+                  {{ (
+                    ((as_timestamp(now()) - as_timestamp(states[v_helper_falta_energia].last_changed)) / 60)
+                    + (v_tempo_offset_min | float(0))
+                  ) | round(0, 'floor') }}
+                {% else %}
+                  0
+                {% endif %}
+              alertas_estimados: >
+                {% if is_state(v_helper_falta_energia, 'on') %}
+                  {% set mins = (
+                    ((as_timestamp(now()) - as_timestamp(states[v_helper_falta_energia].last_changed)) / 60)
+                    + (v_tempo_offset_min | float(0))
+                  ) %}
+                  {{ 1 + (mins / (v_intervalo_alerta_min | float(1))) | round(0, 'floor') }}
+                {% else %}
+                  0
+                {% endif %}
+
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input helper_falta_energia
+
+          - action: !input notify_service
+            data:
+              message: >-
+                ⚡ Energia restabelecida após {{ minutos_sem_energia }} min.
+                Alertas enviados neste evento: ~{{ alertas_estimados }}.
+
+          - if:
+              - condition: template
+                value_template: "{{ v_registrar_logbook }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Energia
+                  message: >-
+                    Energia restabelecida após {{ minutos_sem_energia }} min.
+                    Alertas enviados neste evento: ~{{ alertas_estimados }}.
+                  entity_id: !input sensor_energia
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.to_state is not none and trigger.to_state.state == v_estado_sem_energia }}"
+        sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: !input helper_falta_energia
+
+          - action: !input notify_service
+            data:
+              message: >-
+                🔋 Falta de energia detectada. O monitoramento começou.
+                Tempo inicial compensado: {{ v_tempo_offset_min }} min.
+
+          - if:
+              - condition: template
+                value_template: "{{ v_registrar_logbook }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Energia
+                  message: >-
+                    Falta de energia detectada. Monitoramento iniciado com compensação
+                    inicial de {{ v_tempo_offset_min }} min.
+                  entity_id: !input sensor_energia
+
+          - repeat:
+              while:
+                - condition: state
+                  entity_id: !input sensor_energia
+                  state: !input estado_sem_energia
+                - condition: template
+                  value_template: >
+                    {{ (
+                      ((as_timestamp(now()) - as_timestamp(states[v_helper_falta_energia].last_changed)) / 60)
+                      + (v_tempo_offset_min | float(0))
+                    ) < (v_desligar_apos_min | float(0)) }}
+              sequence:
+                - delay:
+                    minutes: !input intervalo_alerta_min
+
+                - if:
+                    - condition: state
+                      entity_id: !input sensor_energia
+                      state: !input estado_sem_energia
+                  then:
+                    - variables:
+                        minutos_sem_energia: >
+                          {{ (
+                            ((as_timestamp(now()) - as_timestamp(states[v_helper_falta_energia].last_changed)) / 60)
+                            + (v_tempo_offset_min | float(0))
+                          ) | round(0, 'floor') }}
+
+                    - action: !input notify_service
+                      data:
+                        message: >-
+                          🔋 Falta de energia. Tempo decorrido: {{ minutos_sem_energia }} min.
+
+                    - if:
+                        - condition: template
+                          value_template: "{{ v_registrar_logbook }}"
+                      then:
+                        - action: logbook.log
+                          data:
+                            name: Energia
+                            message: >-
+                              Falta de energia em andamento. Tempo decorrido:
+                              {{ minutos_sem_energia }} min.
+                            entity_id: !input sensor_energia
+
+          - if:
+              - condition: state
+                entity_id: !input sensor_energia
+                state: !input estado_sem_energia
+              - condition: template
+                value_template: "{{ v_habilitar_desligamento }}"
+            then:
+              - action: !input notify_service
+                data:
+                  message: >-
+                    🛑 A energia não voltou em {{ v_desligar_apos_min }} min.
+                    O sistema será desligado agora.
+
+              - if:
+                  - condition: template
+                    value_template: "{{ v_registrar_logbook }}"
+                then:
+                  - action: logbook.log
+                    data:
+                      name: Energia
+                      message: >-
+                        Tempo limite atingido ({{ v_desligar_apos_min }} min).
+                        Iniciando desligamento do host.
+                      entity_id: !input sensor_energia
+
+              - action: hassio.host_shutdown
+                data: {}
+
+mode: restart

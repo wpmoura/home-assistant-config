@@ -1,0 +1,5 @@
+#costomize.yaml
+#
+sensor.consumo_luz_mesakwh:
+  state_class: total_increasing
+  device_class: energy

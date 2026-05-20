@@ -1,0 +1,96 @@
+input_boolean:
+  ventilador_quarto_maior_ligado:
+    name: Ventilador Quarto Maior Ligado
+    icon: mdi:fan
+
+input_number:
+  ventilador_quarto_maior_velocidade:
+    name: Velocidade Ventilador Quarto Maior
+    min: 1
+    max: 3
+    step: 1
+    icon: mdi:fan-speed-2
+
+script:
+  toggle_ventilador_tuya_quarto_maior:
+    alias: Toggle Ventilador Tuya Quarto Maior
+    mode: single
+    sequence:
+      - service: scene.turn_on
+        target:
+          entity_id: scene.ventilador
+
+  ligar_ventilador_quarto_maior:
+    alias: Ligar Ventilador Quarto Maior
+    mode: single
+    sequence:
+      - condition: state
+        entity_id: input_boolean.ventilador_quarto_maior_ligado
+        state: "off"
+      - service: script.toggle_ventilador_tuya_quarto_maior
+      - delay: "00:00:02"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.ventilador_quarto_maior_ligado
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.ventilador_quarto_maior_velocidade
+        data:
+          value: 2
+
+  desligar_ventilador_quarto_maior:
+    alias: Desligar Ventilador Quarto Maior
+    mode: single
+    sequence:
+      - condition: state
+        entity_id: input_boolean.ventilador_quarto_maior_ligado
+        state: "on"
+      - service: script.toggle_ventilador_tuya_quarto_maior
+      - delay: "00:00:02"
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.ventilador_quarto_maior_ligado
+
+  aumentar_vento_quarto_maior:
+    alias: Aumentar Vento Quarto Maior
+    mode: single
+    sequence:
+      - condition: state
+        entity_id: input_boolean.ventilador_quarto_maior_ligado
+        state: "on"
+      - condition: numeric_state
+        entity_id: input_number.ventilador_quarto_maior_velocidade
+        below: 3
+      - service: scene.turn_on
+        target:
+          entity_id: scene.aumentar_vento
+      - delay: "00:00:01"
+      - service: input_number.increment
+        target:
+          entity_id: input_number.ventilador_quarto_maior_velocidade
+
+  diminuir_vento_quarto_maior:
+    alias: Diminuir Vento Quarto Maior
+    mode: single
+    sequence:
+      - condition: state
+        entity_id: input_boolean.ventilador_quarto_maior_ligado
+        state: "on"
+      - condition: numeric_state
+        entity_id: input_number.ventilador_quarto_maior_velocidade
+        above: 1
+      - service: scene.turn_on
+        target:
+          entity_id: scene.diminuir_vento
+      - delay: "00:00:01"
+      - service: input_number.decrement
+        target:
+          entity_id: input_number.ventilador_quarto_maior_velocidade
+
+  corrigir_estado_ventilador_quarto_maior:
+    alias: Corrigir Estado Ventilador Quarto Maior
+    mode: single
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: input_boolean.ventilador_quarto_maior_ligado

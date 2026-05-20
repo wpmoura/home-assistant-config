@@ -1,0 +1,323 @@
+# DESABILITADO - Versão V19 da Central Operacional
+# Data de desativação: 13 de maio de 2026
+# Motivo: Migração completa para V17/V18
+# Para reativar: mover este arquivo para /config/packages/
+
+template:
+  - binary_sensor:
+      - name: Casa TV Ativa V19
+        unique_id: casa_tv_ativa_v19
+        icon: mdi:television
+        state: >
+          {% set lg = states('media_player.lg_webos_tv_oled55g3psa') %}
+          {% set source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+          {% set app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+          {{
+            is_state('binary_sensor.casa_tv_ativa_v18', 'on')
+            or is_state('binary_sensor.casa_tv_ativa_v17', 'on')
+            or lg not in ['off', 'standby', 'unknown', 'unavailable', '', 'None', 'none']
+            or source not in ['unknown', 'unavailable', '', None]
+            or app not in ['unknown', 'unavailable', '', None]
+          }}
+
+      - name: Casa Incidente Ativo V19
+        unique_id: casa_incidente_ativo_v19
+        icon: mdi:alert-circle
+        state: >
+          {{ states('sensor.casa_score_ativo_v19') | int(0) >= 50 }}
+
+      - name: Casa Event Engine Ativo V19
+        unique_id: casa_event_engine_ativo_v19
+        icon: mdi:timeline-clock-outline
+        state: >
+          {{ is_state('input_boolean.casa_event_engine_ativo', 'on') }}
+
+  - sensor:
+      - name: Casa TV Contexto V19
+        unique_id: casa_tv_contexto_v19
+        icon: mdi:television-classic
+        state: >
+          {% set lg = states('media_player.lg_webos_tv_oled55g3psa') %}
+          {% set source = state_attr('media_player.lg_webos_tv_oled55g3psa', 'source') %}
+          {% set app = state_attr('media_player.lg_webos_tv_oled55g3psa', 'app_name') %}
+          {% set title = state_attr('media_player.lg_webos_tv_oled55g3psa', 'media_title') %}
+          {% set tv18 = states('sensor.casa_tv_contexto_v18') %}
+          {% set tv17 = states('sensor.casa_tv_contexto_v17') %}
+          {% if title not in ['unknown', 'unavailable', '', None] %}
+            📺 {{ title }}
+          {% elif source not in ['unknown', 'unavailable', '', None] %}
+            📺 {{ source }}
+          {% elif app not in ['unknown', 'unavailable', '', None] %}
+            📺 {{ app }}
+          {% elif tv18 not in ['unknown', 'unavailable', '', 'None', 'none', 'TV desligada'] %}
+            {{ tv18 }}
+          {% elif tv17 not in ['unknown', 'unavailable', '', 'None', 'none', 'TV desligada'] %}
+            {{ tv17 }}
+          {% elif lg not in ['off', 'standby', 'unknown', 'unavailable', '', 'None', 'none'] %}
+            📺 TV ligada
+          {% else %}
+            TV desligada
+          {% endif %}
+
+      - name: Casa Score Ativo V19
+        unique_id: casa_score_ativo_v19
+        icon: mdi:speedometer-medium
+        state: >
+          {% set backup_txt = states('sensor.status_casa_v17') | lower %}
+          {% set backup_ativo = states('sensor.backup_state') == 'error' or ('backup' in backup_txt and ('falha' in backup_txt or 'erro' in backup_txt)) %}
+          {% set backup = states('input_number.casa_peso_backup_google') | int(80) if backup_ativo else 0 %}
+
+          {% set tv = states('input_number.casa_peso_tv') | int(25) if is_state('binary_sensor.casa_tv_ativa_v19', 'on') else 0 %}
+
+          {% set porta_txt = states('sensor.casa_evento_porta_v17') %}
+          {% set chuva_txt = states('sensor.casa_evento_chuva_v17') %}
+          {% set vazamento_txt = states('sensor.casa_evento_vazamento_v17') %}
+
+          {% set porta = states('input_number.casa_peso_porta') | int(35) if porta_txt not in ['unknown', 'unavailable', '', 'None', 'none'] else 0 %}
+          {% set chuva = states('input_number.casa_peso_chuva') | int(20) if chuva_txt not in ['unknown', 'unavailable', '', 'None', 'none'] and 'chuva' in chuva_txt | lower else 0 %}
+          {% set vazamento = states('input_number.casa_peso_vazamento') | int(45) if vazamento_txt not in ['unknown', 'unavailable', '', 'None', 'none'] else 0 %}
+
+          {{ [backup, tv, porta, chuva, vazamento] | max }}
+        attributes:
+          backup_google_ativo: >
+            {% set backup_txt = states('sensor.status_casa_v17') | lower %}
+            {{ states('sensor.backup_state') == 'error' or ('backup' in backup_txt and ('falha' in backup_txt or 'erro' in backup_txt)) }}
+          backup_google_score: >
+            {% set backup_txt = states('sensor.status_casa_v17') | lower %}
+            {% set ativo = states('sensor.backup_state') == 'error' or ('backup' in backup_txt and ('falha' in backup_txt or 'erro' in backup_txt)) %}
+            {{ states('input_number.casa_peso_backup_google') | int(80) if ativo else 0 }}
+          tv_ativa: "{{ is_state('binary_sensor.casa_tv_ativa_v19', 'on') }}"
+          tv_score: "{{ states('input_number.casa_peso_tv') | int(25) if is_state('binary_sensor.casa_tv_ativa_v19', 'on') else 0 }}"
+          porta_ativa: "{{ states('sensor.casa_evento_porta_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] }}"
+          porta_score: "{{ states('input_number.casa_peso_porta') | int(35) if states('sensor.casa_evento_porta_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] else 0 }}"
+          chuva_ativa: "{{ states('sensor.casa_evento_chuva_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] }}"
+          chuva_score: "{{ states('input_number.casa_peso_chuva') | int(20) if states('sensor.casa_evento_chuva_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] else 0 }}"
+          vazamento_ativo: "{{ states('sensor.casa_evento_vazamento_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] }}"
+          vazamento_score: "{{ states('input_number.casa_peso_vazamento') | int(45) if states('sensor.casa_evento_vazamento_v17') not in ['unknown', 'unavailable', '', 'None', 'none'] else 0 }}"
+
+      - name: Casa Modo Operacional V19
+        unique_id: casa_modo_operacional_v19
+        icon: mdi:home-switch
+        state: >
+          {% set score = states('sensor.casa_score_ativo_v19') | int(0) %}
+          {% if score >= 80 %}
+            emergência
+          {% elif score >= 50 %}
+            atenção
+          {% elif is_state('binary_sensor.casa_tv_ativa_v19', 'on') %}
+            entretenimento
+          {% elif score > 0 %}
+            operacional
+          {% else %}
+            tranquilo
+          {% endif %}
+
+      - name: Status Casa V19
+        unique_id: status_casa_v19
+        icon: mdi:home-analytics
+        state: >
+          {% set modo = states('sensor.casa_modo_operacional_v19') %}
+          {% set backup_score = state_attr('sensor.casa_score_ativo_v19', 'backup_google_score') | int(0) %}
+          {% set vazamento_score = state_attr('sensor.casa_score_ativo_v19', 'vazamento_score') | int(0) %}
+          {% set porta_score = state_attr('sensor.casa_score_ativo_v19', 'porta_score') | int(0) %}
+          {% set chuva_score = state_attr('sensor.casa_score_ativo_v19', 'chuva_score') | int(0) %}
+
+          {% set result %}
+          {% if backup_score > 0 %}
+            ⚠️ Backup Google com falha
+          {% elif vazamento_score > 0 %}
+            💧 Vazamento detectado
+          {% elif porta_score > 0 %}
+            🚪 Porta aberta
+          {% elif modo == 'entretenimento' %}
+            {{ states('sensor.casa_tv_contexto_v19') }}
+          {% elif chuva_score > 0 %}
+            🌧️ Chovendo agora
+          {% elif modo == 'operacional' %}
+            🟡 Casa em atividade
+          {% else %}
+            🟢 Casa tranquila
+          {% endif %}
+          {% endset %}
+
+          {{ result | trim | regex_replace(r'^\d{2}:\d{2}\s+', '') }}
+        attributes:
+          modo: "{{ states('sensor.casa_modo_operacional_v19') }}"
+          score_ativo: "{{ states('sensor.casa_score_ativo_v19') }}"
+          tv_contexto: "{{ states('sensor.casa_tv_contexto_v19') }}"
+          tv_ativa: "{{ states('binary_sensor.casa_tv_ativa_v19') }}"
+          criticidade_vazamento: "{{ states('input_select.casa_criticidade_vazamento') }}"
+          criticidade_backup_google: "{{ states('input_select.casa_criticidade_backup_google') }}"
+          criticidade_porta: "{{ states('input_select.casa_criticidade_porta') }}"
+          confianca_minima: "{{ states('input_number.casa_confianca_minima') }}"
+
+      - name: Casa Breakdown Ativo V19
+        unique_id: casa_breakdown_ativo_v19
+        icon: mdi:chart-donut
+        state: >
+          {% set score = states('sensor.casa_score_ativo_v19') | int(0) %}
+          {% if score == 0 %}
+            🟢 Nenhum evento ativo
+          {% else %}
+            {{ score }}
+          {% endif %}
+
+      - name: Casa Contexto Humano V19
+        unique_id: casa_contexto_humano_v19
+        icon: mdi:account-heart
+        state: >
+          {% set modo = states('sensor.casa_modo_operacional_v19') %}
+          {% if modo == 'emergência' %}
+            🚨 Atenção necessária
+          {% elif modo == 'atenção' %}
+            ⚠️ Atenção operacional
+          {% elif modo == 'entretenimento' %}
+            🍿 Em entretenimento
+          {% elif modo == 'operacional' %}
+            🏠 Casa em atividade
+          {% else %}
+            🏠 Casa tranquila
+          {% endif %}
+        attributes:
+          status: "{{ states('sensor.status_casa_v19') }}"
+          modo: "{{ states('sensor.casa_modo_operacional_v19') }}"
+          score: "{{ states('sensor.casa_score_ativo_v19') }}"
+
+      - name: Atividade Relevante V19
+        unique_id: atividade_relevante_v19
+        icon: mdi:home-search
+        state: >
+          {% if is_state('binary_sensor.casa_tv_ativa_v19', 'on') %}
+            {{ states('sensor.casa_tv_contexto_v19') }}
+          {% else %}
+            {{ states('sensor.status_casa_v19') }}
+          {% endif %}
+
+      - name: Casa Timeline Operacional V19
+        unique_id: casa_timeline_operacional_v19
+        icon: mdi:timeline-text-outline
+        state: >
+          {{ states('sensor.status_casa_v19') }}
+        attributes:
+          score: "{{ states('sensor.casa_score_ativo_v19') }}"
+          timeout_evento_temporario: "{{ states('input_number.casa_timeout_evento_temporario') }}"
+          baixa_relevancia_visivel: "{{ states('input_boolean.casa_mostrar_eventos_baixa_relevancia') }}"
+
+      - name: Casa Timeline Temporal V19
+        unique_id: casa_timeline_temporal_v19
+        icon: mdi:timeline-clock-outline
+        state: >
+          {% set l1 = state_attr('sensor.casa_event_feed_v19', 'linha_1') %}
+          {% if l1 in ['unknown', 'unavailable', '', None] %}
+            🟢 Aguardando eventos
+          {% else %}
+            {{ l1 }}
+          {% endif %}
+        attributes:
+          linha_1: "{{ state_attr('sensor.casa_event_feed_v19', 'linha_1') }}"
+          linha_2: "{{ state_attr('sensor.casa_event_feed_v19', 'linha_2') }}"
+          linha_3: "{{ state_attr('sensor.casa_event_feed_v19', 'linha_3') }}"
+          linha_4: "{{ state_attr('sensor.casa_event_feed_v19', 'linha_4') }}"
+          linha_5: "{{ state_attr('sensor.casa_event_feed_v19', 'linha_5') }}"
+
+      - name: Casa Evento Canonico V19
+        unique_id: casa_evento_canonico_v19
+        icon: mdi:timeline-check
+        state: >
+          {% set status = states('sensor.status_casa_v19') %}
+          {% set tv = states('sensor.casa_tv_contexto_v19') %}
+          {% set tv_on = is_state('binary_sensor.casa_tv_ativa_v19', 'on') %}
+          {% set mostrar_tv = is_state('input_boolean.casa_mostrar_tv_na_timeline', 'on') %}
+
+          {% if status not in ['unknown', 'unavailable', '', 'None', 'none', '🟢 Casa tranquila'] %}
+            {{ status }}
+          {% elif tv_on and mostrar_tv and tv not in ['unknown', 'unavailable', '', 'None', 'none', 'TV desligada'] %}
+            {{ tv }}
+          {% else %}
+            🟢 Aguardando eventos
+          {% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id:
+          - sensor.casa_evento_canonico_v19
+
+    sensor:
+      - name: Casa Evento Atual V19
+        unique_id: casa_evento_atual_v19
+        icon: mdi:timeline-plus
+        state: >
+          {% set ts = now().strftime('%H:%M') %}
+          {% set new = trigger.to_state.state if trigger.to_state is not none else '' %}
+          {% set old = trigger.from_state.state if trigger.from_state is not none else '' %}
+          {% set atual = this.state | default('') %}
+
+          {% set invalido =
+            new in ['unknown', 'unavailable', '', 'None', 'none', 'Nenhuma entidade']
+            or 'Score ativo' in new
+            or 'Incidente ativo' in new
+            or 'Event Engine' in new
+            or 'Casa Score' in new
+            or 'Casa Breakdown' in new
+            or new in ['Ligado', 'Desligado']
+          %}
+
+          {% if not is_state('input_boolean.casa_event_engine_ativo', 'on') %}
+            {{ atual if atual not in ['', 'unknown', 'unavailable'] else '⏸️ Event Engine pausado' }}
+          {% elif invalido %}
+            {{ atual }}
+          {% elif new == old %}
+            {{ atual }}
+          {% elif atual.endswith(new) %}
+            {{ atual }}
+          {% else %}
+            {{ ts }} {{ new }}
+          {% endif %}
+        attributes:
+          origem: "{{ trigger.entity_id }}"
+          valor_anterior: "{{ trigger.from_state.state if trigger.from_state is not none else '' }}"
+          valor_novo: "{{ trigger.to_state.state if trigger.to_state is not none else '' }}"
+          atualizado_em: "{{ now().strftime('%d/%m/%Y %H:%M:%S') }}"
+
+      - name: Casa Event Feed V19
+        unique_id: casa_event_feed_v19
+        icon: mdi:timeline-text
+        state: >
+          {{ states('sensor.casa_evento_atual_v19') }}
+        attributes:
+          linha_1: >
+            {% set atual = states('sensor.casa_evento_atual_v19') %}
+            {% set anterior = this.attributes.get('linha_1', '') %}
+            {{ anterior if atual == anterior else atual }}
+          linha_2: >
+            {% set atual = states('sensor.casa_evento_atual_v19') %}
+            {% set anterior = this.attributes.get('linha_1', '') %}
+            {% if atual == anterior %}
+              {{ this.attributes.get('linha_2', '') }}
+            {% else %}
+              {{ anterior }}
+            {% endif %}
+          linha_3: >
+            {% set atual = states('sensor.casa_evento_atual_v19') %}
+            {% set anterior = this.attributes.get('linha_1', '') %}
+            {% if atual == anterior %}
+              {{ this.attributes.get('linha_3', '') }}
+            {% else %}
+              {{ this.attributes.get('linha_2', '') }}
+            {% endif %}
+          linha_4: >
+            {% set atual = states('sensor.casa_evento_atual_v19') %}
+            {% set anterior = this.attributes.get('linha_1', '') %}
+            {% if atual == anterior %}
+              {{ this.attributes.get('linha_4', '') }}
+            {% else %}
+              {{ this.attributes.get('linha_3', '') }}
+            {% endif %}
+          linha_5: >
+            {% set atual = states('sensor.casa_evento_atual_v19') %}
+            {% set anterior = this.attributes.get('linha_1', '') %}
+            {% if atual == anterior %}
+              {{ this.attributes.get('linha_5', '') }}
+            {% else %}
+              {{ this.attributes.get('linha_4', '') }}
+            {% endif %}

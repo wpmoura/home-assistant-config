@@ -1,0 +1,393 @@
+###############################################################################
+# Central Operacional V20.2 - Context Engine - Lote 1
+#
+# Camada paralela e reversivel de contexto base.
+#
+# Objetivo:
+# - criar contexto humano, temporal, operacional e ambiental
+# - ler a V20.1B sem alterar seus contratos
+# - nao publicar eventos na timeline
+# - nao alterar aliases finais, dashboards produtivos, V19 ou sensor.status_casa
+#
+# Esta camada nao implementa score dinamico, correlacao, narrativa ou LLM.
+###############################################################################
+
+template:
+  - binary_sensor:
+      - name: Casa Vazia V20 2
+        unique_id: casa_vazia_v20_2
+        icon: mdi:home-outline
+        state: >
+          {% set valid = ['on', 'off'] %}
+          {% set presenca = states('binary_sensor.casa_presenca_global') %}
+          {% set fontes_movimento = [
+            'binary_sensor.movimento_area_servico_presence',
+            'binary_sensor.movimento_cozinha_2_occupancy',
+            'binary_sensor.movimento_sala_jantar_occupancy',
+            'binary_sensor.movimento_sala_estar_occupancy',
+            'binary_sensor.movimento_corredor_occupancy',
+            'binary_sensor.movimento_banheiro_occupancy',
+            'binary_sensor.movimento_alto_banheiro_occupancy',
+            'binary_sensor.grp_movimento_quarto_menor',
+            'binary_sensor.grp_movimento_quarto_maior',
+            'binary_sensor.movimento_dispensa_occupancy'
+          ] %}
+          {% set ns = namespace(algum_movimento=false, alguma_fonte_conhecida=false) %}
+          {% for entidade in fontes_movimento %}
+            {% set estado = states(entidade) %}
+            {% if estado in valid %}
+              {% set ns.alguma_fonte_conhecida = true %}
+            {% endif %}
+            {% if estado == 'on' %}
+              {% set ns.algum_movimento = true %}
+            {% endif %}
+          {% endfor %}
+          {% if presenca == 'on' or ns.algum_movimento %}
+            false
+          {% elif presenca == 'off' or ns.alguma_fonte_conhecida %}
+            true
+          {% else %}
+            false
+          {% endif %}
+        availability: >
+          {% set valid = ['on', 'off'] %}
+          {% set presenca = states('binary_sensor.casa_presenca_global') %}
+          {% set fontes_movimento = [
+            'binary_sensor.movimento_area_servico_presence',
+            'binary_sensor.movimento_cozinha_2_occupancy',
+            'binary_sensor.movimento_sala_jantar_occupancy',
+            'binary_sensor.movimento_sala_estar_occupancy',
+            'binary_sensor.movimento_corredor_occupancy',
+            'binary_sensor.movimento_banheiro_occupancy',
+            'binary_sensor.movimento_alto_banheiro_occupancy',
+            'binary_sensor.grp_movimento_quarto_menor',
+            'binary_sensor.grp_movimento_quarto_maior',
+            'binary_sensor.movimento_dispensa_occupancy'
+          ] %}
+          {% set ns = namespace(alguma_fonte_conhecida=false) %}
+          {% for entidade in fontes_movimento %}
+            {% if states(entidade) in valid %}
+              {% set ns.alguma_fonte_conhecida = true %}
+            {% endif %}
+          {% endfor %}
+          {{ presenca in valid or ns.alguma_fonte_conhecida }}
+        attributes:
+          fontes_usadas: >
+            binary_sensor.casa_presenca_global;
+            binary_sensor.movimento_area_servico_presence;
+            binary_sensor.movimento_cozinha_2_occupancy;
+            binary_sensor.movimento_sala_jantar_occupancy;
+            binary_sensor.movimento_sala_estar_occupancy;
+            binary_sensor.movimento_corredor_occupancy;
+            binary_sensor.movimento_banheiro_occupancy;
+            binary_sensor.movimento_alto_banheiro_occupancy;
+            binary_sensor.grp_movimento_quarto_menor;
+            binary_sensor.grp_movimento_quarto_maior;
+            binary_sensor.movimento_dispensa_occupancy
+          fonte_preferencial: binary_sensor.casa_presenca_global
+          fonte_fallback: sensores_de_presenca_movimento_por_comodo
+          estado_presenca_global: "{{ states('binary_sensor.casa_presenca_global') }}"
+          movimento_fallback_ativo: >
+            {% set fontes_movimento = [
+              'binary_sensor.movimento_area_servico_presence',
+              'binary_sensor.movimento_cozinha_2_occupancy',
+              'binary_sensor.movimento_sala_jantar_occupancy',
+              'binary_sensor.movimento_sala_estar_occupancy',
+              'binary_sensor.movimento_corredor_occupancy',
+              'binary_sensor.movimento_banheiro_occupancy',
+              'binary_sensor.movimento_alto_banheiro_occupancy',
+              'binary_sensor.grp_movimento_quarto_menor',
+              'binary_sensor.grp_movimento_quarto_maior',
+              'binary_sensor.movimento_dispensa_occupancy'
+            ] %}
+            {{ fontes_movimento | select('is_state', 'on') | list | count > 0 }}
+          motivo: >
+            {% set fontes_movimento = [
+              'binary_sensor.movimento_area_servico_presence',
+              'binary_sensor.movimento_cozinha_2_occupancy',
+              'binary_sensor.movimento_sala_jantar_occupancy',
+              'binary_sensor.movimento_sala_estar_occupancy',
+              'binary_sensor.movimento_corredor_occupancy',
+              'binary_sensor.movimento_banheiro_occupancy',
+              'binary_sensor.movimento_alto_banheiro_occupancy',
+              'binary_sensor.grp_movimento_quarto_menor',
+              'binary_sensor.grp_movimento_quarto_maior',
+              'binary_sensor.movimento_dispensa_occupancy'
+            ] %}
+            {% set movimento_ativo = fontes_movimento | select('is_state', 'on') | list | count > 0 %}
+            {% if is_state('binary_sensor.casa_presenca_global', 'on') %}
+              Presenca global indica alguem em casa.
+            {% elif is_state('binary_sensor.casa_presenca_global', 'off') %}
+              Presenca global indica casa vazia.
+            {% elif movimento_ativo %}
+              Presenca global inconclusiva, mas ha fallback de movimento/presenca ativo.
+            {% else %}
+              Sem presenca humana confiavel detectada nas fontes conhecidas.
+            {% endif %}
+          confianca: >
+            {% set fontes_movimento = [
+              'binary_sensor.movimento_area_servico_presence',
+              'binary_sensor.movimento_cozinha_2_occupancy',
+              'binary_sensor.movimento_sala_jantar_occupancy',
+              'binary_sensor.movimento_sala_estar_occupancy',
+              'binary_sensor.movimento_corredor_occupancy',
+              'binary_sensor.movimento_banheiro_occupancy',
+              'binary_sensor.movimento_alto_banheiro_occupancy',
+              'binary_sensor.grp_movimento_quarto_menor',
+              'binary_sensor.grp_movimento_quarto_maior',
+              'binary_sensor.movimento_dispensa_occupancy'
+            ] %}
+            {% set movimento_ativo = fontes_movimento | select('is_state', 'on') | list | count > 0 %}
+            {% if states('binary_sensor.casa_presenca_global') in ['on', 'off'] %}
+              alta
+            {% elif movimento_ativo %}
+              media
+            {% else %}
+              baixa
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: Contexto Noturno V20 2
+        unique_id: contexto_noturno_v20_2
+        icon: mdi:weather-night
+        state: >
+          {% set hora = now().hour %}
+          {{ hora >= 22 or hora < 6 }}
+        attributes:
+          fontes_usadas: horario_local; input_boolean.modo_dormir_ativo; binary_sensor.todos_dormindo
+          regra: "noturno se hora >= 22 ou hora < 6"
+          hora_atual: "{{ now().strftime('%H:%M') }}"
+          modo_dormir_ativo: "{{ states('input_boolean.modo_dormir_ativo') }}"
+          todos_dormindo: "{{ states('binary_sensor.todos_dormindo') }}"
+          motivo: >
+            {% set hora = now().hour %}
+            {% if hora >= 22 or hora < 6 %}
+              Horario local dentro da janela noturna rastreavel.
+            {% else %}
+              Horario local fora da janela noturna.
+            {% endif %}
+          confianca: alta
+          timestamp: "{{ now().isoformat() }}"
+
+  - sensor:
+      - name: Casa Contexto Temporal V20 2
+        unique_id: casa_contexto_temporal_v20_2
+        icon: mdi:clock-outline
+        state: >
+          {% set hora = now().hour %}
+          {% if hora < 6 %}
+            madrugada
+          {% elif hora < 12 %}
+            manha
+          {% elif hora < 18 %}
+            tarde
+          {% else %}
+            noite
+          {% endif %}
+        attributes:
+          fontes_usadas: horario_local
+          hora_atual: "{{ now().strftime('%H:%M') }}"
+          regra: "madrugada 00-05; manha 06-11; tarde 12-17; noite 18-23"
+          motivo: >
+            Contexto temporal calculado diretamente a partir da hora local.
+          confianca: alta
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: Casa Contexto Humano V20 2
+        unique_id: casa_contexto_humano_v20_2
+        icon: mdi:account-group-outline
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set presenca = states('binary_sensor.casa_presenca_global') %}
+          {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+          {% if presenca == 'on' or casa_vazia == 'off' %}
+            alguem_em_casa
+          {% elif presenca == 'off' or casa_vazia == 'on' %}
+            casa_vazia
+          {% elif presenca in invalid and casa_vazia in invalid %}
+            indeterminado
+          {% else %}
+            indeterminado
+          {% endif %}
+        attributes:
+          fontes_usadas: >
+            binary_sensor.casa_presenca_global;
+            binary_sensor.casa_vazia_v20_2;
+            input_boolean.modo_dormir_ativo;
+            binary_sensor.todos_dormindo;
+            sensor.casa_banho_estado_v20
+          presenca_global: "{{ states('binary_sensor.casa_presenca_global') }}"
+          casa_vazia: "{{ states('binary_sensor.casa_vazia_v20_2') }}"
+          modo_dormir_ativo: "{{ states('input_boolean.modo_dormir_ativo') }}"
+          todos_dormindo: "{{ states('binary_sensor.todos_dormindo') }}"
+          banho_estado: "{{ states('sensor.casa_banho_estado_v20') }}"
+          motivo: >
+            {% set presenca = states('binary_sensor.casa_presenca_global') %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% if presenca == 'on' or casa_vazia == 'off' %}
+              Presenca humana detectada por fonte principal ou fallback confiavel.
+            {% elif presenca == 'off' or casa_vazia == 'on' %}
+              Nenhuma presenca humana confiavel detectada.
+            {% else %}
+              Fontes humanas inconclusivas ou indisponiveis.
+            {% endif %}
+          confianca: >
+            {% if states('binary_sensor.casa_presenca_global') in ['on', 'off'] %}
+              alta
+            {% elif states('binary_sensor.casa_vazia_v20_2') in ['on', 'off'] %}
+              media
+            {% else %}
+              baixa
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: Casa Contexto Operacional V20 2
+        unique_id: casa_contexto_operacional_v20_2
+        icon: mdi:home-analytics
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set energia = states('sensor.casa_energia_estado_v20') %}
+          {% set internet = states('sensor.casa_internet_estado_v20') %}
+          {% set failover = states('sensor.casa_failover_estado_v20') %}
+          {% set backup = states('sensor.casa_backup_google_estado_v20') %}
+          {% set todos = [energia, internet, failover, backup] %}
+          {% if todos | select('in', invalid + ['desconhecida', 'desconhecido']) | list | count == 4 %}
+            indeterminado
+          {% elif energia == 'ausente' or internet == 'indisponivel' %}
+            critico
+          {% elif internet == 'degradada' or failover == 'ativo' %}
+            degradado
+          {% elif backup == 'falha' %}
+            atencao
+          {% elif energia == 'presente' and internet == 'normal' and failover == 'inativo' and backup == 'ok' %}
+            normal
+          {% else %}
+            atencao
+          {% endif %}
+        attributes:
+          fontes_usadas: >
+            sensor.casa_energia_estado_v20;
+            sensor.casa_internet_estado_v20;
+            sensor.casa_failover_estado_v20;
+            sensor.casa_backup_google_estado_v20
+          energia: "{{ states('sensor.casa_energia_estado_v20') }}"
+          internet: "{{ states('sensor.casa_internet_estado_v20') }}"
+          failover: "{{ states('sensor.casa_failover_estado_v20') }}"
+          backup_google: "{{ states('sensor.casa_backup_google_estado_v20') }}"
+          motivo: >
+            {% set energia = states('sensor.casa_energia_estado_v20') %}
+            {% set internet = states('sensor.casa_internet_estado_v20') %}
+            {% set failover = states('sensor.casa_failover_estado_v20') %}
+            {% set backup = states('sensor.casa_backup_google_estado_v20') %}
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none, 'desconhecida', 'desconhecido'] %}
+            {% set todos = [energia, internet, failover, backup] %}
+            {% if todos | select('in', invalid) | list | count == 4 %}
+              Fontes operacionais inconclusivas.
+            {% elif energia == 'ausente' or internet == 'indisponivel' %}
+              Energia ausente ou internet indisponivel.
+            {% elif internet == 'degradada' or failover == 'ativo' %}
+              Internet degradada ou failover 4G ativo.
+            {% elif backup == 'falha' %}
+              Alguma fonte operacional requer atencao, mas sem criticidade maxima.
+            {% elif energia == 'presente' and internet == 'normal' and failover == 'inativo' and backup == 'ok' %}
+              Energia, internet, failover e backup estao em estado normal.
+            {% else %}
+              Estado operacional misto exige atencao.
+            {% endif %}
+          confianca: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none, 'desconhecida', 'desconhecido'] %}
+            {% set fontes = [
+              states('sensor.casa_energia_estado_v20'),
+              states('sensor.casa_internet_estado_v20'),
+              states('sensor.casa_failover_estado_v20'),
+              states('sensor.casa_backup_google_estado_v20')
+            ] %}
+            {% set validas = fontes | reject('in', invalid) | list | count %}
+            {% if validas >= 4 %}
+              alta
+            {% elif validas >= 2 %}
+              media
+            {% elif validas >= 1 %}
+              baixa
+            {% else %}
+              desconhecida
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: Casa Contexto Ambiental V20 2
+        unique_id: casa_contexto_ambiental_v20_2
+        icon: mdi:weather-partly-rainy
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+          {% set banho = states('sensor.casa_banho_estado_v20') %}
+          {% set janelas = [
+            states('sensor.casa_janela_varanda_sala_estado_v20'),
+            states('sensor.casa_janela_quarto_maior_estado_v20'),
+            states('sensor.casa_janela_quarto_menor_estado_v20')
+          ] %}
+          {% set alguma_janela_aberta = 'aberta' in janelas %}
+          {% set todas_invalidas = chuva in invalid and banho in invalid and (janelas | reject('in', invalid + ['desconhecida', 'desconhecido']) | list | count == 0) %}
+          {% if todas_invalidas %}
+            indeterminado
+          {% elif chuva == 'ativa' and alguma_janela_aberta %}
+            risco_janela_chuva
+          {% elif banho == 'banho_detectado' %}
+            banho
+          {% elif chuva == 'ativa' %}
+            chuva
+          {% else %}
+            normal
+          {% endif %}
+        attributes:
+          fontes_usadas: >
+            sensor.casa_chuva_estado_v20;
+            sensor.casa_banho_estado_v20;
+            sensor.casa_janela_varanda_sala_estado_v20;
+            sensor.casa_janela_quarto_maior_estado_v20;
+            sensor.casa_janela_quarto_menor_estado_v20
+          chuva: "{{ states('sensor.casa_chuva_estado_v20') }}"
+          banho: "{{ states('sensor.casa_banho_estado_v20') }}"
+          janela_varanda_sala: "{{ states('sensor.casa_janela_varanda_sala_estado_v20') }}"
+          janela_quarto_maior: "{{ states('sensor.casa_janela_quarto_maior_estado_v20') }}"
+          janela_quarto_menor: "{{ states('sensor.casa_janela_quarto_menor_estado_v20') }}"
+          motivo: >
+            {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+            {% set banho = states('sensor.casa_banho_estado_v20') %}
+            {% set janelas = [
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% set alguma_janela_aberta = 'aberta' in janelas %}
+            {% if chuva == 'ativa' and alguma_janela_aberta %}
+              Chuva ativa com pelo menos uma janela aberta.
+            {% elif banho == 'banho_detectado' %}
+              Banho semantico detectado pela V20.1B.
+            {% elif chuva == 'ativa' %}
+              Chuva ativa sem janela aberta conhecida.
+            {% elif chuva not in ['unknown', 'unavailable', 'none', 'None', '', none] or banho not in ['unknown', 'unavailable', 'none', 'None', '', none] %}
+              Sem chuva, banho ou risco ambiental ativo conhecido.
+            {% else %}
+              Fontes ambientais inconclusivas.
+            {% endif %}
+          confianca: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none, 'desconhecida', 'desconhecido'] %}
+            {% set fontes = [
+              states('sensor.casa_chuva_estado_v20'),
+              states('sensor.casa_banho_estado_v20'),
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% set validas = fontes | reject('in', invalid) | list | count %}
+            {% if validas >= 4 %}
+              alta
+            {% elif validas >= 2 %}
+              media
+            {% elif validas >= 1 %}
+              baixa
+            {% else %}
+              desconhecida
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"

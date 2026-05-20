@@ -1,0 +1,237 @@
+- id: maquina_lavar_inicio_ciclo
+  alias: "Máquina de lavar - início do ciclo"
+  description: "Marca o ciclo como ativo quando a máquina começa a consumir energia."
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      above: 6
+      for:
+        seconds: 20
+  condition:
+    - condition: state
+      entity_id: input_boolean.maquina_lavar_ciclo_ativo
+      state: "off"
+  action:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.maquina_lavar_ciclo_ativo
+
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.maquina_lavar_estado
+      data:
+        option: Enchendo
+  mode: single
+
+
+- id: maquina_lavar_maquina_estados
+  alias: "Máquina de lavar - máquina de estados"
+  description: "Atualiza o estado da lavagem com base na potência e no contexto do ciclo."
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      above: 6
+      below: 12
+      for:
+        seconds: 15
+      id: faixa_baixa_enchendo
+
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      above: 150
+      below: 235
+      for:
+        seconds: 20
+      id: faixa_lavando
+
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      below: 6
+      for:
+        minutes: 2
+      id: faixa_molho
+
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      above: 15
+      below: 45
+      for:
+        seconds: 20
+      id: faixa_esvaziando
+
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      above: 250
+      for:
+        seconds: 15
+      id: faixa_centrifugando
+
+  condition:
+    - condition: state
+      entity_id: input_boolean.maquina_lavar_ciclo_ativo
+      state: "on"
+  action:
+    - variables:
+        estado_atual: "{{ states('input_select.maquina_lavar_estado') }}"
+
+    - choose:
+        # Enxaguando:
+        # quando volta para a faixa de enchimento depois de esvaziar/centrifugar
+        - conditions:
+            - condition: trigger
+              id: faixa_baixa_enchendo
+            - condition: template
+              value_template: >
+                {{ estado_atual in ['Esvaziando', 'Centrifugando'] }}
+            - condition: template
+              value_template: >
+                {{ estado_atual != 'Enxaguando' }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Enxaguando
+
+        # Enchendo:
+        # início do processo ou reabastecimento fora do contexto acima
+        - conditions:
+            - condition: trigger
+              id: faixa_baixa_enchendo
+            - condition: template
+              value_template: >
+                {{ estado_atual not in ['Enchendo', 'Esvaziando', 'Centrifugando'] }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Enchendo
+
+        # Lavando:
+        # faixa principal de agitação/lavagem
+        - conditions:
+            - condition: trigger
+              id: faixa_lavando
+            - condition: template
+              value_template: >
+                {{ estado_atual != 'Lavando' }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Lavando
+
+        # Molho:
+        # potência muito baixa, mas ciclo ainda ativo
+        - conditions:
+            - condition: trigger
+              id: faixa_molho
+            - condition: template
+              value_template: >
+                {{ estado_atual in ['Lavando', 'Enchendo', 'Enxaguando'] }}
+            - condition: template
+              value_template: >
+                {{ estado_atual != 'Molho' }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Molho
+
+        # Esvaziando
+        - conditions:
+            - condition: trigger
+              id: faixa_esvaziando
+            - condition: template
+              value_template: >
+                {{ estado_atual != 'Esvaziando' }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Esvaziando
+
+        # Centrifugando
+        - conditions:
+            - condition: trigger
+              id: faixa_centrifugando
+            - condition: template
+              value_template: >
+                {{ estado_atual != 'Centrifugando' }}
+          sequence:
+            - service: input_select.select_option
+              target:
+                entity_id: input_select.maquina_lavar_estado
+              data:
+                option: Centrifugando
+  mode: restart
+
+
+- id: maquina_lavar_fim_ciclo
+  alias: "Máquina de lavar - fim do ciclo"
+  description: "Marca o ciclo como finalizado quando a potência fica muito baixa por alguns minutos."
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.maq_de_lavar_potencia
+      below: 3
+      for:
+        minutes: 4
+  condition:
+    - condition: state
+      entity_id: input_boolean.maquina_lavar_ciclo_ativo
+      state: "on"
+    - condition: template
+      value_template: >
+        {{ states('input_select.maquina_lavar_estado') in
+           ['Centrifugando', 'Esvaziando', 'Enxaguando', 'Lavando', 'Molho', 'Enchendo'] }}
+  action:
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.maquina_lavar_estado
+      data:
+        option: Finalizada
+
+    - delay:
+        seconds: 10
+
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.maquina_lavar_ciclo_ativo
+  mode: single
+
+
+- id: maquina_lavar_notificacao_fim
+  alias: "Máquina de lavar - notificar fim"
+  description: "Envia notificação quando a lavagem termina."
+  trigger:
+    - platform: state
+      entity_id: input_select.maquina_lavar_estado
+      to: "Finalizada"
+  action:
+    - service: notify.mobile_app_iphonewm
+      data:
+        title: "Máquina de lavar"
+        message: "Lavagem concluída 🧺"
+  mode: single
+
+
+- id: maquina_lavar_reset_desligada
+  alias: "Máquina de lavar - reset para desligada"
+  description: "Depois de um tempo em finalizada, volta o estado para desligada."
+  trigger:
+    - platform: state
+      entity_id: input_select.maquina_lavar_estado
+      to: "Finalizada"
+      for:
+        minutes: 10
+  action:
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.maquina_lavar_estado
+      data:
+        option: Desligada
+  mode: single

@@ -1,0 +1,9 @@
+ultima_acao_modo_dormir:
+  name: "Última ação modo dormir"
+  max: 255
+
+casa_ultimo_evento:
+  name: "Casa - Último Evento"
+  initial: "Cérebro iniciado aguardando eventos"
+  max: 255
+  icon: mdi:history

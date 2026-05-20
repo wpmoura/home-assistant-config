@@ -55,6 +55,97 @@ Esta etapa não altera automações, packages, dashboards, `sensor.status_casa`,
 | `blueprints/automation/wmoura/monitoramento_energia_v6.yaml` | Energia/equipamentos | Alertas de potência, tensão e corrente de equipamentos | Futuro motor de infraestrutura/equipamentos | Médio | Baixa | Manter legado por enquanto |
 | `packages/_disabled/status_casa_v19.yaml` | V19 desativado | Sensores e eventos V19 | Não usar | Alto | Alta | Preservar desativado; não migrar direto |
 
+## Escopo Real da V20.1B
+
+A V20.1B não representa migração completa das automações da casa.
+
+A camada entregue representa a migração controlada de:
+
+- eventos operacionais relevantes
+- timeline V20
+- feed operacional V20
+- sensores determinísticos V20
+- camada semântica inicial
+- redução de parsing textual
+- contratos estruturados para publicação de eventos
+
+A V20.1B não garante que:
+
+- automações antigas possam ser removidas
+- blueprints antigos possam ser desativados
+- side-effects legados estejam totalmente mapeados
+- dependências indiretas estejam conhecidas
+- notificações antigas sejam apenas informativas
+- helpers/sensores atualizados por legado não sejam consumidos por outros componentes
+
+Decisão arquitetural:
+
+- manter legado ativo após a V20.1B
+- usar V20.1B como camada paralela e determinística
+- não desativar automações antigas sem auditoria específica
+- tratar a remoção de legado como fase própria
+
+## Risco Arquitetural — Dependências Invisíveis do Legado
+
+As automações antigas podem alimentar múltiplos componentes ao mesmo tempo. Uma automação aparentemente simples de notificação pode também atualizar helpers, textos centrais, sensores derivados, modos operacionais, score, contexto humano ou fluxos de recuperação.
+
+Riscos principais:
+
+- side-effects não documentados
+- notificações antigas atualizando `input_text`, helpers ou sensores centrais
+- automações impactando score, contexto, modo dormir, presença ou alertas
+- blueprints com lógica de proteção, recovery ou iluminação misturada com mensagem textual
+- dependências indiretas em dashboards, scripts ou outros packages
+- regressões silenciosas caso o legado seja removido sem rastreamento de consumidores
+
+Regra de segurança:
+
+- a existência de um evento V20 equivalente não significa que a automação legada pode ser removida
+- a timeline V20 substituir a publicação textual não substitui ações físicas, recovery, notificações críticas ou lógica de proteção
+- todo desligamento de legado precisa de auditoria própria, validação funcional e rollback claro
+
+## Matriz de Prontidão para Desativação do Legado
+
+| Domínio | Camada V20 criada? | Timeline usando V20? | Legado ainda ativo? | Automações auditadas? | Risco de regressão? | Pronto para desativação? |
+|---|---|---|---|---|---|---|
+| Porta da Sala | Sim | Sim | Sim | Parcial | Alto | Não |
+| Portas internas | Sim | Sim, opcional | Sim | Parcial | Médio | Não |
+| Janelas/contatos | Sim | Sim, opcional | Sim | Parcial | Médio | Não |
+| Chuva | Sim | Sim | Sim | Parcial | Alto | Não |
+| Vazamento | Sim | Sim, opcional | Sim | Parcial | Alto | Não |
+| Banho semântico | Sim | Sim | Sim, via sensores/movimento | Parcial | Médio | Não |
+| Energia | Sim | Sim | Sim | Parcial | Alto | Não |
+| Internet | Sim | Sim | Sim | Parcial | Alto | Não |
+| Failover 4G | Sim | Sim | Sim | Parcial | Alto | Não |
+| Backup Google | Sim | Sim | Sim | Parcial | Médio | Não |
+| TV | Parcial | Sim | Sim | Parcial | Médio | Não |
+| Modo dormir/contexto humano | Parcial | Não como decommission | Sim | Não | Alto | Não |
+| Segurança/alarme | Não | Não | Sim | Não | Crítico | Não |
+| Recovery/ações físicas | Não | Não | Sim | Não | Crítico | Não |
+
+## V20.1C — Legacy Decommission Audit
+
+Fase futura proposta para remover legado com segurança.
+
+Objetivo:
+
+- mapear dependências diretas e indiretas
+- identificar consumidores de automações, scripts, helpers e sensores legados
+- validar side-effects não documentados
+- separar mensagens textuais de ações físicas/recovery
+- desativar legado de forma controlada
+- remover duplicidades somente após validação
+
+Critérios mínimos antes de desativar qualquer legado:
+
+- evento equivalente V20 validado
+- consumidores do legado identificados
+- side-effects conhecidos
+- automação/script classificado por risco
+- período de observação concluído
+- rollback documentado
+- ausência de dependência com dashboards produtivos ou modos operacionais críticos
+
 ## Eventos Já Migrados Para V20
 
 | Evento | Fonte V20 atual | Observação |

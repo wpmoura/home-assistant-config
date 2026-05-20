@@ -1,0 +1,179 @@
+#arquivo command_line.yaml
+  # ==============================================
+  # 📌 COMMAND_LINE
+  # ==============================================
+  - platform: command_line
+    name: CPU Temperature
+    command: "cat /sys/class/thermal/thermal_zone0/temp"
+    unit_of_measurement: "°C"
+    value_template: "{{ value | multiply(0.001) | round(1) }}"
+    
+  - platform: command_line
+    name: "Temperatura RPi5"
+    command: "ssh -i /config/ssh/id_rsa -o StrictHostKeyChecking=no wmoura@192.168.60.18 'cat /sys/class/thermal/thermal_zone0/temp'"
+    value_template: "{{ (value | int / 1000) | round(1) }}"
+    unit_of_measurement: "°C"
+  #
+  # ==============================================
+  # 📌 OPENHARDWAREMONITOR
+  # ==============================================
+  - platform: openhardwaremonitor
+    host: 192.168.0.128
+
+  # ==============================================
+  # 📌 HISTORY_STATS
+  # ==============================================
+  - platform: history_stats
+    name: Disponibilidade Claro horas - 30 dias
+    entity_id: binary_sensor.net_claro
+    state: "on"
+    type: time
+    start: "{{ now() - timedelta(days=30) }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: Disponibilidade Claro count - 30 dias
+    entity_id: binary_sensor.net_claro
+    state: "on"
+    type: count
+    start: "{{ now() - timedelta(days=30) }}"
+    end: "{{ now() }}"
+
+  - platform: history_stats
+    name: Disponibilidade Claro Média - 30 dias
+    entity_id: binary_sensor.net_claro
+    state: "on"
+    type: ratio
+    start: "{{ now() - timedelta(days=30) }}"
+    end: "{{ now() }}"
+
+  # ==============================================
+  # 📌 REST
+  # ==============================================
+  #
+ #
+  - platform: rest
+    name: "AAPL Stock Price"
+    resource: "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=DZGW4FW5VTQX4DFS"
+    value_template: "{{ value_json['Global Quote']['05. price'] }}"
+    unit_of_measurement: "USD"
+
+  - platform: rest
+    name: "MSFT Stock Price"
+    resource: "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=MSFT&apikey=DZGW4FW5VTQX4DFS"
+    value_template: "{{ value_json['Global Quote']['05. price'] }}"
+    unit_of_measurement: "USD"
+
+  - platform: rest
+    name: "BTC/USD Price"
+    resource: "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey=DZGW4FW5VTQX4DFS"
+    value_template: "{{ value_json['Realtime Currency Exchange Rate']['5. Exchange Rate'] }}"
+    unit_of_measurement: "USD"
+
+  # ==============================================
+  # 📌 INTEGRATION (ENERGIA FÍSICA)
+  # ==============================================
+  - platform: integration
+    source: sensor.ups_potencia
+    name: consumo_tomada_ups
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.tomada_mesa_potencia
+    name: consumo_tomada_umidificador
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.estabilizador_potencia
+    name: consumo_estabilizador
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.geladeira_potencia
+    name: consumo_geladeira
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.maq_de_lavar_potencia
+    name: consumo_maquina_lavar
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.micro_ondas_potencia
+    name: consumo_microondas
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.tomada_smart_potencia
+    name: consumo_tomada_smart
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.tv_potencia
+    name: consumo_tv
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    source: sensor.cervejeira_power
+    name: consumo_cervejeira
+    unit_prefix: k
+    round: 2
+
+  # ==============================================
+  # 📌 INTEGRATION (ENTIDADES SIMULADAS)
+  # ==============================================
+  - platform: integration
+    source: sensor.top1_consumo_energia
+    name: "Consumo Total Top1KWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.top2_consumo_energia
+    name: "Consumo Total Top2KWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_mesa_consumo_energia
+    name: "Consumo Luz MesaKWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_banheiro_consumo_energia
+    name: "Consumo - Luz BanheiroKWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_quarto_menor_1_consumo_energia
+    name: "Consumo - Quarto Menor 1KWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_quarto_menor_2_consumo_energia
+    name: "Consumo - Quarto Menor 2KWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_cozinha_1_consumo_energia
+    name: "Consumo - Cozinha 1KWH"
+    unit_prefix: k
+    round: 5
+
+  - platform: integration
+    source: sensor.luz_cozinha_2_consumo_energia
+    name: "Consumo - Cozinha 2KWH"
+    unit_prefix: k
+    round: 5

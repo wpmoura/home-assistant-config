@@ -1,0 +1,14 @@
+maquina_lavar_estado:
+  name: Máquina de Lavar - Estado
+  options:
+    - Desligada
+    - Enchendo
+    - Molho
+    - Lavando
+    - Esvaziando
+    - Enxaguando
+    - Centrifugando
+    - Finalizada
+    - Transicao
+  initial: Desligada
+  icon: mdi:washing-machine

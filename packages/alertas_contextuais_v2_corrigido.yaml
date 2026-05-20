@@ -1,0 +1,194 @@
+############################################################
+# ALERTAS CONTEXTUAIS V2
+# Porta da sala + chuva integradas à Central de Mensagens
+# Helpers ficam em central_mensagens.yaml para evitar duplicidade
+############################################################
+
+template:
+  - sensor:
+      - name: casa_status_notificacoes_v2
+        unique_id: casa_status_notificacoes_v2
+        icon: mdi:bell-cog-outline
+        state: >
+          {% set modo = states('input_select.central_modo_notificacao') %}
+          {% set silencioso = is_state('input_boolean.central_notificacoes_silenciosas', 'on') %}
+
+          {% if modo == 'Manutenção' %}
+            🛠️ Manutenção
+          {% elif modo == 'Apenas Crítico' %}
+            🚨 Apenas crítico
+          {% elif modo == 'Silencioso' or silencioso %}
+            🔕 Silencioso
+          {% else %}
+            🔔 Normal
+          {% endif %}
+        attributes:
+          modo: "{{ states('input_select.central_modo_notificacao') }}"
+          silencioso: "{{ states('input_boolean.central_notificacoes_silenciosas') }}"
+          criticidade_vazamento: "{{ states('input_select.central_criticidade_vazamento') }}"
+
+      - name: casa_timeline_eventos_v2
+        unique_id: casa_timeline_eventos_v2
+        icon: mdi:timeline-clock-outline
+        state: >
+          {{ states('input_text.central_ultimo_evento') }}
+        attributes:
+          ultimo_evento: "{{ states('input_text.central_ultimo_evento') }}"
+          ultima_notificacao: "{{ states('input_text.central_ultima_notificacao') }}"
+          atualizado_em: "{{ now().strftime('%d/%m/%Y %H:%M:%S') }}"
+
+automation:
+
+  - id: alerta_contextual_porta_sala_v2
+    alias: Central - Porta Sala Contextual V2
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.sensor_porta_sala_contact
+        from: "off"
+        to: "on"
+
+    actions:
+      - variables:
+          mensagem: >
+            {% set periodo =
+              'madrugada'
+              if now().hour < 6 else
+              'manhã'
+              if now().hour < 12 else
+              'tarde'
+              if now().hour < 18 else
+              'noite'
+            %}
+            🚪 Porta da sala abriu durante a {{ periodo }}.
+          deve_notificar: >
+            {% set modo = states('input_select.central_modo_notificacao') %}
+            {% set silencioso = is_state('input_boolean.central_notificacoes_silenciosas', 'on') %}
+            {{ modo not in ['Silencioso', 'Apenas Crítico', 'Manutenção'] and not silencioso }}
+
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.central_ultimo_evento
+        data:
+          value: "{{ mensagem }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ deve_notificar | bool }}"
+        then:
+          - action: notify.mobile_app_iphonewm
+            data:
+              title: "🚪 Porta da Sala"
+              message: "{{ mensagem }}"
+
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.central_ultima_notificacao
+            data:
+              value: "{{ mensagem }}"
+
+      - action: logbook.log
+        data:
+          name: Central Operacional
+          message: "{{ mensagem }}"
+          entity_id: binary_sensor.sensor_porta_sala_contact
+
+  - id: alerta_contextual_chuva_inicio_v2
+    alias: Central - Chuva Iniciando V2
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.intensidade_da_chuva
+        to:
+          - "Fraca"
+          - "Moderada"
+          - "Forte"
+
+    actions:
+      - variables:
+          mensagem: >
+            {% set intensidade = states('sensor.intensidade_da_chuva') %}
+            {% if intensidade == 'Forte' %}
+              ⛈️ Chove forte agora.
+            {% elif intensidade == 'Moderada' %}
+              🌧️ Chuva moderada detectada.
+            {% else %}
+              🌦️ Começou a chover.
+            {% endif %}
+          deve_notificar: >
+            {% set modo = states('input_select.central_modo_notificacao') %}
+            {% set silencioso = is_state('input_boolean.central_notificacoes_silenciosas', 'on') %}
+            {{ modo not in ['Silencioso', 'Apenas Crítico', 'Manutenção'] and not silencioso }}
+
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.central_ultimo_evento
+        data:
+          value: "{{ mensagem }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ deve_notificar | bool }}"
+        then:
+          - action: notify.mobile_app_iphonewm
+            data:
+              title: "🌧️ Chuva"
+              message: "{{ mensagem }}"
+
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.central_ultima_notificacao
+            data:
+              value: "{{ mensagem }}"
+
+      - action: logbook.log
+        data:
+          name: Central Operacional
+          message: "{{ mensagem }}"
+          entity_id: sensor.intensidade_da_chuva
+
+  - id: alerta_contextual_chuva_fim_v2
+    alias: Central - Chuva Finalizada V2
+    mode: restart
+
+    triggers:
+      - trigger: state
+        entity_id: sensor.intensidade_da_chuva
+        to: "Sem chuva"
+
+    actions:
+      - variables:
+          mensagem: "🌤️ Parou de chover."
+          deve_notificar: >
+            {% set modo = states('input_select.central_modo_notificacao') %}
+            {% set silencioso = is_state('input_boolean.central_notificacoes_silenciosas', 'on') %}
+            {{ modo not in ['Silencioso', 'Apenas Crítico', 'Manutenção'] and not silencioso }}
+
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.central_ultimo_evento
+        data:
+          value: "{{ mensagem }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ deve_notificar | bool }}"
+        then:
+          - action: notify.mobile_app_iphonewm
+            data:
+              title: "🌤️ Chuva"
+              message: "{{ mensagem }}"
+
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.central_ultima_notificacao
+            data:
+              value: "{{ mensagem }}"
+
+      - action: logbook.log
+        data:
+          name: Central Operacional
+          message: "{{ mensagem }}"
+          entity_id: sensor.intensidade_da_chuva

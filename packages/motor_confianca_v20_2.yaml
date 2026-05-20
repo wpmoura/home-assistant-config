@@ -1,0 +1,356 @@
+###############################################################################
+# Central Operacional V20.2 - Lote 2B - Fase 1
+# Confidence & Stability Layer - Shadow Sensors
+#
+# Camada read-only/observavel.
+# Nao altera V20.1B, aliases finais, dashboards, timeline ou score oficial.
+# Nao usa memoria temporal real nesta fase.
+###############################################################################
+
+template:
+  - sensor:
+      - name: "Casa Confianca Contextual V20 2"
+        unique_id: casa_confianca_contextual_v20_2
+        icon: mdi:shield-check-outline
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+          {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+          {% set motivo = states('sensor.casa_motivo_relevancia_v20_2') %}
+          {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+          {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+          {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+          {% set temporal = states('sensor.casa_contexto_temporal_v20_2') %}
+          {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+          {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+          {% set fonte_invalida = relevancia in invalid or evento in invalid or motivo in invalid or casa_vazia in invalid or noturno in invalid or humano in invalid or temporal in invalid or operacional in invalid or ambiental in invalid %}
+          {% set contradicao = (
+            (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+            (casa_vazia == 'off' and humano == 'casa_vazia') or
+            (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+            (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+            (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+            (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+          ) %}
+          {% set dominio_oscilante = evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] %}
+          {% if fonte_invalida or relevancia == 'indeterminada' %}
+            indeterminada
+          {% elif contradicao %}
+            baixa
+          {% elif dominio_oscilante and evento != 'nenhum_evento_contextual' %}
+            media
+          {% else %}
+            alta
+          {% endif %}
+        attributes:
+          shadow_mode: "{{ true }}"
+          estabilidade_temporal_real: "{{ false }}"
+          fontes_usadas: >
+            sensor.casa_relevancia_contextual_v20_2;
+            sensor.casa_evento_relevante_v20_2;
+            sensor.casa_motivo_relevancia_v20_2;
+            binary_sensor.casa_vazia_v20_2;
+            binary_sensor.contexto_noturno_v20_2;
+            sensor.casa_contexto_humano_v20_2;
+            sensor.casa_contexto_temporal_v20_2;
+            sensor.casa_contexto_operacional_v20_2;
+            sensor.casa_contexto_ambiental_v20_2
+          fontes_invalidas: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set ns = namespace(items=[]) %}
+            {% if states('sensor.casa_relevancia_contextual_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_relevancia_contextual_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_evento_relevante_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_evento_relevante_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_motivo_relevancia_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_motivo_relevancia_v20_2'] %}
+            {% endif %}
+            {% if states('binary_sensor.casa_vazia_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['binary_sensor.casa_vazia_v20_2'] %}
+            {% endif %}
+            {% if states('binary_sensor.contexto_noturno_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['binary_sensor.contexto_noturno_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_humano_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_humano_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_temporal_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_temporal_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_operacional_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_operacional_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_ambiental_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_ambiental_v20_2'] %}
+            {% endif %}
+            {{ ns.items | join(', ') if ns.items | count > 0 else 'nenhuma' }}
+          fontes_contraditorias: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {% set ns = namespace(items=[]) %}
+            {% if casa_vazia == 'on' and humano == 'alguem_em_casa' %}
+              {% set ns.items = ns.items + ['casa_vazia_on_contexto_humano_alguem_em_casa'] %}
+            {% endif %}
+            {% if casa_vazia == 'off' and humano == 'casa_vazia' %}
+              {% set ns.items = ns.items + ['casa_vazia_off_contexto_humano_casa_vazia'] %}
+            {% endif %}
+            {% if relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual' %}
+              {% set ns.items = ns.items + ['relevancia_sem_evento_contextual'] %}
+            {% endif %}
+            {% if relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada'] %}
+              {% set ns.items = ns.items + ['critica_sem_evento_critico_minimo'] %}
+            {% endif %}
+            {% if evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva'] %}
+              {% set ns.items = ns.items + ['chuva_janela_sem_contexto_ambiental'] %}
+            {% endif %}
+            {% if evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'] %}
+              {% set ns.items = ns.items + ['energia_ausente_sem_contexto_operacional'] %}
+            {% endif %}
+            {{ ns.items | join(', ') if ns.items | count > 0 else 'nenhuma' }}
+          contradicao_detectada: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {{ (
+              (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+              (casa_vazia == 'off' and humano == 'casa_vazia') or
+              (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+              (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+              (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+              (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+            ) }}
+          dominio_estimado: >
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% if evento == 'chuva_janela_aberta' %}
+              ambiente
+            {% elif evento == 'energia_ausente_casa_ocupada' %}
+              energia
+            {% elif evento == 'porta_aberta_casa_vazia' %}
+              seguranca
+            {% elif evento == 'internet_degradada_noturno' %}
+              conectividade
+            {% elif evento == 'nenhum_evento_contextual' %}
+              nenhum
+            {% else %}
+              indeterminado
+            {% endif %}
+          dominio_oscilante: >
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {{ evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] }}
+          criterio_confidence: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set fonte_invalida = relevancia in invalid
+              or evento in invalid
+              or states('sensor.casa_motivo_relevancia_v20_2') in invalid
+              or casa_vazia in invalid
+              or states('binary_sensor.contexto_noturno_v20_2') in invalid
+              or humano in invalid
+              or states('sensor.casa_contexto_temporal_v20_2') in invalid
+              or operacional in invalid
+              or ambiental in invalid %}
+            {% set contradicao = (
+              (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+              (casa_vazia == 'off' and humano == 'casa_vazia') or
+              (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+              (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+              (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+              (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+            ) %}
+            {% if fonte_invalida or relevancia == 'indeterminada' %}
+              fonte invalida ou relevancia indeterminada
+            {% elif contradicao %}
+              contradicao entre fontes impede confidence alta
+            {% elif evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] %}
+              dominio naturalmente oscilante em shadow mode
+            {% else %}
+              fontes validas e coerentes
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: "Casa Estabilidade Contextual V20 2"
+        unique_id: casa_estabilidade_contextual_v20_2
+        icon: mdi:chart-timeline-variant-shimmer
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+          {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+          {% set motivo = states('sensor.casa_motivo_relevancia_v20_2') %}
+          {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+          {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+          {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+          {% set temporal = states('sensor.casa_contexto_temporal_v20_2') %}
+          {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+          {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+          {% set fonte_invalida = relevancia in invalid or evento in invalid or motivo in invalid or casa_vazia in invalid or noturno in invalid or humano in invalid or temporal in invalid or operacional in invalid or ambiental in invalid %}
+          {% set contradicao = (
+            (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+            (casa_vazia == 'off' and humano == 'casa_vazia') or
+            (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+            (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+            (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+            (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+          ) %}
+          {% set dominio_oscilante = evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] %}
+          {% if fonte_invalida or relevancia == 'indeterminada' %}
+            indeterminada
+          {% elif contradicao %}
+            instavel
+          {% elif dominio_oscilante and evento != 'nenhum_evento_contextual' %}
+            observando
+          {% else %}
+            estavel
+          {% endif %}
+        attributes:
+          shadow_mode: "{{ true }}"
+          estabilidade_temporal_real: "{{ false }}"
+          fontes_usadas: >
+            sensor.casa_relevancia_contextual_v20_2;
+            sensor.casa_evento_relevante_v20_2;
+            sensor.casa_motivo_relevancia_v20_2;
+            binary_sensor.casa_vazia_v20_2;
+            binary_sensor.contexto_noturno_v20_2;
+            sensor.casa_contexto_humano_v20_2;
+            sensor.casa_contexto_temporal_v20_2;
+            sensor.casa_contexto_operacional_v20_2;
+            sensor.casa_contexto_ambiental_v20_2
+          fontes_invalidas: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set ns = namespace(items=[]) %}
+            {% if states('sensor.casa_relevancia_contextual_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_relevancia_contextual_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_evento_relevante_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_evento_relevante_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_motivo_relevancia_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_motivo_relevancia_v20_2'] %}
+            {% endif %}
+            {% if states('binary_sensor.casa_vazia_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['binary_sensor.casa_vazia_v20_2'] %}
+            {% endif %}
+            {% if states('binary_sensor.contexto_noturno_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['binary_sensor.contexto_noturno_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_humano_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_humano_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_temporal_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_temporal_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_operacional_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_operacional_v20_2'] %}
+            {% endif %}
+            {% if states('sensor.casa_contexto_ambiental_v20_2') in invalid %}
+              {% set ns.items = ns.items + ['sensor.casa_contexto_ambiental_v20_2'] %}
+            {% endif %}
+            {{ ns.items | join(', ') if ns.items | count > 0 else 'nenhuma' }}
+          fontes_contraditorias: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {% set ns = namespace(items=[]) %}
+            {% if casa_vazia == 'on' and humano == 'alguem_em_casa' %}
+              {% set ns.items = ns.items + ['casa_vazia_on_contexto_humano_alguem_em_casa'] %}
+            {% endif %}
+            {% if casa_vazia == 'off' and humano == 'casa_vazia' %}
+              {% set ns.items = ns.items + ['casa_vazia_off_contexto_humano_casa_vazia'] %}
+            {% endif %}
+            {% if relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual' %}
+              {% set ns.items = ns.items + ['relevancia_sem_evento_contextual'] %}
+            {% endif %}
+            {% if relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada'] %}
+              {% set ns.items = ns.items + ['critica_sem_evento_critico_minimo'] %}
+            {% endif %}
+            {% if evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva'] %}
+              {% set ns.items = ns.items + ['chuva_janela_sem_contexto_ambiental'] %}
+            {% endif %}
+            {% if evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'] %}
+              {% set ns.items = ns.items + ['energia_ausente_sem_contexto_operacional'] %}
+            {% endif %}
+            {{ ns.items | join(', ') if ns.items | count > 0 else 'nenhuma' }}
+          contradicao_detectada: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {{ (
+              (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+              (casa_vazia == 'off' and humano == 'casa_vazia') or
+              (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+              (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+              (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+              (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+            ) }}
+          dominio_estimado: >
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% if evento == 'chuva_janela_aberta' %}
+              ambiente
+            {% elif evento == 'energia_ausente_casa_ocupada' %}
+              energia
+            {% elif evento == 'porta_aberta_casa_vazia' %}
+              seguranca
+            {% elif evento == 'internet_degradada_noturno' %}
+              conectividade
+            {% elif evento == 'nenhum_evento_contextual' %}
+              nenhum
+            {% else %}
+              indeterminado
+            {% endif %}
+          dominio_oscilante: >
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {{ evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] }}
+          criterio_estabilidade: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set operacional = states('sensor.casa_contexto_operacional_v20_2') %}
+            {% set ambiental = states('sensor.casa_contexto_ambiental_v20_2') %}
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% set fonte_invalida = relevancia in invalid
+              or evento in invalid
+              or states('sensor.casa_motivo_relevancia_v20_2') in invalid
+              or casa_vazia in invalid
+              or states('binary_sensor.contexto_noturno_v20_2') in invalid
+              or humano in invalid
+              or states('sensor.casa_contexto_temporal_v20_2') in invalid
+              or operacional in invalid
+              or ambiental in invalid %}
+            {% set contradicao = (
+              (casa_vazia == 'on' and humano == 'alguem_em_casa') or
+              (casa_vazia == 'off' and humano == 'casa_vazia') or
+              (relevancia in ['media', 'alta', 'critica'] and evento == 'nenhum_evento_contextual') or
+              (relevancia == 'critica' and evento not in ['chuva_janela_aberta', 'energia_ausente_casa_ocupada']) or
+              (evento == 'chuva_janela_aberta' and ambiental not in ['risco_janela_chuva', 'chuva']) or
+              (evento == 'energia_ausente_casa_ocupada' and operacional not in ['critico', 'degradado', 'atencao'])
+            ) %}
+            {% if fonte_invalida or relevancia == 'indeterminada' %}
+              fonte invalida ou relevancia indeterminada
+            {% elif contradicao %}
+              contradicao entre fontes impede estabilidade
+            {% elif evento in ['chuva_janela_aberta', 'internet_degradada_noturno'] %}
+              dominio oscilante sem memoria temporal real
+            {% else %}
+              leitura coerente no instante atual
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"

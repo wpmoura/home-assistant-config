@@ -1,0 +1,98 @@
+blueprint:
+  name: Ligar Luz do Quarto com Circadiano e Movimento
+  description: Liga uma luz quando detectar movimento, com brilho e temperatura do Circadian Lighting se disponível. Só em horários e dias configurados.
+  domain: automation
+  input:
+    sensor_movimento:
+      name: Sensor de Movimento
+      selector:
+        entity:
+          domain: binary_sensor
+    luz:
+      name: Luz a ser ligada
+      selector:
+        entity:
+          domain: light
+    hora_inicio:
+      name: Hora de início
+      default: "08:30:00"
+      selector:
+        time: {}
+    hora_fim:
+      name: Hora de fim
+      default: "19:00:00"
+      selector:
+        time: {}
+    dias_da_semana:
+      name: Dias da semana
+      default:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+    brilho_padrao:
+      name: Brilho padrão (%)
+      default: 70
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+    kelvin_padrao:
+      name: Temperatura de cor padrão (K)
+      default: 4000
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          unit_of_measurement: "K"
+
+trigger:
+  - platform: state
+    entity_id: !input sensor_movimento
+    to: "on"
+
+condition:
+  - condition: time
+    after: !input hora_inicio
+    before: !input hora_fim
+    weekday: !input dias_da_semana
+
+variables:
+  brilho_circadiano: "{{ states('sensor.circadian_brightness') | int(0) }}"
+  kelvin_circadiano: "{{ states('sensor.circadian_color_temperature') | int(0) }}"
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ brilho_circadiano > 0 and kelvin_circadiano > 0 }}
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: !input luz
+            data:
+              brightness_pct: "{{ brilho_circadiano }}"
+              kelvin: "{{ kelvin_circadiano }}"
+    default:
+      - service: light.turn_on
+        target:
+          entity_id: !input luz
+        data:
+          brightness_pct: !input brilho_padrao
+          kelvin: !input kelvin_padrao
+
+mode: restart

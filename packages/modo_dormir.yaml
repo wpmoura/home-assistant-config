@@ -1,0 +1,226 @@
+template:
+  - binary_sensor:
+      - name: "Todos Dormindo"
+        unique_id: todos_dormindo
+        device_class: occupancy
+        state: >
+          {{
+            is_state('input_boolean.wilson_dormindo', 'on')
+            and
+            is_state('input_boolean.jacira_dormindo', 'on')
+          }}
+        icon: >
+          {% if is_state('binary_sensor.todos_dormindo', 'on') %}
+            mdi:sleep
+          {% else %}
+            mdi:sleep-off
+          {% endif %}
+
+  - sensor:
+      - name: "Resumo Última Ação Modo Dormir"
+        unique_id: resumo_ultima_acao_modo_dormir
+        state: >
+          {{ states('input_text.ultima_acao_modo_dormir') }}
+
+      - name: "Status Texto Todos Dormindo"
+        unique_id: status_texto_todos_dormindo
+        state: >
+          {% if is_state('binary_sensor.todos_dormindo', 'on') %}
+            Sim
+          {% else %}
+            Não
+          {% endif %}
+
+script:
+  modo_dormir_ativar_manual:
+    alias: "Modo Dormir - Ativar Manualmente"
+    mode: single
+    sequence:
+      - service: input_boolean.turn_on
+        target:
+          entity_id:
+            - input_boolean.wilson_dormindo
+            - input_boolean.jacira_dormindo
+            - input_boolean.modo_dormir_ativo
+            - input_boolean.nao_perturbe_global
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.ultima_acao_modo_dormir
+        data:
+          value: >
+            Modo dormir ativado manualmente em
+            {{ now().strftime('%d/%m/%Y %H:%M:%S') }}
+
+  modo_dormir_desativar_manual:
+    alias: "Modo Dormir - Desativar Manualmente"
+    mode: single
+    sequence:
+      - service: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.wilson_dormindo
+            - input_boolean.jacira_dormindo
+            - input_boolean.modo_dormir_ativo
+            - input_boolean.nao_perturbe_global
+            - input_boolean.alarme_ativado_automaticamente
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.ultima_acao_modo_dormir
+        data:
+          value: >
+            Modo dormir desativado manualmente em
+            {{ now().strftime('%d/%m/%Y %H:%M:%S') }}
+
+  notificar_modo_inteligente:
+    alias: "Notificar - Modo Inteligente"
+    mode: parallel
+    fields:
+      notify_service:
+        description: "Serviço notify.xxx"
+        example: "notify.mobile_app_iphonewm"
+      titulo:
+        description: "Título da notificação"
+        example: "Home Assistant"
+      mensagem:
+        description: "Mensagem da notificação"
+        example: "Evento detectado"
+      criticidade:
+        description: "normal ou critica"
+        example: "normal"
+    sequence:
+      - variables:
+          criticidade_recebida: "{{ criticidade | default('normal') }}"
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{
+                    criticidade_recebida == 'critica'
+                    and
+                    is_state('input_boolean.permitir_alertas_criticos', 'on')
+                  }}
+            sequence:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "{{ titulo }}"
+                  message: "{{ mensagem }}"
+
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{
+                    criticidade_recebida != 'critica'
+                    and
+                    is_state('input_boolean.nao_perturbe_global', 'off')
+                  }}
+            sequence:
+              - service: "{{ notify_service }}"
+                data:
+                  title: "{{ titulo }}"
+                  message: "{{ mensagem }}"
+
+automation:
+  - alias: "Modo Dormir - Sincroniza status geral"
+    id: modo_dormir_sincroniza_status_geral
+    mode: single
+    trigger:
+      - platform: state
+        entity_id:
+          - input_boolean.wilson_dormindo
+          - input_boolean.jacira_dormindo
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.todos_dormindo
+                state: "on"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id:
+                    - input_boolean.modo_dormir_ativo
+                    - input_boolean.nao_perturbe_global
+
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.todos_dormindo
+                state: "off"
+            sequence:
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.modo_dormir_ativo
+
+  - alias: "Modo Dormir - Autoarmar alarme"
+    id: modo_dormir_autoarmar_alarme
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.todos_dormindo
+        to: "on"
+        for:
+          minutes: 2
+    condition:
+      - condition: state
+        entity_id: input_boolean.autoarmar_alarme_modo_dormir
+        state: "on"
+    action:
+      - service: alarm_control_panel.alarm_arm_home
+        target:
+          entity_id: alarm_control_panel.alarme
+
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.alarme_ativado_automaticamente
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.ultima_acao_modo_dormir
+        data:
+          value: >
+            Alarme ativado automaticamente em
+            {{ now().strftime('%d/%m/%Y %H:%M:%S') }}
+
+  - alias: "Modo Dormir - Desarmar alarme ao acordar"
+    id: modo_dormir_desarmar_alarme_ao_acordar
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.todos_dormindo
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: input_boolean.alarme_ativado_automaticamente
+        state: "on"
+    action:
+      - service: alarm_control_panel.alarm_disarm
+        target:
+          entity_id: alarm_control_panel.alarme
+        data:
+          code: !secret alarm_code
+
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.alarme_ativado_automaticamente
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.ultima_acao_modo_dormir
+        data:
+          value: >
+            Alarme desarmado automaticamente em
+            {{ now().strftime('%d/%m/%Y %H:%M:%S') }}
+
+  - alias: "Modo Dormir - Desligar NPG ao sair do modo dormir"
+    id: modo_dormir_desligar_npg_ao_sair
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_boolean.modo_dormir_ativo
+        to: "off"
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.nao_perturbe_global

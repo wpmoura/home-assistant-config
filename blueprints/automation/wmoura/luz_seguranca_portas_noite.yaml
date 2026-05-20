@@ -1,0 +1,63 @@
+blueprint:
+  name: Luz de Segurança ao Abrir Porta Após 23h30
+  description: >
+    Acende uma luz de segurança por alguns minutos quando a porta do quarto
+    ou a porta do banheiro for aberta após 23h30.
+
+  domain: automation
+
+  input:
+    sensores_porta:
+      name: Portas monitoradas
+      description: Selecione a porta do quarto e/ou banheiro
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class:
+            - door
+            - opening
+          multiple: true
+
+    luz_seguranca:
+      name: Luz de segurança
+      description: Luz que será acesa temporariamente
+      selector:
+        entity:
+          domain: light
+
+    horario_inicio:
+      name: Horário inicial
+      description: A automação só atua após este horário
+      default: "23:30:00"
+      selector:
+        time:
+
+    tempo_ligada:
+      name: Tempo ligada
+      description: Tempo que a luz ficará acesa
+      default:
+        minutes: 3
+      selector:
+        duration:
+
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input sensores_porta
+    to: "on"
+
+condition:
+  - condition: time
+    after: !input horario_inicio
+
+action:
+  - service: light.turn_on
+    target:
+      entity_id: !input luz_seguranca
+
+  - delay: !input tempo_ligada
+
+  - service: light.turn_off
+    target:
+      entity_id: !input luz_seguranca
