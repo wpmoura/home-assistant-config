@@ -5,7 +5,8 @@
 - V20.0 = concluída e congelada
 - V20.1A = implementada
 - V20.1B = camada oficial de produção
-- V20.1C = auditoria de legado iniciada
+- V20.1C = auditoria de legado concluída em diagnóstico
+- V20.1D = análise de dependências iniciada
 - V20.2 = parcialmente implementada em shadow mode/paralelo
 - V21+ = planejamento futuro
 
@@ -141,13 +142,25 @@ Decisão:
 
 ### V20.1C - Legacy Decommission Audit
 
-Status: iniciada em diagnóstico.
+Status: concluída em diagnóstico.
 
 Objetivo: auditar o legado antes de qualquer desativação controlada.
 
 Direções:
 - Documento inicial criado em `docs/auditoria_legado_v20_1c.md`.
 - Inventário preliminar de V19/V20.2 e pacotes de suporte em análise.
+
+### V20.1D - Legacy Dependency Analysis
+
+Status: iniciada.
+
+Objetivo: mapear dependências reais do legado antes de qualquer limpeza, remoção ou migração.
+
+Direções:
+- Documento de análise criado em `docs/dependencias_legado_v20_1d.md`.
+- Validar uso em produção versus uso apenas em dashboard ou no restore/registry.
+- Identificar candidatos a legado e candidatos a remoção futura.
+- Preservar helpers, dashboards, automações e scripts durante a análise.
 
 - mapear dependências diretas e indiretas
 - identificar consumidores do legado

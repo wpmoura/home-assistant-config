@@ -16,6 +16,19 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Auditoria de legado iniciada; sem alterações de YAML de produção nesta fase.
 - Próximo passo: detalhar classificação de automações e scripts por risco e dependência.
 
+## [v20.1d-legacy-dependencies] - 2026-05-20
+
+### Added
+
+- Início da análise de dependências do legado V20.1D.
+- Documento de dependências criado em `docs/dependencias_legado_v20_1d.md`.
+- Inventário detalhado de `_v19`, `_v20_2`, helpers antigos e uso por dashboards, packages, automações e scripts.
+
+### Notes
+
+- Análise documental iniciada; nenhuma alteração de produção foi realizada.
+- Esta etapa foca em mapear dependências reais antes de qualquer limpeza ou migração.
+
 ## [v20.2-shadow-phaseA] - 2026-05-19
 
 ### Added
