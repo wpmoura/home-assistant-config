@@ -166,5 +166,5 @@ input_select:
       - crítica
     initial: média
 
-# V19 DESATIVADO - Todos os sensores V19 foram movidos para /config/packages/_disabled/status_casa_v19.yaml
+# V19 DESATIVADO - Todos os sensores V19 foram movidos para /config/archive/packages_disabled/status_casa_v19.yaml
 # Data: 13 de maio de 2026
