@@ -162,6 +162,31 @@ Pendências:
 - Radar de Movimento por cômodo está registrado como backlog, sem implementação.
 - IA/LLM está documentada como camada opcional futura, sem implementação.
 
+### Auditoria operacional residual V20.2B
+
+Status: encerramento provisório documental.
+
+Achados registrados:
+
+- 21 automações órfãs foram identificadas em `.storage/core.entity_registry`.
+- Existem automações ou blocos de automação que exigem validação antes de limpeza, incluindo itens sem trigger detectável, referências a entidades possivelmente inexistentes e ações internas desabilitadas.
+- Automações críticas não devem ser removidas automaticamente.
+- A limpeza futura deve ocorrer por criticidade, preferencialmente pela UI do Home Assistant, sem edição manual de `.storage`.
+
+Categorias de triagem:
+
+| Categoria | Exemplos de domínio | Diretriz |
+| --- | --- | --- |
+| Crítico operacional | energia, UPS, internet/failover, vazamento, alarme, porta, segurança, ações físicas | manter até validação real; não remover automaticamente |
+| Legado/LAB | automações `LAB`, notificações antigas, experiências e testes | revisar utilidade; remover somente após descarte formal |
+| Provável remoção | `nova_automacao*`, duplicatas antigas, órfãs sem domínio crítico | candidato a limpeza futura pela UI |
+| Precisa validação | automações sem trigger detectável, referências inexistentes, side-effects desconhecidos | inventariar antes de qualquer decisão |
+
+Pendência futura:
+
+- Criar matriz de decisão por automação com nome, entidade/id, domínio, criticidade, última evidência de uso e ação recomendada.
+- Separar a limpeza em lotes pequenos: primeiro provável remoção, depois legado/LAB, e por último itens críticos apenas com teste real.
+
 ## 3. Pendências de Documentação
 
 - Atualizar `docs/release_central_operacional_v20.md` ou decidir que ele permanece congelado como baseline V20.0 histórica.
@@ -220,8 +245,7 @@ Pendências:
   - `IA desligada`
   - `IA leve`
   - `IA completa`
-- Validar que dashboards legados com V19 continuam preservados apenas como laboratório/histórico.
-- `.storage/lovelace.teste_4` ainda contém múltiplas referências V19; isso é aceitável somente se permanecer legado/laboratório.
+- Dashboard legado V19 `teste-4` foi validado como removido por fluxo externo/suportado; manter apenas referências documentais/históricas.
 - `.storage/lovelace.debug_operacional` e `.storage/lovelace.testes_anterior` ainda exibem fontes legadas como `sensor.central_ultima_mensagem`; isso é aceitável como debug/fonte real, mas não deve virar dependência de decisão V20.2.
 
 ## 6. Pendências Futuras / Backlog
@@ -340,4 +364,3 @@ Ordem sugerida:
 4. Confirmar que timeline/feed, aliases finais e `sensor.status_casa` não são alterados pela camada shadow.
 5. Só depois decidir se vale criar o harness real `packages/test_harness_v20_2.yaml`.
 6. Após validação, preparar commit seletivo apenas dos arquivos V20.2/documentação realmente relacionados.
-

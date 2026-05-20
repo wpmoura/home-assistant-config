@@ -3,15 +3,25 @@
 ## Estado Atual
 
 - V20.0 = concluída e congelada
-- V20.1A = implementada
-- V20.1B = camada oficial de produção
+- V20.1A = concluída
+- V20.1B lote 1 = concluída
+- V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
 - V20.1C = auditoria de legado concluída em diagnóstico
 - V20.1D/E = checkpoint documental de dependências e impacto concluído
 - V20.1F/G/H = validação e investigação de V19 concluídas
 - V20.1I/J = isolamento controlado de packages desativados aplicado e validado
-- V20.1K = saneamento documental dos resíduos V19 pós-isolamento concluído
-- V20.2 = parcialmente implementada em shadow mode/paralelo
-- V21+ = planejamento futuro
+- V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
+- V20.2A = concluída; dashboard legado `teste-4` removido pela UI
+- V20.2B = auditoria executada, sem ação operacional
+- V20.2/V20.3/V21 = planejamento futuro
+
+Estado operacional consolidado:
+
+- Workspace limpo no último checkpoint validado.
+- Sem resíduos V19 conhecidos em dashboards ativos.
+- Dashboard legado `teste-4` removido pela UI/fluxo suportado.
+- Auditoria de automações identificou 21 órfãs; automações críticas não devem ser removidas automaticamente.
+- Limpeza técnica futura deve seguir criticidade, em lotes pequenos e reversíveis.
 
 ## Arquitetura Oficial
 
@@ -41,6 +51,11 @@ Fluxo oficial de processamento:
 
 ## Backlog Estratégico
 
+- Gestão inteligente de energia/UPS
+- HA resiliente com principal -> backup RPi5
+- Internet/4G/failover
+- Camada contextual futura
+- Limpeza técnica futura
 - Radar de Movimento sob demanda
 - Assistente Contextual Preventivo
 - Weather Risk Engine
@@ -110,7 +125,7 @@ Escopo:
 
 ### V20.1B - Legacy Migration Layer
 
-Status: concluída em camada de eventos, com legado preservado.
+Status: lote 1 concluído; lote 2 concluído/parcial para energia, internet, failover e backup, com legado preservado.
 
 Escopo real:
 
@@ -121,6 +136,7 @@ Escopo real:
 - camada semântica inicial
 - redução de parsing textual
 - publicação estruturada de eventos operacionais
+- cobertura parcial dos domínios energia, internet, failover e backup
 
 Limites explícitos:
 
@@ -303,7 +319,7 @@ Resultado:
 - Entidades V19 residuais foram classificadas como candidatas a limpeza futura, com estado final `unavailable`.
 - `.storage/core.entity_registry` foi classificado como candidato a limpeza futura, sem edição manual.
 - `.storage/core.restore_state` foi classificado como não remover automaticamente.
-- Dashboard oculto `teste-4` foi classificado como não remover automaticamente.
+- Dashboard oculto `teste-4` foi inicialmente classificado como não remover automaticamente e posteriormente removido pela UI/fluxo suportado na consolidação V20.2A.
 - Comentário antigo em `packages/status_casa.yaml` foi identificado como referência documental obsoleta e corrigido na V20.1K.1 pelo commit `6cbfd18 docs: update archived V19 package reference`.
 
 Recomendação:
@@ -313,7 +329,7 @@ Recomendação:
 
 ## V20.2 - Dedicated Engines + UX/Operational Layout
 
-Status: parcialmente implementada em shadow mode/paralelo; checkpoint de homologação Fase A concluído.
+Status: parcialmente implementada em shadow mode/paralelo; checkpoint de homologação Fase A concluído; auditoria operacional residual iniciada.
 
 Checkpoint: Homologação Fase A concluída.
 
@@ -333,6 +349,44 @@ Direções:
 - Preparar filtros, contexto e drill-down operacional.
 - Separar melhor leitura executiva, debug e governança.
 - Manter dashboards produtivos consumindo aliases finais sem versão.
+
+### V20.2A - Legacy Dashboard Review
+
+Status: validada por inspeção e remoção externa confirmada.
+
+Objetivo: avaliar o dashboard oculto legado `teste-4` antes de qualquer remoção.
+
+Resultado:
+
+- Dashboard `Laboratório - Casa Inteligente` (`teste-4`) foi classificado como legado V19 sem vínculo operacional encontrado.
+- Remoção foi validada posteriormente por inspeção: `teste_4` não aparece mais em `.storage/lovelace_dashboards` e `.storage/lovelace.teste_4` não existe mais.
+- Referências V19 não aparecem em dashboards ativos após a remoção.
+- Permanecem apenas referências documentais/históricas.
+
+### V20.2B - Automation Residual Audit
+
+Status: encerramento provisório documental.
+
+Objetivo: registrar achados da auditoria de automações órfãs/desabilitadas sem executar limpeza.
+
+Resultado:
+
+- Foram identificadas 21 automações órfãs em `.storage/core.entity_registry`.
+- Automações críticas não devem ser removidas automaticamente.
+- A limpeza futura deve ocorrer por criticidade, em lotes pequenos, reversíveis e validados pela UI do Home Assistant.
+
+Categorias de triagem:
+
+| Categoria | Critério | Diretriz |
+| --- | --- | --- |
+| Crítico operacional | energia, UPS, internet/failover, vazamento, alarme, porta, segurança ou ações físicas | não remover automaticamente; validar funcionamento real |
+| Legado/LAB | aliases com `LAB`, testes, notificações antigas, experiências de dashboard ou laboratório | revisar e remover somente se descartado formalmente |
+| Provável remoção | `nova_automacao*`, duplicatas antigas, órfãs sem domínio crítico e sem referência operacional | candidato a limpeza futura pela UI |
+| Precisa validação | automações sem trigger detectável, entidades inexistentes ou side-effects pouco claros | inventariar antes de qualquer mudança |
+
+Princípio:
+
+- Nenhuma automação deve ser habilitada, desabilitada ou removida sem validação de domínio e rollback.
 
 ### Semantic Timeline Refinement
 

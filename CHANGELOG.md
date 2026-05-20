@@ -74,8 +74,24 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Nenhum YAML produtivo foi alterado.
 - Nenhum dashboard foi alterado.
 - Entidades V19 residuais foram tratadas como candidatas a limpeza futura, não como dependência ativa.
-- Dashboard oculto `teste-4` foi classificado como não remover automaticamente.
+- Dashboard oculto `teste-4` foi classificado inicialmente como não remover automaticamente e posteriormente removido pela UI/fluxo suportado na consolidação V20.2A.
 - A referência documental obsoleta em `packages/status_casa.yaml` foi fechada separadamente no commit `6cbfd18 docs: update archived V19 package reference`.
+
+## [v20.2-operational-residual-audit] - 2026-05-20
+
+### Changed
+
+- Roadmap consolidado para refletir o estado real após V20.1K e V20.2A.
+- Arquitetura e contexto operacional atualizados com o estado de V20.1B, V20.1K, V20.2A e V20.2B.
+- Registro de que a tag `V20.1K_FECHAMENTO` foi criada.
+- Registro de que o dashboard legado `teste-4` foi removido pela UI/fluxo suportado.
+
+### Notes
+
+- Não houve alteração em YAML funcional, packages, entidades, automações ou `.storage`.
+- Dashboards ativos não possuem resíduos V19 conhecidos.
+- Auditoria de automações identificou 21 órfãs; automações críticas não devem ser removidas automaticamente.
+- Próximas prioridades: energia/UPS, HA resiliente principal -> backup RPi5, internet/4G/failover, camada contextual futura e limpeza técnica futura.
 
 ## [v20.2-shadow-phaseA] - 2026-05-19
 

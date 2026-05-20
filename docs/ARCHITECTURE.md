@@ -18,11 +18,13 @@ A fonte única de verdade da Central Operacional deve consolidar o estado atual 
 Estado oficial:
 
 - V20.0 = concluída e congelada
-- V20.1A = implementada
-- V20.1B = camada oficial de produção
-- V20.1C = auditoria de legado planejada
-- V20.2 = parcialmente implementada em shadow mode/paralelo
-- V21+ = planejamento futuro
+- V20.1A = concluída
+- V20.1B lote 1 = concluída
+- V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
+- V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
+- V20.2A = concluída; dashboard legado `teste-4` removido pela UI
+- V20.2B = auditoria executada, sem ação operacional
+- V20.2/V20.3/V21 = planejamento futuro
 
 Arquitetura oficial:
 
@@ -231,9 +233,16 @@ A evolução natural fica no roadmap V21/V22.
 
 ## Separação Legado e V20
 
+Estado após V20.1K/V20.2A:
+
+- Artefatos V19 históricos ficam em `archive/packages_disabled/`, fora da árvore carregada por `packages/`.
+- Dashboard legado `teste-4` foi removido pela UI/fluxo suportado.
+- Dashboards ativos não possuem resíduos V19 conhecidos.
+- Entidades V19 residuais em registry/restore_state não devem ser limpas manualmente.
+- Auditoria V20.2B identificou 21 automações órfãs; automações críticas não devem ser removidas automaticamente.
+
 Regras da baseline:
 
-- V19 permanece em `_disabled`.
 - Dashboards oficiais não devem consumir sensores V19 diretamente.
 - `status_casa.yaml` permanece como governança/pesos históricos.
 - `sensor.status_casa` é alias final e deve permanecer estável.
