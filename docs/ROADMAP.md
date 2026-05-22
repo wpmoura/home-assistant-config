@@ -573,12 +573,76 @@ Diretriz arquitetural:
 - Separar leitura física de movimento/presença da apresentação visual no dashboard.
 - Manter o radar como experiência sob demanda, não como elemento fixo da Central Operacional.
 
+Inventário preparatório por ambiente:
+
+Este inventário é base de descoberta para o Radar/Mapa Operacional. Ele não cria nova fonte de verdade, não autoriza implementação e deve ser validado em runtime antes de qualquer package, helper ou dashboard futuro.
+
+| Ambiente | Sensores físicos | Sensores V20 derivados | Função operacional | Fonte candidata para camada semântica | Elegível para Radar |
+|---|---|---|---|---|---|
+| Área de Serviço | `binary_sensor.movimento_area_servico_presence`; sensor específico de vazamento registrado como `binary_sensor.sensor_vazmento_agua_water_leak` | `sensor.casa_vazamento_estado_v20` para vazamento; sem derivado V20 de presença por ambiente | Presença local e alerta específico de água/vazamento | Presença local como atividade; vazamento como alerta contextual, não como movimento | SIM |
+| Banheiro | `binary_sensor.movimento_banheiro_occupancy`; `binary_sensor.movimento_alto_banheiro_occupancy`; `binary_sensor.sensor_porta_banheiro_contact` | `sensor.casa_banho_estado_v20`; `sensor.casa_porta_banheiro_estado_v20` | Movimento geral, sensor de box/chuveiro e porta interna | Separar presença do banheiro de evento semântico de banho; sensor alto não deve virar movimento genérico | SIM |
+| Cozinha | `binary_sensor.movimento_cozinha_2_occupancy`; `binary_sensor.camera_hub_g2h_7624_motion_sensor`; referências legadas a `binary_sensor.sensor_movimento_cozinha_occupancy`/`_2` em automações | Sem derivado V20 por ambiente identificado | Movimento/atividade local; câmera pode ser fonte complementar se validada | Priorizar `movimento_cozinha_2_occupancy`; validar se câmera e sensores legados ainda são fontes reais | SIM |
+| Corredor | `binary_sensor.movimento_corredor_occupancy` | Sem derivado V20 por ambiente identificado | Passagem/circulação | Fonte direta para ambiente ativo, com possível debounce futuro | SIM |
+| Dispensa | `binary_sensor.movimento_dispensa_occupancy` | Sem derivado V20 por ambiente identificado | Movimento local | Fonte direta para ambiente ativo | SIM |
+| Home office | Nenhum sensor físico de movimento/presença por ambiente identificado nesta descoberta | Sem derivado V20 por ambiente identificado | Rotina local existe por helpers/automação, mas não por sensor de presença encontrado | Requer sensor físico ou fonte semântica própria antes de entrar no Radar | NÃO |
+| Quarto Maior | `binary_sensor.movimento_piso_quarto_maior_occupancy`; `binary_sensor.sensor_movimento_quarto_maior_occupancy`; referência a `binary_sensor.presence_sensor_master_bedroom_occupancy`; `binary_sensor.0x00158d0006b0a28b_contact`; `binary_sensor.sensor_janela_quarto_maior_contact`; `binary_sensor.grp_movimento_quarto_maior` | `sensor.casa_porta_quarto_maior_estado_v20`; `sensor.casa_janela_quarto_maior_estado_v20` | Presença/movimento, porta interna e janela | Usar grupo de movimento como candidato semântico; validar sensor de porta marcado no registry como quebrado | SIM |
+| Quarto Menor | `binary_sensor.movimento_quarto_menor_occupancy`; `binary_sensor.movimento_piso_quarto_menor_occupancy`; `binary_sensor.sensor_porta_sec_quarto_contact`; `binary_sensor.sensor_janela_quarto_menor_contact`; `binary_sensor.grp_movimento_quarto_menor` | `sensor.casa_porta_quarto_menor_estado_v20`; `sensor.casa_janela_quarto_menor_estado_v20` | Presença/movimento, porta interna e janela | Usar grupo de movimento como candidato semântico; validar área do sensor de piso antes de uso final | SIM |
+| Sala de Estar | `binary_sensor.movimento_sala_estar_occupancy`; `binary_sensor.sensor_porta_sala_contact`; `binary_sensor.sensor_varanda_sala_contact` | `sensor.casa_porta_sala_estado_v20`; `sensor.casa_janela_varanda_sala_estado_v20` | Movimento, porta principal e abertura da varanda | Fonte direta para presença local; portas/janelas como contexto do ambiente | SIM |
+| Sala de Jantar | `binary_sensor.movimento_sala_jantar_occupancy` | Sem derivado V20 por ambiente identificado | Movimento/atividade local | Fonte direta para ambiente ativo | SIM |
+| Casa/global | `binary_sensor.casa_presenca_global`; `binary_sensor.casa_tem_movimento`; legados `binary_sensor.casa_presenca_global_2`, `binary_sensor.casa_presenca_global_v13`, `binary_sensor.casa_atividade_corredor_v17` | `binary_sensor.casa_vazia_v20_2` em shadow; contexto humano V20.2 consome presença global e movimento por cômodo | Estado agregado de presença/casa vazia | Usar apenas como fallback/estado agregado; não representa um cômodo para o mapa | NÃO |
+| Lab/técnico/externo | `binary_sensor.sensor_chuva_girasol_rain`; sensores de infraestrutura e entidades registradas em área técnica | `sensor.casa_chuva_estado_v20`; `sensor.casa_vazamento_estado_v20` quando registrado tecnicamente fora do cômodo real | Chuva, vazamento e sinais técnicos/ambientais | Entrar como camada contextual/alerta, não como presença de ambiente | NÃO |
+
 Evolução futura:
 
-- Mapa/planta baixa da casa com cômodos acendendo conforme movimento.
-- Histórico dos últimos movimentos.
-- Modo monitoramento temporário.
-- Possível integração futura com IA/LLM para interpretação contextual da movimentação.
+#### Fase 1 - Radar simples sob demanda
+
+Objetivo: entregar somente uma visão operacional simples, acionada manualmente, sem ocupar espaço permanente no dashboard principal.
+
+- Criar helper liga/desliga, preferencialmente `input_boolean.casa_radar_movimento_ativo`.
+- Exibir o Radar de Movimento apenas quando o helper estiver ligado.
+- Listar apenas ambientes com atividade/movimento real no momento.
+- Não listar ambientes inativos.
+- Não criar inferência semântica nesta fase.
+- Não alterar lógica canônica da timeline, contexto ou aliases finais.
+
+#### Fase 2 - Camada semântica de presença por ambiente
+
+Objetivo: consolidar leituras físicas em estados semânticos por ambiente.
+
+- Unificar PIR, mmWave, ocupação, presença e sensores específicos por cômodo.
+- Separar sensor físico bruto de presença semântica por ambiente.
+- Expor estados finais do tipo ambiente ativo/inativo, sem lógica pesada no dashboard.
+- Tratar múltiplas fontes do mesmo ambiente com prioridade e tolerância a ruído.
+- Manter a experiência sob demanda.
+
+#### Fase 3 - Planta baixa operacional
+
+Objetivo: evoluir de lista textual para mapa visual da casa.
+
+- Criar planta baixa da casa em fase futura, sem substituir a lista simples da Fase 1.
+- Fazer ambientes acenderem/destacarem conforme atividade.
+- Manter fallback textual para ambientes ativos.
+- Evitar que a planta baixa vire fonte de verdade; ela deve consumir sensores finais/semânticos.
+
+#### Fase 4 - Histórico de movimentação e integração contextual
+
+Objetivo: permitir leitura temporal da movimentação sem transformar o radar em log permanente.
+
+- Registrar histórico dos últimos movimentos por ambiente.
+- Integrar com timeline/contexto apenas quando houver evento operacional relevante.
+- Evitar spam de movimento bruto na timeline.
+- Diferenciar movimento atual, último ambiente ativo e sequência recente.
+- Permitir reconstrução humana de contexto recente sem alterar prioridades canônicas.
+
+#### Fase 5 - Integração futura com CMDB e IA opcional
+
+Objetivo: enriquecer interpretação da movimentação com contexto de inventário e IA, mantendo o sistema determinístico por padrão.
+
+- Relacionar ambientes, dispositivos e sensores via CMDB futura.
+- Permitir que IA opcional explique padrões de movimentação ou anomalias.
+- IA não deve ser dependência para detecção de movimento, presença ou alertas críticos.
+- IA desligada deve manter o Radar/Mapa Operacional funcional.
+- Usar IA apenas para explicação, recomendação e enriquecimento contextual.
 
 Critério de compatibilidade:
 

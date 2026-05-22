@@ -375,6 +375,34 @@ Nenhum lote abaixo está autorizado para execução pela V20.1C. A estratégia a
 | Lote 5 | Quarentena C3 | 1 item | Estudar item de alto risco sem desligar ação física | Observação mínima de 30 dias; rollback testado; janela manual definida | Decisão explícita: manter, migrar ação, ou bloquear |
 | Lote 6 | Bloqueado | 0 itens | Nenhuma execução; somente planejamento formal futuro | Nova autorização, fase própria, rollback e teste real | Manter bloqueado até novo lote formal |
 
+### Lote 1 - candidatos reais para observação operacional
+
+Lista executável inicial extraída somente do material já auditado nesta V20.1C. O lote respeita o limite de até 5 itens da matriz operacional e não autoriza desativação, remoção ou alteração de YAML; a ação permitida é observação operacional por no mínimo 7 dias, com rollback simples previamente conhecido.
+
+| Nome | Tipo | Motivo da classificação | Consumidores conhecidos | Side-effects | Impacto esperado | Rollback | Apto para observação |
+|---|---|---|---|---|---|---|---|
+| `Lab - Muda o Tema Automaticamente` | automação | C1 por ser laboratório/UI, sem vínculo crítico identificado com contratos V20 | Tema do frontend | Troca automática de tema | Impacto visual apenas; não altera estado real, timeline, push ou motor V20 | Reativar automação e ajustar tema manualmente se necessário | SIM |
+| `Coloca o tema Claro` | automação | C1 por ser UI/laboratório, sem dependência operacional V20 conhecida | Tema do frontend | Aplica tema claro | Impacto visual apenas; sem efeito operacional esperado | Reativar automação e restaurar tema anterior manualmente se necessário | SIM |
+| `Verifica subida do sistema HA` | script | C1 por script legado com side-effect simples e sem consumidor crítico identificado | Luz/indicador local | Executa `light.turn_off` | Pode alterar somente indicador/luz local após subida do HA | Reativar script ou restaurar estado da luz manualmente | SIM |
+| `Resetar Nível do Umidificador` | script | C1 por atuar em helper local sem vínculo crítico identificado | `input_number.nivel_atual_umidificador` | Atualiza helper de nível do umidificador | Pode deixar valor auxiliar do umidificador sem reset automático durante observação | Reativar script e restaurar valor do helper manualmente se necessário | SIM |
+| `LAB - Reset do Não desligar Monitor` | script | C1 por rotina lab/local com helper próprio | `input_boolean.naodesliguemonitorhoje` | Desliga helper de exceção do monitor | Pode alterar apenas exceção local de não desligar monitor | Reativar script e religar o helper se necessário | SIM |
+
+Itens C1 não incluídos neste Lote 1 permanecem em quarentena para lotes futuros. Automações de iluminação, rotinas de Home Office e blueprints com ação física ficam fora do primeiro lote por terem maior chance de impacto humano perceptível, mesmo quando classificados como baixo risco.
+
+### Plano de observação operacional - Lote 1 C1
+
+Este plano não autoriza decommission. Ele define somente como observar uso real dos 5 candidatos C1 iniciais, quais evidências coletar e quais critérios devem orientar uma decisão futura em lote próprio.
+
+| Nome | Como observar se ainda é usado | Evidência a coletar | Tempo de observação | Critério para manter | Critério para desativar futuramente | Rollback | Risco residual |
+|---|---|---|---:|---|---|---|---|
+| `Lab - Muda o Tema Automaticamente` | Verificar histórico/logbook de execução da automação e percepção visual de troca automática de tema | Registro de acionamento, horário, usuário afetado e necessidade real da troca de tema | 7 dias | Qualquer acionamento útil, uso recorrente ou dependência visual percebida | Nenhum acionamento relevante, nenhum consumidor humano identificado e tema ajustável manualmente sem perda operacional | Reativar automação e ajustar tema manualmente para o estado esperado | Baixo; possível incômodo visual se a troca automática for esperada por algum usuário |
+| `Coloca o tema Claro` | Verificar se a automação é acionada por rotina, dashboard ou usuário e se há dependência do tema claro | Registro de acionamento, origem do gatilho e efeito visual observado | 7 dias | Uso manual/automático recorrente ou dependência de leitura/visibilidade em algum painel | Ausência de acionamento e ausência de reclamação/necessidade de tema claro automático | Reativar automação e restaurar tema claro manualmente | Baixo; possível alteração de preferência visual |
+| `Verifica subida do sistema HA` | Observar após restart/reload do HA se o script é chamado e qual luz/indicador é desligado | Log de chamada do script, entidade de luz afetada e efeito após subida do HA | 7 dias, incluindo ao menos 1 restart/reload observado se ocorrer naturalmente | Se o script corrigir indicador real pós-subida ou evitar estado visual incorreto | Se não houver chamada, ou se a luz afetada não tiver função operacional/visual necessária | Reativar script ou ajustar a luz manualmente ao estado esperado | Baixo a médio; pode deixar indicador/luz em estado visual inesperado após restart |
+| `Resetar Nível do Umidificador` | Monitorar alterações em `input_number.nivel_atual_umidificador` e verificar se alguma rotina espera o reset | Histórico do helper, origem da alteração, uso por painel/rotina e impacto percebido no umidificador | 7 dias | Qualquer consumidor real do helper, rotina dependente do reset ou necessidade operacional do valor | Nenhum consumo identificado e ausência de impacto ao manter o helper sem reset automático | Reativar script e restaurar manualmente o valor do helper | Baixo; pode manter valor auxiliar incorreto no painel ou em rotina local |
+| `LAB - Reset do Não desligar Monitor` | Observar estado de `input_boolean.naodesliguemonitorhoje` e se o reset diário/local ainda é usado | Histórico do helper, acionamento do script, usuário/rotina que depende da exceção do monitor | 7 dias | Uso real da exceção ou dependência de rotina para evitar/desfazer desligamento do monitor | Nenhum acionamento relevante e ausência de consumidor humano/rotina dependente | Reativar script e religar/desligar o helper conforme necessidade real | Baixo; monitor pode seguir política padrão quando exceção era desejada |
+
+Condição de saída do Lote 1: ao fim da observação, cada item deve ser classificado como manter, propor desativação futura em lote formal, ou reclassificar para C2/C3/Bloqueado se surgir consumidor, side-effect relevante ou risco não mapeado. Nenhuma ação de desativação é autorizada por este plano.
+
 ### Regras de promoção e rebaixamento
 
 - C1 passa para C2 se houver notificação, helper compartilhado, consumidor humano ou uso recorrente.
