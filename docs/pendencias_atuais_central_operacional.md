@@ -94,6 +94,20 @@ Pendências:
 - Validar que nenhum alias final consome esses sensores.
 - Confirmar rollback simples removendo/desabilitando `packages/motor_contexto_v20_2.yaml`.
 
+### V20.2A - Evolução Contextual de Atividades
+
+Status: decisão arquitetural aprovada para próximos passos.
+
+Pendências:
+
+- Tratar monitoramento de banho como ativo por padrão daqui para frente.
+- Não tratar banho como funcionalidade opcional.
+- Manter banho inicialmente desacoplado do motor operacional V20.1N.
+- Utilizar lógica contextual existente com movimento, umidade e sensores relacionados.
+- Definir encerramento padrão por ausência de evidências de banho por 2 minutos.
+- Validar que a regra evita falso encerramento por oscilação de movimento, estabilização da umidade e pequenas pausas durante banho.
+- Após estabilização, avaliar incorporação de banho ao motor operacional como atividade formal (`🛁 banho`).
+
 ### V20.2 Lote 2A - Relevância Contextual
 
 Status: implementado como prova mínima.

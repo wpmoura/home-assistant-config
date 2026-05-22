@@ -74,10 +74,24 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Identificação preliminar de `packages/_disabled/status_casa_v19.yaml`, `.storage` com registros V19 e motores V20.2 em shadow.
 - Confirmação inicial de que `ui-lovelace.yaml` não consome `_v20_2` no escopo desta busca.
 
+### Closed
+
+- `V20.1C_FECHAMENTO` registrado como fechamento formal de diagnóstico e governança.
+- Inventário concluído.
+- Dependências classificadas.
+- Impacto documentado.
+- Automações, scripts, blueprints e packages auditados.
+- Risco operacional classificado.
+- Quarentena controlada definida.
+
 ### Notes
 
-- Auditoria de legado iniciada; sem alterações de YAML de produção nesta fase.
-- Próximo passo: detalhar classificação de automações e scripts por risco e dependência.
+- Decommission continua bloqueado.
+- V20.1O permanece congelada.
+- Nenhuma limpeza foi autorizada.
+- Nenhuma automação foi autorizada para desligamento automático.
+- Limpeza futura continua dependente de classificação de risco, consumidores conhecidos, side-effects mapeados, janela de observação e rollback obrigatório.
+- Sem alterações de YAML de produção nesta fase.
 
 ## [v20.1d-legacy-dependencies] - 2026-05-20
 

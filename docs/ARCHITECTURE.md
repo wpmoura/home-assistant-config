@@ -21,6 +21,8 @@ Estado oficial:
 - V20.1A = concluída
 - V20.1B lote 1 = concluída
 - V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
+- V20.1C = `V20.1C_FECHAMENTO` registrado; diagnóstico e governança concluídos, decommission bloqueado
+- V20.1D/E = checkpoint documental de dependências e impacto concluído; limpeza não autorizada
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
 - V20.1N = homologada; checkpoint de estabilização registrado
 - V20.1O = congelada; política Timeline / Push / Agregação estabilizada
@@ -48,6 +50,7 @@ Regras fundamentais:
 - V20.2 permanece isolada em shadow
 - IA é opcional; IA desligada mantém o sistema funcional
 - Não substituir automações legadas sem auditoria V20.1C
+- V20.1C não autoriza decommission; nenhuma limpeza ou desativação automática está autorizada
 - Packages novos devem permitir rollback simples
 - Radar de Movimento deve ser sob demanda
 

@@ -6,8 +6,8 @@
 - V20.1A = concluída
 - V20.1B lote 1 = concluída
 - V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
-- V20.1C = auditoria de legado concluída em diagnóstico
-- V20.1D/E = checkpoint documental de dependências e impacto concluído
+- V20.1C = `V20.1C_FECHAMENTO` registrado; diagnóstico e governança concluídos, decommission bloqueado
+- V20.1D/E = checkpoint documental de dependências e impacto concluído; limpeza não autorizada
 - V20.1F/G/H = validação e investigação de V19 concluídas
 - V20.1I/J = isolamento controlado de packages desativados aplicado e validado
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
@@ -164,13 +164,20 @@ Decisão:
 
 ### V20.1C - Legacy Decommission Audit
 
-Status: concluída em diagnóstico.
+Status: `V20.1C_FECHAMENTO` registrado. Diagnóstico e governança concluídos; decommission permanece bloqueado.
 
 Objetivo: auditar o legado antes de qualquer desativação controlada.
 
 Direções:
 - Documento inicial criado em `docs/auditoria_legado_v20_1c.md`.
-- Inventário preliminar de V19/V20.2 e pacotes de suporte em análise.
+- Inventário preliminar de V19/V20.2 e pacotes de suporte concluído como diagnóstico documental.
+- Dependências classificadas em `docs/dependencias_legado_v20_1d.md`.
+- Impacto de limpeza simulado em `docs/impacto_limpeza_v20_1e.md`.
+- Automações, scripts, blueprints e packages auditados no documento V20.1C.
+- Risco operacional classificado e quarentena controlada definida.
+- Decommission continua bloqueado.
+- Nenhuma limpeza ou automação está autorizada para desligamento automático.
+- Limpeza futura continua dependente de classificação de risco, consumidores conhecidos, side-effects mapeados, janela de observação e rollback obrigatório.
 
 ### V20.1D - Legacy Dependency Analysis
 

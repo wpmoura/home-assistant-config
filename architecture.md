@@ -16,6 +16,7 @@ Fluxo oficial de processamento:
 Princípios principais:
 
 - V20.1B é a camada de produção determinística.
+- V20.1C possui `V20.1C_FECHAMENTO` registrado: diagnóstico e governança concluídos, com decommission bloqueado.
 - V20.1N está homologada como checkpoint de estabilização operacional.
 - V20.1O está congelada como política produtiva de Timeline / Push / Agregação.
 - V20.2 opera em shadow mode e não deve alterar dashboards produtivos.
