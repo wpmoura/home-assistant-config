@@ -55,7 +55,7 @@ input_number:
     mode: slider
     unit_of_measurement: min
     icon: mdi:shower-head
-    initial: 3
+    initial: 2
 
   casa_timeline_max_eventos:
     name: Casa - Maximo de Eventos na Timeline
@@ -111,7 +111,17 @@ input_boolean:
   casa_timeline_evento_banho:
     name: Casa - Timeline Banho
     icon: mdi:shower-head
-    initial: false
+    initial: true
+
+  casa_timeline_evento_maquina_lavar:
+    name: Casa - Timeline Maquina Lavar
+    icon: mdi:washing-machine
+    initial: true
+
+  casa_timeline_evento_microondas:
+    name: Casa - Timeline Microondas
+    icon: mdi:microwave
+    initial: true
 
   casa_timeline_evento_backup_google:
     name: Casa - Timeline Backup Google
@@ -131,4 +141,44 @@ input_boolean:
   casa_timeline_evento_failover:
     name: Casa - Timeline Failover 4G
     icon: mdi:router-wireless
+    initial: true
+
+  casa_push_evento_tv:
+    name: Casa - Push TV
+    icon: mdi:television
+    initial: false
+
+  casa_push_evento_banho:
+    name: Casa - Push Banho
+    icon: mdi:shower-head
+    initial: false
+
+  casa_push_evento_maquina_lavar:
+    name: Casa - Push Maquina Lavar
+    icon: mdi:washing-machine
+    initial: false
+
+  casa_push_evento_microondas:
+    name: Casa - Push Microondas
+    icon: mdi:microwave
+    initial: false
+
+  casa_agregacao_evento_tv:
+    name: Casa - Agregacao TV
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_banho:
+    name: Casa - Agregacao Banho
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_maquina_lavar:
+    name: Casa - Agregacao Maquina Lavar
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_microondas:
+    name: Casa - Agregacao Microondas
+    icon: mdi:timeline-plus-outline
     initial: true

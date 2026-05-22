@@ -22,11 +22,6 @@ input_boolean:
     icon: mdi:microwave
     initial: true
 
-  atividade_banho_habilitada:
-    name: Atividade Banho Habilitada
-    icon: mdi:shower
-    initial: true
-
 input_number:
   atividade_tv_peso:
     name: Atividade TV Peso
@@ -58,16 +53,6 @@ input_number:
     icon: mdi:weight
     initial: 60
 
-  atividade_banho_peso:
-    name: Atividade Banho Peso
-    min: 0
-    max: 100
-    step: 5
-    mode: slider
-    unit_of_measurement: "%"
-    icon: mdi:weight
-    initial: 50
-
   atividade_microondas_potencia_minima:
     name: Atividade Microondas Potencia Minima
     min: 0
@@ -87,16 +72,6 @@ input_number:
     unit_of_measurement: "W"
     icon: mdi:flash
     initial: 5
-
-  atividade_banho_umidade_delta:
-    name: Atividade Banho Delta Umidade
-    min: 0
-    max: 100
-    step: 1
-    mode: slider
-    unit_of_measurement: "%"
-    icon: mdi:water-percent
-    initial: 12
 
 template:
   - sensor:
@@ -131,10 +106,9 @@ template:
           {% set micro_min = states('input_number.atividade_microondas_potencia_minima') | float(100) %}
           {% set micro_ativo = micro_habilitado and (micro_potencia > micro_min or micro_corrente > 1) %}
 
-          {% set banho_habilitado = states('input_boolean.atividade_banho_habilitada') != 'off' %}
           {% set banho_estado = states('sensor.casa_banho_estado_v20') %}
           {% set banho_chuveiro = states('binary_sensor.movimento_alto_banheiro_occupancy') %}
-          {% set banho_ativo = banho_habilitado and (banho_estado == 'banho_detectado' or banho_chuveiro == 'on') %}
+          {% set banho_ativo = banho_estado == 'banho_detectado' or banho_chuveiro == 'on' %}
           {% set ativos = [micro_ativo, maquina_ativa, tv_ativa, banho_ativo] | select('eq', true) | list | count %}
 
           {% if ativos == 0 %}
@@ -163,7 +137,7 @@ template:
             {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
             {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% set banho_ativo = states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
             {% if micro_ativo %}
               microondas
             {% elif maquina_ativa %}
@@ -182,7 +156,7 @@ template:
             {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
             {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% set banho_ativo = states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
             {% set ativos = [micro_ativo, maquina_ativa, tv_ativa, banho_ativo] | select('eq', true) | list | count %}
             {% if ativos > 1 %}
               multiatividade
@@ -204,7 +178,7 @@ template:
             {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
             {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% set banho_ativo = states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
             {% if micro_ativo %}
               sensor.micro_ondas_potencia
             {% elif maquina_ativa %}
@@ -227,7 +201,7 @@ template:
             {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
             {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% set banho_ativo = states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
             {% if micro_ativo %}
               {% set rel = states('input_number.atividade_microondas_peso') | int(60) %}
             {% elif maquina_ativa %}
@@ -235,7 +209,7 @@ template:
             {% elif tv_ativa %}
               {% set rel = states('input_number.atividade_tv_peso') | int(20) %}
             {% elif banho_ativo %}
-              {% set rel = states('input_number.atividade_banho_peso') | int(50) %}
+              {% set rel = 50 %}
             {% else %}
               {% set rel = 0 %}
             {% endif %}
@@ -263,8 +237,8 @@ template:
               {{ states('input_number.atividade_maquina_lavar_peso') | int(45) }}
             {% elif tv_ativa %}
               {{ states('input_number.atividade_tv_peso') | int(20) }}
-            {% elif states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
-              {{ states('input_number.atividade_banho_peso') | int(50) }}
+            {% elif states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
+              50
             {% else %}
               0
             {% endif %}
@@ -323,9 +297,9 @@ template:
 
             {% set banho_estado = states('sensor.casa_banho_estado_v20') %}
             {% set banho_chuveiro = states('binary_sensor.movimento_alto_banheiro_occupancy') %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (banho_estado == 'banho_detectado' or banho_chuveiro == 'on') %}
+            {% set banho_ativo = banho_estado == 'banho_detectado' or banho_chuveiro == 'on' %}
             {% if banho_ativo %}
-              {% set banho_rel = states('input_number.atividade_banho_peso') | int(50) %}
+              {% set banho_rel = 50 %}
               {% set banho_titulo = 'Banho em encerramento' if banho_chuveiro == 'off' and banho_estado == 'banho_detectado' else 'Banho em andamento' %}
               {% set ns.items = ns.items + [dict(dominio='banho', state='banho_ativo', ativo=true, titulo_ui=banho_titulo, detalhe='Estado=' ~ banho_estado ~ '; chuveiro=' ~ banho_chuveiro, prioridade='media' if banho_rel >= 40 else 'informativa', relevancia_local=banho_rel, origem='sensor.casa_banho_estado_v20', fonte='chuveiro_janela_encerramento')] %}
             {% endif %}
@@ -338,7 +312,7 @@ template:
             {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
             {% set maquina_ativa = states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% set banho_ativo = states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
             {% if micro_ativo %}
               {% set dominante = 'microondas' %}
             {% elif maquina_ativa %}
@@ -356,6 +330,24 @@ template:
             {% if tv_ativa %}{% set todos = todos + ['tv'] %}{% endif %}
             {% if banho_ativo %}{% set todos = todos + ['banho'] %}{% endif %}
             {{ todos | reject('eq', dominante) | list | to_json }}
+          assinatura_atividades: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
+            {% set dominios = [] %}
+            {% if states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
+              {% set dominios = dominios + ['microondas'] %}
+            {% endif %}
+            {% set maquina_potencia = states('sensor.maq_de_lavar_potencia') | float(states('sensor.maquina_lavar_potencia') | float(0)) %}
+            {% if states('input_boolean.atividade_maquina_lavar_habilitada') != 'off' and (is_state('input_boolean.maquina_lavar_ciclo_ativo', 'on') or states('input_select.maquina_lavar_estado') not in estados_inativos or maquina_potencia > states('input_number.atividade_maquina_lavar_potencia_minima') | float(5)) %}
+              {% set dominios = dominios + ['maquina_lavar'] %}
+            {% endif %}
+            {% if states('input_boolean.atividade_tv_habilitada') != 'off' and (states('media_player.lg_webos_tv_oled55g3psa') not in invalid + ['off', 'standby'] or states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada']) %}
+              {% set dominios = dominios + ['tv'] %}
+            {% endif %}
+            {% if states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
+              {% set dominios = dominios + ['banho'] %}
+            {% endif %}
+            {{ dominios | sort | join('+') if dominios | count > 0 else 'sem_atividade' }}
           mensagem: >
             {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
             {% set estados_inativos = invalid + ['idle', 'Idle', 'desligada', 'Desligada', 'inativo', 'Inativo', 'finalizado', 'Finalizado', 'finalizada', 'Finalizada', 'parada', 'Parada', 'off', 'Off'] %}
@@ -385,7 +377,7 @@ template:
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
             {% set banho_estado = states('sensor.casa_banho_estado_v20') %}
             {% set banho_chuveiro = states('binary_sensor.movimento_alto_banheiro_occupancy') %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (banho_estado == 'banho_detectado' or banho_chuveiro == 'on') %}
+            {% set banho_ativo = banho_estado == 'banho_detectado' or banho_chuveiro == 'on' %}
             {% if micro_ativo %}
               Microondas em uso
             {% elif maquina_ativa %}
@@ -428,7 +420,7 @@ template:
             {% set micro_ativo = states('input_boolean.atividade_microondas_habilitada') != 'off' and (states('sensor.micro_ondas_potencia') | float(0) > states('input_number.atividade_microondas_potencia_minima') | float(100) or states('sensor.micro_ondas_corrente') | float(0) > 1) %}
             {% set banho_estado = states('sensor.casa_banho_estado_v20') %}
             {% set banho_chuveiro = states('binary_sensor.movimento_alto_banheiro_occupancy') %}
-            {% set banho_ativo = states('input_boolean.atividade_banho_habilitada') != 'off' and (banho_estado == 'banho_detectado' or banho_chuveiro == 'on') %}
+            {% set banho_ativo = banho_estado == 'banho_detectado' or banho_chuveiro == 'on' %}
             {% if micro_ativo %}
               Microondas em uso
             {% elif maquina_ativa %}
@@ -458,7 +450,7 @@ template:
             {% elif states('input_boolean.atividade_tv_habilitada') != 'off' and states('sensor.central_tv_contexto_fonte') not in invalid + ['TV desligada'] %}
               {% set fontes = fontes + ['sensor.central_tv_contexto_fonte'] %}
             {% endif %}
-            {% if states('input_boolean.atividade_banho_habilitada') != 'off' and (states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on') %}
+            {% if states('sensor.casa_banho_estado_v20') == 'banho_detectado' or states('binary_sensor.movimento_alto_banheiro_occupancy') == 'on' %}
               {% set fontes = fontes + ['sensor.casa_banho_estado_v20'] %}
             {% endif %}
             {{ fontes | to_json }}

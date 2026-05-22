@@ -505,6 +505,123 @@ script:
         target:
           entity_id: input_boolean.central_alerta_ativo
 
+  ##########################################################
+  # RECALCULAR MENSAGEM OPERACIONAL
+  ##########################################################
+
+  central_recalcular_mensagem_operacional:
+
+    alias: Central - Recalcular Mensagem Operacional
+    mode: queued
+
+    sequence:
+
+      - variables:
+
+          internet: "{{ states('sensor.internet_estado_operacional') }}"
+          backup: "{{ states('sensor.backup_google_status') }}"
+          backup_falha_real: >
+            {{ backup in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção'] }}
+
+          nova_prioridade: >
+            {% if internet == 'critica' %}
+              critica
+            {% elif internet == 'failover_4g' %}
+              alta
+            {% elif internet == 'backup_4g_indisponivel' %}
+              media
+            {% elif backup_falha_real %}
+              alta
+            {% else %}
+              normal
+            {% endif %}
+
+          novo_titulo: >
+            {% if internet == 'critica' %}
+              Conectividade externa indisponível
+            {% elif internet == 'failover_4g' %}
+              Internet principal indisponível
+            {% elif internet == 'backup_4g_indisponivel' %}
+              Backup 4G indisponível
+            {% elif backup_falha_real %}
+              Backup Google com falha
+            {% else %}
+              Casa operando normalmente
+            {% endif %}
+
+          novo_detalhe: >
+            {% if internet == 'critica' %}
+              Nem a internet principal nem o backup 4G respondem.
+            {% elif internet == 'failover_4g' %}
+              A casa está operando pela internet backup 4G.
+            {% elif internet == 'backup_4g_indisponivel' %}
+              A internet principal está funcionando, mas a WAN2/4G não responde.
+            {% elif backup_falha_real %}
+              Verifique o sistema de backup externo.
+            {% else %}
+              Nenhum alerta ativo
+            {% endif %}
+
+          nova_origem: >
+            {% if internet in ['critica', 'failover_4g', 'backup_4g_indisponivel'] %}
+              conectividade
+            {% elif backup_falha_real %}
+              backup
+            {% else %}
+              central
+            {% endif %}
+
+      - choose:
+
+          - conditions:
+              - condition: template
+                value_template: "{{ nova_prioridade == 'normal' }}"
+            sequence:
+              - service: script.central_limpar_mensagem
+
+        default:
+
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.central_mensagem_atual
+            data:
+              value: "{{ novo_titulo }}"
+
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.central_mensagem_detalhe
+            data:
+              value: "{{ novo_detalhe }}"
+
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.central_mensagem_origem
+            data:
+              value: "{{ nova_origem }}"
+
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.central_mensagem_prioridade
+            data:
+              option: "{{ nova_prioridade }}"
+
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.central_alerta_ativo
+
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.central_ultimo_evento
+            data:
+              value: "{{ novo_titulo }}"
+
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.central_ultimo_evento_data
+            data:
+              datetime: >
+                {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
 ############################################################
 # AUTOMAÇÕES
 ############################################################
@@ -524,6 +641,13 @@ automation:
       - platform: state
         entity_id: sensor.backup_state
         to: "error"
+      - platform: state
+        entity_id: sensor.backup_google_status
+
+    condition:
+      - condition: template
+        value_template: >
+          {{ states('sensor.backup_google_status') in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção'] }}
 
     action:
 
@@ -550,14 +674,17 @@ automation:
       - platform: state
         entity_id: sensor.backup_state
         from: "error"
+      - platform: state
+        entity_id: sensor.backup_google_status
 
     condition:
       - condition: template
         value_template: >
-          {{ states('input_text.central_mensagem_origem') == 'backup' }}
+          {{ states('sensor.backup_google_status') not in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção']
+             and states('input_text.central_mensagem_origem') == 'backup' }}
 
     action:
-      - service: script.central_limpar_mensagem
+      - service: script.central_recalcular_mensagem_operacional
 
   ##########################################################
   # BACKUP 4G INDISPONÍVEL
@@ -669,4 +796,4 @@ automation:
           {{ states('input_text.central_mensagem_origem') == 'conectividade' }}
 
     action:
-      - service: script.central_limpar_mensagem
+      - service: script.central_recalcular_mensagem_operacional

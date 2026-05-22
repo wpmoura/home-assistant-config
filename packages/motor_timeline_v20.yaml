@@ -331,7 +331,7 @@ template:
         state: >
           {% set tid = trigger.id if trigger is defined else '' %}
           {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-          {% if tid == 'banho_inicio' and old == 'off' %}
+          {% if is_state('binary_sensor.movimento_alto_banheiro_occupancy', 'on') or tid == 'banho_inicio' %}
             banho_detectado
           {% elif tid == 'banho_timeout' %}
             sem_banho
@@ -345,7 +345,6 @@ template:
           estado_real: "{{ states('binary_sensor.movimento_alto_banheiro_occupancy') }}"
           classificacao: evento_semantico_humano
           timeout_encerramento_minutos: 2
-          publicacao_controlada_por: input_boolean.casa_timeline_evento_banho
           observacao: "Sensor do box/chuveiro; nao tratar como movimento generico"
 
   - trigger:
@@ -367,8 +366,14 @@ template:
           - sensor.casa_banho_estado_v20
           - sensor.casa_chuva_estado_v20
           - sensor.casa_atividade_operacional_v20
+          - binary_sensor.movimento_alto_banheiro_occupancy
           - binary_sensor.sensor_chuva_girasol_rain
           - sensor.intensidade_da_chuva
+
+      - platform: state
+        id: atividade_assinatura
+        entity_id: sensor.casa_atividade_operacional_v20
+        attribute: assinatura_atividades
 
       - platform: state
         id: porta_timeout
@@ -393,12 +398,18 @@ template:
           {% set evento = '' %}
 
           {% set publica_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') %}
+          {% set publica_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') %}
+          {% set publica_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') %}
+          {% set publica_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') %}
+          {% set push_tv = is_state('input_boolean.casa_push_evento_tv', 'on') %}
+          {% set push_banho = is_state('input_boolean.casa_push_evento_banho', 'on') %}
+          {% set push_maquina = is_state('input_boolean.casa_push_evento_maquina_lavar', 'on') %}
+          {% set push_microondas = is_state('input_boolean.casa_push_evento_microondas', 'on') %}
           {% set publica_chuva = not is_state('input_boolean.casa_timeline_evento_chuva', 'off') %}
           {% set publica_porta_sala = not is_state('input_boolean.casa_timeline_evento_porta_sala', 'off') %}
           {% set publica_portas_internas = is_state('input_boolean.casa_timeline_evento_portas_internas', 'on') %}
           {% set publica_janelas = is_state('input_boolean.casa_timeline_evento_janelas', 'on') %}
           {% set publica_vazamento = is_state('input_boolean.casa_timeline_evento_vazamento', 'on') %}
-          {% set publica_banho = is_state('input_boolean.casa_timeline_evento_banho', 'on') %}
           {% set publica_backup = not is_state('input_boolean.casa_timeline_evento_backup_google', 'off') %}
           {% set publica_energia = not is_state('input_boolean.casa_timeline_evento_energia', 'off') %}
           {% set publica_internet = not is_state('input_boolean.casa_timeline_evento_internet', 'off') %}
@@ -438,9 +449,66 @@ template:
             {% set evento = now().strftime('%H:%M') ~ ' 💧 Vazamento detectado' %}
           {% elif publica_vazamento and eid == 'sensor.casa_vazamento_estado_v20' and new == 'normal' and old == 'detectado' %}
             {% set evento = now().strftime('%H:%M') ~ ' 💧 Vazamento normalizado' %}
-          {% elif publica_banho and eid == 'sensor.casa_banho_estado_v20' and new == 'banho_detectado' and old == 'sem_banho' %}
-            {% set evento = now().strftime('%H:%M') ~ ' 🚿 Banho iniciado' %}
-          {% elif publica_banho and eid == 'sensor.casa_banho_estado_v20' and new == 'sem_banho' and old == 'banho_detectado' %}
+          {% elif (publica_banho or push_banho) and eid == 'sensor.casa_banho_estado_v20' and new == 'banho_detectado' and old != 'banho_detectado' %}
+            {% set agregacao_banho = publica_banho and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% set agregacao_tv = publica_tv and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = publica_microondas and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = publica_maquina and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set contexto = namespace(partes=[], icones='', total=0) %}
+            {% if publica_porta_sala and is_state('sensor.casa_porta_sala_estado_v20', 'aberta') %}
+              {% set contexto.partes = contexto.partes + ['Porta sala'] %}
+              {% set contexto.icones = contexto.icones ~ '🚪' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_chuva and is_state('sensor.casa_chuva_estado_v20', 'ativa') %}
+              {% set contexto.partes = contexto.partes + ['Chuva'] %}
+              {% set contexto.icones = contexto.icones ~ '🌧️' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_energia and is_state('sensor.casa_energia_estado_v20', 'ausente') %}
+              {% set contexto.partes = contexto.partes + ['Energia'] %}
+              {% set contexto.icones = contexto.icones ~ '⚡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_internet and states('sensor.casa_internet_estado_v20') in ['degradada', 'indisponivel'] %}
+              {% set contexto.partes = contexto.partes + ['Internet'] %}
+              {% set contexto.icones = contexto.icones ~ '🌐' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_failover and is_state('sensor.casa_failover_estado_v20', 'ativo') %}
+              {% set contexto.partes = contexto.partes + ['Failover'] %}
+              {% set contexto.icones = contexto.icones ~ '📡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_vazamento and is_state('sensor.casa_vazamento_estado_v20', 'detectado') %}
+              {% set contexto.partes = contexto.partes + ['Vazamento'] %}
+              {% set contexto.icones = contexto.icones ~ '💧' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if agregacao_tv and 'tv' in dominios %}
+              {% set contexto.partes = contexto.partes + ['TV'] %}
+              {% set contexto.icones = contexto.icones ~ '📺' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if agregacao_microondas and 'microondas' in dominios %}
+              {% set contexto.partes = contexto.partes + ['Microondas'] %}
+              {% set contexto.icones = contexto.icones ~ '🍿' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if agregacao_maquina and 'maquina_lavar' in dominios %}
+              {% set contexto.partes = contexto.partes + ['Máquina'] %}
+              {% set contexto.icones = contexto.icones ~ '🧺' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if agregacao_banho and contexto.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ contexto.icones ~ '🚿 ' ~ ((contexto.partes + ['Banho']) | join(' + ')) ~ ' ativos' %}
+            {% else %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🚿 Banho iniciado' %}
+            {% endif %}
+          {% elif (publica_banho or push_banho) and eid == 'sensor.casa_banho_estado_v20' and new == 'sem_banho' and old == 'banho_detectado' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚿 Banho encerrado' %}
           {% elif publica_energia and eid == 'sensor.casa_energia_estado_v20' and new == 'ausente' and old == 'presente' %}
             {% set evento = now().strftime('%H:%M') ~ ' ⚡ Falta de energia' %}
@@ -476,10 +544,78 @@ template:
             {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G ativado' %}
           {% elif publica_failover and eid == 'sensor.casa_failover_estado_v20' and new == 'inativo' and old == 'ativo' %}
             {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G encerrado' %}
-          {% elif publica_backup and eid == 'sensor.casa_backup_google_estado_v20' and new == 'falha' and old == 'ok' %}
-            {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Backup Google com falha' %}
-          {% elif publica_backup and eid == 'sensor.casa_backup_google_estado_v20' and new == 'ok' and old == 'falha' %}
-            {% set evento = now().strftime('%H:%M') ~ ' ✅ Backup Google normalizado' %}
+          {% elif tid == 'atividade_assinatura' and eid == 'sensor.casa_atividade_operacional_v20' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set new_sig = trigger.to_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.to_state is not none else '' %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set agregacao_tv = publica_tv and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = publica_microondas and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = publica_maquina and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = publica_banho and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% set backup_estado_real = states('sensor.backup_google_status') %}
+            {% set backup_falha_real = backup_estado_real in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção'] %}
+            {% set contexto = namespace(partes=[], icones='', total=0) %}
+            {% if publica_porta_sala and is_state('sensor.casa_porta_sala_estado_v20', 'aberta') %}
+              {% set contexto.partes = contexto.partes + ['Porta sala'] %}
+              {% set contexto.icones = contexto.icones ~ '🚪' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_chuva and is_state('sensor.casa_chuva_estado_v20', 'ativa') %}
+              {% set contexto.partes = contexto.partes + ['Chuva'] %}
+              {% set contexto.icones = contexto.icones ~ '🌧️' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_energia and is_state('sensor.casa_energia_estado_v20', 'ausente') %}
+              {% set contexto.partes = contexto.partes + ['Energia'] %}
+              {% set contexto.icones = contexto.icones ~ '⚡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_internet and states('sensor.casa_internet_estado_v20') in ['degradada', 'indisponivel'] %}
+              {% set contexto.partes = contexto.partes + ['Internet'] %}
+              {% set contexto.icones = contexto.icones ~ '🌐' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_failover and is_state('sensor.casa_failover_estado_v20', 'ativo') %}
+              {% set contexto.partes = contexto.partes + ['Failover'] %}
+              {% set contexto.icones = contexto.icones ~ '📡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_vazamento and is_state('sensor.casa_vazamento_estado_v20', 'detectado') %}
+              {% set contexto.partes = contexto.partes + ['Vazamento'] %}
+              {% set contexto.icones = contexto.icones ~ '💧' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% set ns = namespace(partes=[], icones='') %}
+            {% if agregacao_tv and 'tv' in dominios %}
+              {% set ns.partes = ns.partes + ['TV'] %}
+              {% set ns.icones = ns.icones ~ '📺' %}
+            {% endif %}
+            {% if agregacao_microondas and 'microondas' in dominios %}
+              {% set ns.partes = ns.partes + ['Microondas'] %}
+              {% set ns.icones = ns.icones ~ '🍿' %}
+            {% endif %}
+            {% if old == new and agregacao_maquina and 'maquina_lavar' in dominios %}
+              {% set ns.partes = ns.partes + ['Máquina'] %}
+              {% set ns.icones = ns.icones ~ '🧺' %}
+            {% endif %}
+            {% set ns_ag = namespace(total=0) %}
+            {% if agregacao_tv and 'tv' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% if agregacao_microondas and 'microondas' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% if old == new and agregacao_maquina and 'maquina_lavar' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% set old_marcado = '+' ~ old_sig ~ '+' %}
+            {% set partes_agregadas = contexto.partes + ns.partes %}
+            {% set icones_agregados = contexto.icones ~ ns.icones %}
+            {% if old_sig != new_sig and old == new and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina and (publica_maquina or push_maquina) %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina de lavar ativa' %}
+            {% elif old_sig != new_sig and 'microondas' in dominios and '+microondas+' not in old_marcado and not agregacao_microondas and (publica_microondas or push_microondas) %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas em uso' %}
+            {% elif old_sig != new_sig and 'tv' in dominios and '+tv+' not in old_marcado and not agregacao_tv and (publica_tv or push_tv) %}
+              {% set evento = now().strftime('%H:%M') ~ ' 📺 TV ligada' %}
+            {% elif old_sig != new_sig and old == new and ns_ag.total > 0 and (ns_ag.total + contexto.total) > 1 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ icones_agregados ~ ' ' ~ (partes_agregadas | join(' + ')) ~ ' ativos' %}
+            {% endif %}
           {% elif eid == 'sensor.casa_atividade_operacional_v20' and new != old and new not in invalid %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
@@ -487,8 +623,45 @@ template:
             {% set mensagem = state_attr('sensor.casa_atividade_operacional_v20', 'mensagem') | default('', true) | string | trim %}
             {% set dominante = state_attr('sensor.casa_atividade_operacional_v20', 'atividade_dominante') | default('', true) %}
             {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set agregacao_tv = publica_tv and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = publica_microondas and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = publica_maquina and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = publica_banho and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% set backup_estado_real = states('sensor.backup_google_status') %}
+            {% set backup_falha_real = backup_estado_real in ['erro', 'falha', 'failed', 'failure', 'error', 'atencao', 'atenção'] %}
+            {% set contexto = namespace(partes=[], icones='', total=0) %}
+            {% if publica_porta_sala and is_state('sensor.casa_porta_sala_estado_v20', 'aberta') %}
+              {% set contexto.partes = contexto.partes + ['Porta sala'] %}
+              {% set contexto.icones = contexto.icones ~ '🚪' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_chuva and is_state('sensor.casa_chuva_estado_v20', 'ativa') %}
+              {% set contexto.partes = contexto.partes + ['Chuva'] %}
+              {% set contexto.icones = contexto.icones ~ '🌧️' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_energia and is_state('sensor.casa_energia_estado_v20', 'ausente') %}
+              {% set contexto.partes = contexto.partes + ['Energia'] %}
+              {% set contexto.icones = contexto.icones ~ '⚡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_internet and states('sensor.casa_internet_estado_v20') in ['degradada', 'indisponivel'] %}
+              {% set contexto.partes = contexto.partes + ['Internet'] %}
+              {% set contexto.icones = contexto.icones ~ '🌐' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_failover and is_state('sensor.casa_failover_estado_v20', 'ativo') %}
+              {% set contexto.partes = contexto.partes + ['Failover'] %}
+              {% set contexto.icones = contexto.icones ~ '📡' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
+            {% if publica_vazamento and is_state('sensor.casa_vazamento_estado_v20', 'detectado') %}
+              {% set contexto.partes = contexto.partes + ['Vazamento'] %}
+              {% set contexto.icones = contexto.icones ~ '💧' %}
+              {% set contexto.total = contexto.total + 1 %}
+            {% endif %}
             {% set ns = namespace(partes=[], icones='', restante='') %}
-            {% if 'tv' in dominios %}
+            {% if agregacao_tv and 'tv' in dominios %}
               {% set tv_item = atividades | selectattr('dominio', 'eq', 'tv') | list | first | default({}, true) %}
               {% set tv_titulo = tv_item.titulo_ui | default(titulo if dominante == 'tv' else 'TV ligada', true) %}
               {% set ns.partes = ns.partes + ['TV'] %}
@@ -500,59 +673,70 @@ template:
                 {% endif %}
               {% endif %}
             {% endif %}
-            {% if 'microondas' in dominios %}
+            {% if agregacao_microondas and 'microondas' in dominios %}
               {% set ns.partes = ns.partes + ['Microondas'] %}
               {% set ns.icones = ns.icones ~ '🍿' %}
               {% if dominante == 'microondas' or new == 'microondas_ativo' %}
                 {% set ns.restante = '🍿 Microondas em uso' %}
               {% endif %}
             {% endif %}
-            {% if 'maquina_lavar' in dominios %}
-              {% set maquina_item = atividades | selectattr('dominio', 'eq', 'maquina_lavar') | list | first | default({}, true) %}
-              {% set maquina_titulo = maquina_item.titulo_ui | default('Máquina de lavar ativa', true) %}
+            {% if agregacao_maquina and 'maquina_lavar' in dominios %}
               {% set ns.partes = ns.partes + ['Máquina'] %}
               {% set ns.icones = ns.icones ~ '🧺' %}
               {% if dominante == 'maquina_lavar' or new == 'maquina_lavar_ativa' %}
-                {% set ns.restante = maquina_titulo if maquina_titulo not in invalid + [''] else '🧺 Máquina em execução' %}
-              {% endif %}
-            {% endif %}
-            {% if 'banho' in dominios %}
-              {% set banho_item = atividades | selectattr('dominio', 'eq', 'banho') | list | first | default({}, true) %}
-              {% set banho_titulo = banho_item.titulo_ui | default('Banho em andamento', true) %}
-              {% set ns.partes = ns.partes + ['Banho'] %}
-              {% set ns.icones = ns.icones ~ '🚿' %}
-              {% if dominante == 'banho' or new == 'banho_ativo' %}
-                {% set ns.restante = '🚿 ' ~ banho_titulo %}
+                {% set ns.restante = '🧺 Máquina de lavar ativa' %}
               {% endif %}
             {% endif %}
             {% set resumo_ativo = ns.partes | join(' + ') %}
-            {% if new == 'multiatividade' and old != 'multiatividade' and resumo_ativo | length > 0 %}
-              {% set evento = now().strftime('%H:%M') ~ ' ' ~ ns.icones ~ ' ' ~ resumo_ativo ~ ' ativos' %}
-            {% elif old == 'multiatividade' and new != 'multiatividade' and ns.restante | length > 0 %}
-              {% set evento = now().strftime('%H:%M') ~ ' ' ~ ns.restante %}
-            {% elif old == 'multiatividade' and new == 'sem_atividade' %}
-              {% set evento = now().strftime('%H:%M') ~ ' Atividades simultâneas encerradas' %}
-            {% elif new == 'microondas_ativo' and old != 'microondas_ativo' %}
+            {% set ns_ag = namespace(total=0) %}
+            {% if agregacao_tv and 'tv' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% if agregacao_microondas and 'microondas' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% if agregacao_maquina and 'maquina_lavar' in dominios %}{% set ns_ag.total = ns_ag.total + 1 %}{% endif %}
+            {% set partes_agregadas = contexto.partes + ns.partes %}
+            {% set icones_agregados = contexto.icones ~ ns.icones %}
+            {% if new == 'multiatividade' and old != 'multiatividade' and 'maquina_lavar' in dominios and not agregacao_maquina and (publica_maquina or push_maquina) %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina de lavar ativa' %}
+            {% elif new == 'multiatividade' and old != 'multiatividade' and 'microondas' in dominios and not agregacao_microondas and (publica_microondas or push_microondas) %}
               {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas em uso' %}
-            {% elif old == 'microondas_ativo' and new != 'microondas_ativo' %}
-              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas finalizado' %}
-            {% elif new == 'maquina_lavar_ativa' and old != 'maquina_lavar_ativa' %}
-              {% set evento = now().strftime('%H:%M') ~ ' ' ~ (titulo if titulo not in invalid + [''] else '🧺 Máquina em execução') %}
-            {% elif old == 'maquina_lavar_ativa' and new != 'maquina_lavar_ativa' %}
-              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina finalizada' %}
-            {% elif publica_tv and new == 'tv_ativa' and old != 'tv_ativa' %}
+            {% elif new == 'multiatividade' and old != 'multiatividade' and 'tv' in dominios and not agregacao_tv and (publica_tv or push_tv) %}
               {% set tv_evento = titulo if titulo not in invalid + [''] else mensagem if mensagem not in invalid + [''] else 'TV ligada' %}
               {% if not tv_evento.startswith('📺') %}
                 {% set tv_evento = '📺 ' ~ tv_evento %}
               {% endif %}
               {% set evento = now().strftime('%H:%M') ~ ' ' ~ tv_evento %}
-            {% elif publica_tv and old == 'tv_ativa' and new != 'tv_ativa' %}
+            {% elif new == 'multiatividade' and old != 'multiatividade' and resumo_ativo | length > 0 and ns_ag.total > 0 and (ns_ag.total + contexto.total) > 1 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ icones_agregados ~ ' ' ~ (partes_agregadas | join(' + ')) ~ ' ativos' %}
+            {% elif (publica_microondas or push_microondas) and new == 'microondas_ativo' and old != 'microondas_ativo' and agregacao_microondas and contexto.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ contexto.icones ~ '🍿 ' ~ ((contexto.partes + ['Microondas']) | join(' + ')) ~ ' ativos' %}
+            {% elif (publica_maquina or push_maquina) and new == 'maquina_lavar_ativa' and old != 'maquina_lavar_ativa' and agregacao_maquina and contexto.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ contexto.icones ~ '🧺 ' ~ ((contexto.partes + ['Máquina']) | join(' + ')) ~ ' ativos' %}
+            {% elif (publica_tv or push_tv) and new == 'tv_ativa' and old != 'tv_ativa' and agregacao_tv and contexto.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ contexto.icones ~ '📺 ' ~ ((contexto.partes + ['TV']) | join(' + ')) ~ ' ativos' %}
+            {% elif old == 'multiatividade' and new != 'multiatividade' and ns.restante | length > 0 and ns_ag.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ ns.restante %}
+            {% elif old == 'multiatividade' and new == 'sem_atividade' and ns_ag.total > 0 %}
+              {% set evento = now().strftime('%H:%M') ~ ' Atividades simultâneas encerradas' %}
+            {% elif (publica_microondas or push_microondas) and new == 'microondas_ativo' and old != 'microondas_ativo' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas em uso' %}
+            {% elif (publica_microondas or push_microondas) and old == 'microondas_ativo' and new != 'microondas_ativo' %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🍿 Microondas finalizado' %}
+            {% elif (publica_maquina or push_maquina) and new == 'maquina_lavar_ativa' and old not in invalid + ['maquina_lavar_ativa'] %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina de lavar ativa' %}
+            {% elif (publica_maquina or push_maquina) and old == 'maquina_lavar_ativa' and new not in invalid + ['maquina_lavar_ativa'] %}
+              {% set evento = now().strftime('%H:%M') ~ ' 🧺 Máquina finalizada' %}
+            {% elif (publica_tv or push_tv) and new == 'tv_ativa' and old != 'tv_ativa' %}
+              {% set tv_evento = titulo if titulo not in invalid + [''] else mensagem if mensagem not in invalid + [''] else 'TV ligada' %}
+              {% if not tv_evento.startswith('📺') %}
+                {% set tv_evento = '📺 ' ~ tv_evento %}
+              {% endif %}
+              {% set evento = now().strftime('%H:%M') ~ ' ' ~ tv_evento %}
+            {% elif (publica_tv or push_tv) and old == 'tv_ativa' and new != 'tv_ativa' %}
               {% set evento = now().strftime('%H:%M') ~ ' 📺 TV desligada' %}
             {% endif %}
           {% endif %}
 
           {% if evento == '' %}
-            {{ this.state | default('sem_evento', true) }}
+            sem_evento
           {% else %}
             {{ evento }}
           {% endif %}
@@ -566,7 +750,6 @@ template:
           publica_portas_internas: "{{ is_state('input_boolean.casa_timeline_evento_portas_internas', 'on') }}"
           publica_janelas: "{{ is_state('input_boolean.casa_timeline_evento_janelas', 'on') }}"
           publica_vazamento: "{{ is_state('input_boolean.casa_timeline_evento_vazamento', 'on') }}"
-          publica_banho: "{{ is_state('input_boolean.casa_timeline_evento_banho', 'on') }}"
           publica_backup_google: "{{ not is_state('input_boolean.casa_timeline_evento_backup_google', 'off') }}"
           publica_energia: "{{ not is_state('input_boolean.casa_timeline_evento_energia', 'off') }}"
           publica_internet: "{{ not is_state('input_boolean.casa_timeline_evento_internet', 'off') }}"
@@ -577,7 +760,6 @@ template:
           estado_controle_portas_internas: "{{ states('input_boolean.casa_timeline_evento_portas_internas') }}"
           estado_controle_janelas: "{{ states('input_boolean.casa_timeline_evento_janelas') }}"
           estado_controle_vazamento: "{{ states('input_boolean.casa_timeline_evento_vazamento') }}"
-          estado_controle_banho: "{{ states('input_boolean.casa_timeline_evento_banho') }}"
           estado_controle_backup_google: "{{ states('input_boolean.casa_timeline_evento_backup_google') }}"
           estado_controle_energia: "{{ states('input_boolean.casa_timeline_evento_energia') }}"
           estado_controle_internet: "{{ states('input_boolean.casa_timeline_evento_internet') }}"
@@ -585,6 +767,144 @@ template:
           evento_reconhecido: >
             {% set estado = this.state | default('', true) | string | trim %}
             {{ estado not in ['', 'unknown', 'unavailable', 'sem_evento'] }}
+          dominio_evento: >
+            {% set tid = trigger.id if trigger is defined else '' %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_marcado = '+' ~ old_sig ~ '+' %}
+            {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+              banho
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
+              maquina_lavar
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'microondas' in dominios and '+microondas+' not in old_marcado and not agregacao_microondas %}
+              microondas
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'tv' in dominios and '+tv+' not in old_marcado and not agregacao_tv %}
+              tv
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'banho' in dominios and '+banho+' not in old_marcado and not agregacao_banho %}
+              banho
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'tv_ativa' or old == 'tv_ativa') %}
+              tv
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'microondas_ativo' or old == 'microondas_ativo') %}
+              microondas
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'maquina_lavar_ativa' or old == 'maquina_lavar_ativa') %}
+              maquina_lavar
+            {% elif tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and (new == 'multiatividade' or old == 'multiatividade')) %}
+              agregacao_operacional
+            {% else %}
+              outro
+            {% endif %}
+          publicar_timeline: >
+            {% set tid = trigger.id if trigger is defined else '' %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_marcado = '+' ~ old_sig ~ '+' %}
+            {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+              {{ not is_state('input_boolean.casa_timeline_evento_banho', 'off') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
+              {{ not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'microondas' in dominios and '+microondas+' not in old_marcado and not agregacao_microondas %}
+              {{ not is_state('input_boolean.casa_timeline_evento_microondas', 'off') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'tv' in dominios and '+tv+' not in old_marcado and not agregacao_tv %}
+              {{ not is_state('input_boolean.casa_timeline_evento_tv', 'off') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'banho' in dominios and '+banho+' not in old_marcado and not agregacao_banho %}
+              {{ not is_state('input_boolean.casa_timeline_evento_banho', 'off') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'tv_ativa' or old == 'tv_ativa') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_tv', 'off') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'microondas_ativo' or old == 'microondas_ativo') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_microondas', 'off') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'maquina_lavar_ativa' or old == 'maquina_lavar_ativa') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') }}
+            {% elif tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and (new == 'multiatividade' or old == 'multiatividade')) %}
+              true
+            {% else %}
+              true
+            {% endif %}
+          enviar_push: >
+            {% set tid = trigger.id if trigger is defined else '' %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_marcado = '+' ~ old_sig ~ '+' %}
+            {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+              {{ is_state('input_boolean.casa_push_evento_banho', 'on') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
+              {{ is_state('input_boolean.casa_push_evento_maquina_lavar', 'on') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'microondas' in dominios and '+microondas+' not in old_marcado and not agregacao_microondas %}
+              {{ is_state('input_boolean.casa_push_evento_microondas', 'on') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'tv' in dominios and '+tv+' not in old_marcado and not agregacao_tv %}
+              {{ is_state('input_boolean.casa_push_evento_tv', 'on') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'banho' in dominios and '+banho+' not in old_marcado and not agregacao_banho %}
+              {{ is_state('input_boolean.casa_push_evento_banho', 'on') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'tv_ativa' or old == 'tv_ativa') %}
+              {{ is_state('input_boolean.casa_push_evento_tv', 'on') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'microondas_ativo' or old == 'microondas_ativo') %}
+              {{ is_state('input_boolean.casa_push_evento_microondas', 'on') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'maquina_lavar_ativa' or old == 'maquina_lavar_ativa') %}
+              {{ is_state('input_boolean.casa_push_evento_maquina_lavar', 'on') }}
+            {% else %}
+              false
+            {% endif %}
+          permitir_agregacao: >
+            {% set tid = trigger.id if trigger is defined else '' %}
+            {% set eid = trigger.entity_id if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
+            {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
+            {% set dominios = atividades | map(attribute='dominio') | list %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_marcado = '+' ~ old_sig ~ '+' %}
+            {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
+            {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
+            {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
+            {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
+            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+              {{ not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') }}
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
+              false
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'microondas' in dominios and '+microondas+' not in old_marcado and not agregacao_microondas %}
+              false
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'tv' in dominios and '+tv+' not in old_marcado and not agregacao_tv %}
+              false
+            {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'banho' in dominios and '+banho+' not in old_marcado and not agregacao_banho %}
+              false
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'tv_ativa' or old == 'tv_ativa') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'microondas_ativo' or old == 'microondas_ativo') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') }}
+            {% elif eid == 'sensor.casa_atividade_operacional_v20' and (new == 'maquina_lavar_ativa' or old == 'maquina_lavar_ativa') %}
+              {{ not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') }}
+            {% elif tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and (new == 'multiatividade' or old == 'multiatividade')) %}
+              true
+            {% else %}
+              true
+            {% endif %}
 
   - trigger:
       - platform: state
@@ -599,10 +919,12 @@ template:
         state: >
           {% set eid = trigger.entity_id if trigger is defined else '' %}
           {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
           {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
           {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
           {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-          {% if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
+          {% if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
             {{ this.state | default('Aguardando eventos', true) }}
           {% else %}
             {{ evento }}
@@ -610,87 +932,101 @@ template:
         attributes:
           fonte: sensor.casa_evento_publicavel_v20
           formato_publicacao: HH:MM mensagem
-          limite_eventos: "{{ [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max }}"
+          limite_eventos: "{{ [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max }}"
           deduplicacao: evento_consecutivo_sem_timestamp
           eventos_json: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
+            {% if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base %}
               {{ historico[:limite] | to_json }}
             {% else %}
               {{ ([evento] + historico)[:limite] | to_json }}
             {% endif %}
           linha_1: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[0] | default('', true) }}
           linha_2: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[1] | default('', true) }}
           linha_3: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[2] | default('', true) }}
           linha_4: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[3] | default('', true) }}
           linha_5: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[4] | default('', true) }}
           linha_6: >
-            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(6), 3] | max %}
+            {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
-            {% set lista = historico[:limite] if evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
+            {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or evento_base == anterior_base else ([evento] + historico)[:limite] %}
             {{ lista[5] | default('', true) }}
 
       - name: Casa Event Feed V20
@@ -701,11 +1037,37 @@ template:
         attributes:
           fonte: sensor.casa_timeline_v20
           formato_publicacao: HH:MM mensagem
-          limite_eventos: "{{ state_attr('sensor.casa_timeline_v20', 'limite_eventos') | default(6, true) }}"
+          limite_eventos: "{{ state_attr('sensor.casa_timeline_v20', 'limite_eventos') | int(3) }}"
           eventos_json: "{{ state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) }}"
+          linhas_renderizadas: >
+            {% set limite = state_attr('sensor.casa_timeline_v20', 'limite_eventos') | int(3) %}
+            {% set raw = state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) %}
+            {% set eventos = raw | from_json(default=[]) if raw is string else raw %}
+            {{ eventos[:limite] | join('\n') }}
           linha_1: "{{ state_attr('sensor.casa_timeline_v20', 'linha_1') | default('', true) }}"
           linha_2: "{{ state_attr('sensor.casa_timeline_v20', 'linha_2') | default('', true) }}"
           linha_3: "{{ state_attr('sensor.casa_timeline_v20', 'linha_3') | default('', true) }}"
           linha_4: "{{ state_attr('sensor.casa_timeline_v20', 'linha_4') | default('', true) }}"
           linha_5: "{{ state_attr('sensor.casa_timeline_v20', 'linha_5') | default('', true) }}"
           linha_6: "{{ state_attr('sensor.casa_timeline_v20', 'linha_6') | default('', true) }}"
+
+automation:
+  - id: v20_1o_push_eventos_operacionais
+    alias: V20.1O - Push eventos operacionais
+    mode: queued
+    trigger:
+      - platform: state
+        entity_id: sensor.casa_evento_publicavel_v20
+    condition:
+      - condition: template
+        value_template: >
+          {% set evento = trigger.to_state.state if trigger.to_state is not none else '' %}
+          {% set enviar = trigger.to_state.attributes.enviar_push | default(false, true) if trigger.to_state is not none else false %}
+          {{ trigger.to_state is not none
+             and enviar | string | lower | trim == 'true'
+             and evento not in ['', 'unknown', 'unavailable', 'sem_evento'] }}
+    action:
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: Central Operacional
+          message: "{{ trigger.to_state.state }}"
