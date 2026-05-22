@@ -25,6 +25,16 @@ Estado operacional consolidado:
 - Auditoria de automações identificou 21 órfãs; automações críticas não devem ser removidas automaticamente.
 - Limpeza técnica futura deve seguir criticidade, em lotes pequenos e reversíveis.
 
+Marcador de suspensão temporária:
+
+- Trabalho suspenso temporariamente para tratar GIT-HYGIENE-01 — diagnóstico e limpeza de histórico Git.
+- Governança constitucional ajustada: Constituição prevalece sobre `source_of_truth`; `source_of_truth` atua como índice/roteador documental.
+- Radar/Mapa Operacional Fase 1 está desenhado no ROADMAP, mas não autorizado para implementação.
+- Bloco técnico do Radar/Mapa está sinalizado como candidato futuro à extração controlada, sem extração autorizada.
+- Lote 1 C1 da auditoria de legado e plano de observação operacional de 7 dias estão definidos.
+- Decommission permanece bloqueado.
+- Próxima retomada: finalizar checkpoint/versionamento da governança constitucional; depois decidir entre observação C1 e desenho/implementação futura do Radar.
+
 ## Arquitetura Oficial
 
 Fluxo oficial de processamento:
@@ -552,6 +562,8 @@ Tratamento previsto:
 
 Status: backlog futuro.
 
+Nota de governanca documental: esta secao contem detalhamento tecnico acima do nivel executivo esperado para o ROADMAP. O Radar/Mapa Operacional e candidato futuro a extracao controlada para documento classificado, mas a extracao nao esta autorizada neste momento. Nao mover conteudo automaticamente; aguardar aprovacao explicita. O ROADMAP permanece documento executivo.
+
 Objetivo: criar uma interface opcional de monitoramento de movimento por cômodo, ativada manualmente pelo usuário, para uso eventual e não permanente no dashboard principal.
 
 Requisitos funcionais:
@@ -604,6 +616,77 @@ Objetivo: entregar somente uma visão operacional simples, acionada manualmente,
 - Não listar ambientes inativos.
 - Não criar inferência semântica nesta fase.
 - Não alterar lógica canônica da timeline, contexto ou aliases finais.
+
+Design técnico previsto:
+
+- Package futuro: `packages/radar_movimento_operacional_v20.yaml`.
+- O package deve ser isolado, reversível e sem dependência de V20.2 shadow para consumo por dashboard produtivo.
+- O package não deve alterar `sensor.status_casa`, V20.1O, aliases finais, timeline, push, agregação ou automações existentes.
+- Dashboard produtivo deve consumir somente sensores finais do Radar, nunca sensores brutos nem entidades `_v20_2`.
+
+Helpers previstos:
+
+| Helper | Tipo | Função | Default previsto |
+|---|---|---|---|
+| `input_boolean.casa_radar_movimento_ativo` | liga/desliga | Habilitar visualização sob demanda do Radar no dashboard | `off` |
+| `input_number.casa_radar_movimento_retencao_segundos` | número | Retenção curta para evitar piscar ambiente em transições rápidas | `30` |
+
+Sensores semânticos previstos por ambiente:
+
+| Ambiente | Sensor semântico futuro | Sensores físicos alimentadores | Regra inicial | Entra na Fase 1 |
+|---|---|---|---|---|
+| Área de Serviço | `binary_sensor.casa_radar_area_servico_ativa_v20` | `binary_sensor.movimento_area_servico_presence` | Ativo quando presença/movimento local estiver `on` | SIM |
+| Banheiro | `binary_sensor.casa_radar_banheiro_ativo_v20` | `binary_sensor.movimento_banheiro_occupancy` | Ativo por movimento geral; `binary_sensor.movimento_alto_banheiro_occupancy` fica reservado para banho e não deve ser usado como movimento genérico na Fase 1 | SIM |
+| Cozinha | `binary_sensor.casa_radar_cozinha_ativa_v20` | `binary_sensor.movimento_cozinha_2_occupancy` | Ativo quando movimento local estiver `on`; câmera e sensores legados ficam apenas como candidatos futuros | SIM |
+| Corredor | `binary_sensor.casa_radar_corredor_ativo_v20` | `binary_sensor.movimento_corredor_occupancy` | Ativo quando movimento local estiver `on` | SIM |
+| Dispensa | `binary_sensor.casa_radar_dispensa_ativa_v20` | `binary_sensor.movimento_dispensa_occupancy` | Ativo quando movimento local estiver `on` | SIM |
+| Quarto Maior | `binary_sensor.casa_radar_quarto_maior_ativo_v20` | `binary_sensor.grp_movimento_quarto_maior`; fallback documentado: `binary_sensor.movimento_piso_quarto_maior_occupancy`, `binary_sensor.sensor_movimento_quarto_maior_occupancy` | Ativo pelo grupo semântico se disponível; fallback só após validação runtime | SIM |
+| Quarto Menor | `binary_sensor.casa_radar_quarto_menor_ativo_v20` | `binary_sensor.grp_movimento_quarto_menor`; fallback documentado: `binary_sensor.movimento_quarto_menor_occupancy`, `binary_sensor.movimento_piso_quarto_menor_occupancy` | Ativo pelo grupo semântico se disponível; fallback só após validação runtime | SIM |
+| Sala de Estar | `binary_sensor.casa_radar_sala_estar_ativa_v20` | `binary_sensor.movimento_sala_estar_occupancy` | Ativo quando movimento local estiver `on`; porta/varanda entram apenas como contexto, não como presença | SIM |
+| Sala de Jantar | `binary_sensor.casa_radar_sala_jantar_ativa_v20` | `binary_sensor.movimento_sala_jantar_occupancy` | Ativo quando movimento local estiver `on` | SIM |
+
+Sensores agregados previstos:
+
+| Sensor | Tipo | Função |
+|---|---|---|
+| `binary_sensor.casa_radar_algum_ambiente_ativo_v20` | binary_sensor | Indicar se qualquer ambiente elegível está ativo |
+| `sensor.casa_radar_ambientes_ativos_v20` | sensor | Expor lista curta de ambientes ativos para o dashboard |
+| `sensor.casa_radar_resumo_v20` | sensor | Expor texto simples, por exemplo `Banheiro, Cozinha` ou `Sem movimento` |
+
+Regras de elegibilidade da Fase 1:
+
+- Ambiente entra apenas se possuir sensor físico ou grupo semântico local já identificado.
+- Sensores de porta, janela, chuva, vazamento e infraestrutura não contam como presença/movimento de ambiente na Fase 1.
+- Sensores globais como `binary_sensor.casa_presenca_global` e `binary_sensor.casa_tem_movimento` podem ser referência de fallback diagnóstico, mas não devem acender cômodos individualmente.
+- Sensores `_v20_2` não devem ser consumidos por dashboard produtivo.
+- Sensor com área indefinida ou estado suspeito deve ficar documentado como candidato, mas não deve entrar como fonte primária sem validação runtime.
+- Ambientes sem fonte local, como Home office nesta descoberta, ficam fora da Fase 1.
+
+Consumo pelo dashboard:
+
+- O dashboard deve exibir ou ocultar a seção do Radar a partir de `input_boolean.casa_radar_movimento_ativo`.
+- O dashboard deve consumir `sensor.casa_radar_ambientes_ativos_v20` e/ou os `binary_sensor.casa_radar_*_ativo_v20` finais.
+- O dashboard não deve calcular presença, agrupar sensores físicos, aplicar debounce ou consultar `_v20_2`.
+- Quando o helper estiver `off`, nenhum card, badge ou chip do Radar deve aparecer.
+- Quando o helper estiver `on` e não houver ambiente ativo, o dashboard deve mostrar estado vazio simples ou ocultar chips de ambiente.
+
+Critérios de aceite da Fase 1:
+
+- Com helper `off`, Radar invisível no dashboard.
+- Com helper `on`, somente ambientes ativos aparecem.
+- Ambientes inativos não aparecem.
+- Atividade em cada sensor físico primário acende apenas o ambiente correspondente.
+- Banho/chuveiro não vira movimento genérico do banheiro por causa de `binary_sensor.movimento_alto_banheiro_occupancy`.
+- Dashboard produtivo não consome entidades `_v20_2`.
+- Nenhuma alteração em `sensor.status_casa`, V20.1O, timeline, push, agregação, automações ou aliases finais.
+- IA desligada não altera o funcionamento do Radar.
+
+Rollback previsto:
+
+- Desligar `input_boolean.casa_radar_movimento_ativo` remove o Radar do dashboard.
+- Remover futuramente o package `packages/radar_movimento_operacional_v20.yaml` deve eliminar apenas sensores/helpers do Radar, sem afetar contratos V20 existentes.
+- Dashboard deve continuar funcional sem o package do Radar.
+- Se um sensor físico gerar falso positivo, retirar o ambiente da lista sem alterar motores V20.1O ou V20.2.
 
 #### Fase 2 - Camada semântica de presença por ambiente
 

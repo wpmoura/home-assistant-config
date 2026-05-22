@@ -34,6 +34,7 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - Alertas contextuais futuros devem ser assistivos e desacoplados
 - V20.1O não deve ser reaberta silenciosamente; mudanças futuras devem abrir lote formal e citar dependências do V20.1O
 - V20.1C não autoriza decommission; nenhuma limpeza ou desativação automática está autorizada e ações futuras exigem rollback
+- Seguir a política documental definida na Constituição/Governança; `AGENTS.md` deve permanecer curto, normativo e operacional
 
 ## Gate obrigatório - conhecimento prévio
 
