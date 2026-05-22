@@ -22,6 +22,8 @@ Estado oficial:
 - V20.1B lote 1 = concluída
 - V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
+- V20.1N = homologada; checkpoint de estabilização registrado
+- V20.1O = congelada; política Timeline / Push / Agregação estabilizada
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
@@ -42,6 +44,7 @@ Regras fundamentais:
 - Nunca alterar `sensor.status_casa`
 - Nunca alterar aliases finais sem validação
 - Dashboards produtivos não consomem `_v20_2`
+- V20.1O não deve ser alterada diretamente após congelamento; correções futuras devem abrir lote formal
 - V20.2 permanece isolada em shadow
 - IA é opcional; IA desligada mantém o sistema funcional
 - Não substituir automações legadas sem auditoria V20.1C
