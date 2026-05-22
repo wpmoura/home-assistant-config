@@ -2,6 +2,69 @@
 
 Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepachangelog.com/), com versões orientadas por baseline arquitetural da Central Operacional.
 
+## [v20.1o-politica-timeline-push-agregacao] - 2026-05-21
+
+### Frozen
+
+- V20.1O congelado formalmente como estável com débitos aceitos após validação operacional.
+- Política individual por evento implementada para timeline, push e agregação.
+- Timeline, push e agregação mantidos como controles independentes.
+- Banho/chuveiro habilitado por padrão, com encerramento fixo de 2 minutos.
+- Push passa a consumir somente evento canônico atual, sem reutilizar texto renderizado da timeline/feed.
+- Agregação passa a respeitar flags individuais e contexto operacional ativo.
+- Máquina de lavar passa a respeitar transições reais OFF->ON e ON->OFF, sem desligamento falso em reload/primeira leitura.
+- Falso positivo de Backup removido da agregação, exigindo falha real em `sensor.backup_google_status`.
+- UI existente integrada com controles Timeline / Push / Agrupar.
+
+### Governance
+
+- Arquivos criados: 0.
+- Package shadow: 0.
+- Documentação nova: 0.
+- Fontes de verdade novas: 0.
+- Alterações fora do escopo: 0.
+- Compatibilidade legada preservada.
+- Mudanças futuras devem abrir novo lote formal e citar dependências do V20.1O.
+
+### Validated
+
+- YAML OK.
+- `git diff --check` OK.
+
+### Accepted Debt
+
+- Categoria: UX / Narrativa contextual.
+- Sintoma: eventos agregados podem ocultar a saída individual de participantes.
+- Exemplo: TV + Microondas + Banho ativos, depois TV e Microondas desligam enquanto Banho continua ativo, mas a timeline pode mostrar apenas Banho encerrado.
+- Impacto: não afeta estado real, automações, push ou lógica operacional; afeta apenas interpretação humana da timeline.
+- Tratamento: reservado para V20.1P — Inteligência contextual da timeline.
+
+## [v20.1n-estabilizacao] - 2026-05-20
+
+### Added
+
+- Checkpoint documental de estabilização V20.1N em `docs/releases/v20.1n-estabilizacao.md`.
+- Registro dos marcos homologados: V20.1N.4.1 Motor operacional estabilizado, V20.1N.4.2 Timeline integrada, V20.1N.4.3 Pós-multiatividade e V20.1N.4.3a Consistência visual.
+- Decisão arquitetural de próximos passos para V20.2A - Evolução Contextual de Atividades.
+- Registro de que monitoramento de banho passa a ser ativo por padrão daqui para frente, inicialmente desacoplado do motor operacional V20.1N.
+
+### Validated
+
+- TV funcionando.
+- Multiatividade funcionando.
+- Timeline consistente.
+- Deduplicação OK.
+- Sem `unavailable`.
+- Sem spam.
+
+### Notes
+
+- Status: Homologado.
+- Checkpoint exclusivamente documental.
+- Nenhum YAML, package, automação, dashboard ou `.storage` foi alterado por esta etapa.
+- Nenhuma funcionalidade nova ou evolução funcional foi implementada.
+- Banho fica como futuro candidato a atividade formal (`🛁 banho`) após estabilização.
+
 ## [v20.1c-legacy-audit] - 2026-05-20
 
 ### Added

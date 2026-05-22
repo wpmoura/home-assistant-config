@@ -11,6 +11,8 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - V20.1B lote 1 = concluída
 - V20.1B lote 2 = concluída/parcial para energia, internet, failover e backup
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
+- V20.1N = homologada; checkpoint de estabilização registrado
+- V20.1O = estável com débitos aceitos; política Timeline / Push / Agregação estabilizada
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada; nenhuma ação operacional realizada
 - V20.2/V20.3/V21 = planejamento futuro
@@ -28,5 +30,6 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - Packages novos devem permitir rollback simples
 - Radar de Movimento é recurso sob demanda
 - Alertas contextuais futuros devem ser assistivos e desacoplados
+- V20.1O não deve ser reaberta silenciosamente; mudanças futuras devem abrir lote formal e citar dependências do V20.1O
 
 > Detalhes operacionais e histórico de decisões estão em `docs/ROADMAP.md`, `docs/architecture.md`, `docs/pendencias_atuais_central_operacional.md` e `CHANGELOG.md`.

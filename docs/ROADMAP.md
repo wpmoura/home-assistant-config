@@ -11,6 +11,8 @@
 - V20.1F/G/H = validação e investigação de V19 concluídas
 - V20.1I/J = isolamento controlado de packages desativados aplicado e validado
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
+- V20.1N = homologada; checkpoint de estabilização registrado
+- V20.1O = estável com débitos aceitos; política Timeline / Push / Agregação estabilizada
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
@@ -55,6 +57,7 @@ Fluxo oficial de processamento:
 - HA resiliente com principal -> backup RPi5
 - Internet/4G/failover
 - Camada contextual futura
+- V20.2A - Evolução Contextual de Atividades
 - Limpeza técnica futura
 - Radar de Movimento sob demanda
 - Assistente Contextual Preventivo
@@ -327,6 +330,78 @@ Recomendação:
 - V20.2A pode avançar sem bloquear por resíduos V19.
 - Limpeza de registry, restore_state e dashboard oculto deve ser fase própria, reversível e validada pela UI do Home Assistant.
 
+### V20.1N - Operational Stabilization Checkpoint
+
+Status: homologada.
+
+Objetivo: registrar o encerramento do ciclo V20.1N após homologação completa, sem implementar novas funcionalidades e sem alterar YAML.
+
+Marcos registrados:
+
+- V20.1N.4.1 Motor operacional estabilizado.
+- V20.1N.4.2 Timeline integrada.
+- V20.1N.4.3 Pós-multiatividade.
+- V20.1N.4.3a Consistência visual.
+
+Resultados homologados:
+
+- TV funcionando.
+- Multiatividade funcionando.
+- Timeline consistente.
+- Deduplicação OK.
+- Sem `unavailable`.
+- Sem spam.
+
+Referência:
+
+- Checkpoint documental em `docs/releases/v20.1n-estabilizacao.md`.
+
+### V20.1O - Politica Timeline / Push / Agregacao
+
+Status: ESTÁVEL COM DÉBITOS ACEITOS.
+
+Objetivo: encerrar formalmente a política individual de publicação para eventos da Central Operacional V20, mantendo a arquitetura canônica da timeline estabilizada.
+
+Escopo congelado:
+
+- Política individual por evento implementada.
+- Timeline independente.
+- Push independente.
+- Agregação independente.
+- Banho habilitado por padrão.
+- Encerramento do banho em 2 minutos.
+- Push consumindo evento canônico atual.
+- Agregação respeitando flags individuais.
+- Agregação considerando contexto operacional ativo.
+- Máquina de lavar respeitando transições reais OFF->ON e ON->OFF.
+- Correção de falso positivo de Backup.
+- UI integrada com Timeline / Push / Agrupar.
+- Compatibilidade legada preservada.
+
+Governança do congelamento:
+
+- Arquivos criados = 0.
+- Package shadow = 0.
+- Documentação nova = 0.
+- Fontes de verdade novas = 0.
+- Alterações fora do escopo = 0.
+- Não reabrir V20.1O silenciosamente.
+- Mudanças futuras devem abrir V20.1P, V20.2 ou outro lote formal.
+
+Referências residuais conhecidas:
+
+- Atributos `linha_1` a `linha_6` permanecem como compatibilidade legada; a renderização final produtiva usa `sensor.casa_event_feed` com `eventos_json` e `limite_eventos`.
+- Helpers visuais legados de banho podem existir no ambiente, mas o fluxo V20.1O usa banho habilitado por padrão e encerramento fixo de 2 minutos.
+- Contextos agregáveis dependem de sensores canônicos V20 e, no caso de Backup, também de falha real em `sensor.backup_google_status`.
+
+Débito aceito pós-V20.1O:
+
+- Categoria: UX / Narrativa contextual.
+- Sintoma: eventos agregados podem ocultar a saída individual de participantes.
+- Exemplo: TV + Microondas + Banho ativos, depois TV e Microondas desligam enquanto Banho continua ativo, mas a timeline pode mostrar apenas Banho encerrado.
+- Impacto: não afeta estado real, automações, push ou lógica operacional; afeta apenas interpretação humana da timeline.
+- Tratamento: reservado para V20.1P — Inteligência contextual da timeline.
+
 ## V20.2 - Dedicated Engines + UX/Operational Layout
 
 Status: parcialmente implementada em shadow mode/paralelo; checkpoint de homologação Fase A concluído; auditoria operacional residual iniciada.
@@ -362,6 +437,36 @@ Resultado:
 - Remoção foi validada posteriormente por inspeção: `teste_4` não aparece mais em `.storage/lovelace_dashboards` e `.storage/lovelace.teste_4` não existe mais.
 - Referências V19 não aparecem em dashboards ativos após a remoção.
 - Permanecem apenas referências documentais/históricas.
+
+### V20.2A - Evolução Contextual de Atividades
+
+Status: decisão arquitetural aprovada para próximos passos.
+
+Decisão: o monitoramento de banho passa a ser ativo por padrão daqui para frente.
+
+Regras:
+
+- Não tratar banho como funcionalidade opcional.
+- Manter inicialmente desacoplado do motor operacional V20.1N.
+- Utilizar lógica contextual existente, combinando movimento, umidade e sensores relacionados.
+
+Regra padrão de encerramento:
+
+```text
+Ausência de evidências de banho por 2 minutos
+↓
+Encerrar banho
+```
+
+Objetivo:
+
+- Evitar falso encerramento causado por oscilações de movimento.
+- Evitar falso encerramento causado por estabilização da umidade.
+- Evitar falso encerramento causado por pequenas pausas durante banho.
+
+Futuro candidato:
+
+- Incorporar banho ao motor operacional como atividade formal (`🛁 banho`) após estabilização.
 
 ### V20.2B - Automation Residual Audit
 
