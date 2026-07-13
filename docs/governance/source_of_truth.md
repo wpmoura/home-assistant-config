@@ -86,9 +86,19 @@ Concentra pendencias, riscos, inconsistencias e candidatos a saneamento.
 
 Concentra checkpoints, investigacoes, validacoes e evidencias historicas.
 
+- `docs/auditorias/auditoria_operacional_recovery_4g_v20_1q.md`
+  - Classificacao: auditoria historica/evidencial, nao canonica.
+  - Finalidade: registrar o estado observado do recovery 4G.
+  - Limite: nao autoriza implementacao ou limpeza isoladamente.
+
 ### arquitetura
 
 Concentra arquitetura oficial e documentos tecnicos de motores.
+
+- `docs/arquitetura/despacho_arquitetural_v20_1q.md`
+  - Classificacao: arquitetura subordinada.
+  - Finalidade: registrar a decisao tecnica aprovada da V20.1Q.
+  - Autoridade: nao substitui `architecture.md` nem `docs/ARCHITECTURE.md`.
 
 ## Documentos historicos
 
@@ -97,6 +107,11 @@ Documentos V17, V18, V19, investigacoes antigas e regras antigas permanecem como
 ## Documentos operacionais e releases
 
 Documentos em `docs/releases/` registram checkpoints, validacoes, planejamentos de lote, checklists de implantacao e historico operacional. Eles nao criam regras permanentes, nao alteram contratos e nao competem com a hierarquia oficial.
+
+- `docs/releases/implementation_plan_v20_1q.md`
+  - Classificacao: release transitorio operacional.
+  - Validade: execucao e homologacao da V20.1Q.
+  - Limite: nao cria regra permanente e nao declara implementacao concluida.
 
 Classificacao explicita:
 

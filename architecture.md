@@ -19,7 +19,12 @@ Princípios principais:
 - V20.1C possui `V20.1C_FECHAMENTO` registrado: diagnóstico e governança concluídos, com decommission bloqueado.
 - V20.1N está homologada como checkpoint de estabilização operacional.
 - V20.1O está congelada como política produtiva de Timeline / Push / Agregação.
+- V20.1Q formaliza o Recovery 4G pelo princípio “A Central decide, o Executor atua, a Central valida e a Central encerra”.
 - V20.2 opera em shadow mode e não deve alterar dashboards produtivos.
 - IA é opcional; quando desligada, o sistema deve permanecer 100% funcional.
 - `sensor.status_casa` não deve ser alterado por implementações experimentais.
 - Aliases finais só podem ser alterados com validação formal.
+
+Decisão arquitetural subordinada:
+
+- `docs/arquitetura/despacho_arquitetural_v20_1q.md` — Recovery Automático do Modem 4G; implementação não iniciada.

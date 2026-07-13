@@ -2,6 +2,29 @@
 
 Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepachangelog.com/), com versões orientadas por baseline arquitetural da Central Operacional.
 
+## [v20.1q-formalizacao-documental] - 2026-07-13
+
+### Added
+
+- Auditoria operacional do recovery 4G em `docs/auditorias/auditoria_operacional_recovery_4g_v20_1q.md`.
+- Despacho arquitetural subordinado em `docs/arquitetura/despacho_arquitetural_v20_1q.md`.
+- Implementation Plan transitório em `docs/releases/implementation_plan_v20_1q.md`.
+- Gates específicos para documentação, pré-implementação, teste físico, homologação e encerramento da V20.1Q.
+
+### Changed
+
+- Roadmap registra a Fase 0 concluída, V20.1Q.1 como próxima fase e V20.1Q.2 como integração posterior.
+- Arquitetura e Source of Truth passam a indexar os artefatos subordinados da V20.1Q.
+- Marcador GIT-HYGIENE-01 atualizado como resolvido pelo commit `8e59a4be2e09ebb2706d4fc46a87a7258aa646b0`.
+
+### Notes
+
+- Formalização exclusivamente documental.
+- Implementação V20.1Q.1 não iniciada.
+- Nenhum YAML, helper, automação, script, dashboard ou `.storage` alterado.
+- Nenhum teste físico executado.
+- Defaults numéricos de cooldown e timeout de validação permanecem pendentes.
+
 ## [v20.1o-politica-timeline-push-agregacao] - 2026-05-21
 
 ### Frozen

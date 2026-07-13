@@ -13,6 +13,7 @@
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
 - V20.1N = homologada; checkpoint de estabilização registrado
 - V20.1O = estável com débitos aceitos; política Timeline / Push / Agregação estabilizada
+- V20.1Q = formalizada documentalmente; implementação não iniciada
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
@@ -25,15 +26,19 @@ Estado operacional consolidado:
 - Auditoria de automações identificou 21 órfãs; automações críticas não devem ser removidas automaticamente.
 - Limpeza técnica futura deve seguir criticidade, em lotes pequenos e reversíveis.
 
-Marcador de suspensão temporária:
+Checkpoint de governança e prioridade operacional:
 
-- Trabalho suspenso temporariamente para tratar GIT-HYGIENE-01 — diagnóstico e limpeza de histórico Git.
+- GIT-HYGIENE-01 resolvido pela Fase 0 no commit `8e59a4be2e09ebb2706d4fc46a87a7258aa646b0`.
+- Branch `develop` publicada e sincronizada, sem alteração de `main`.
+- V20.1Q — Recovery Automático do Modem 4G registrada como prioridade operacional aprovada.
+- V20.1Q.1 — Recovery Executor e parâmetros é a próxima fase, ainda não implementada.
+- V20.1Q.2 — integração canônica com Timeline e publicadores permanece posterior.
 - Governança constitucional ajustada: Constituição prevalece sobre `source_of_truth`; `source_of_truth` atua como índice/roteador documental.
 - Radar/Mapa Operacional Fase 1 está desenhado no ROADMAP, mas não autorizado para implementação.
 - Bloco técnico do Radar/Mapa está sinalizado como candidato futuro à extração controlada, sem extração autorizada.
 - Lote 1 C1 da auditoria de legado e plano de observação operacional de 7 dias estão definidos.
 - Decommission permanece bloqueado.
-- Próxima retomada: finalizar checkpoint/versionamento da governança constitucional; depois decidir entre observação C1 e desenho/implementação futura do Radar.
+- Os três artefatos formais da V20.1Q estão referenciados na seção própria deste Roadmap.
 
 ## Arquitetura Oficial
 
@@ -418,6 +423,37 @@ Débito aceito pós-V20.1O:
 - Exemplo: TV + Microondas + Banho ativos, depois TV e Microondas desligam enquanto Banho continua ativo, mas a timeline pode mostrar apenas Banho encerrado.
 - Impacto: não afeta estado real, automações, push ou lógica operacional; afeta apenas interpretação humana da timeline.
 - Tratamento: reservado para V20.1P — Inteligência contextual da timeline.
+
+## V20.1Q - Recovery Automático do Modem 4G
+
+Status: formalizada documentalmente; implementação não iniciada.
+
+Prioridade: resiliência operacional da conectividade remota.
+
+Fases:
+
+- V20.1Q Fase 0 — saneamento Git concluído no commit `8e59a4be2e09ebb2706d4fc46a87a7258aa646b0`.
+- V20.1Q.1 — Recovery Executor parametrizável e painel administrativo de parâmetros.
+- V20.1Q.2 — integração definitiva com Timeline e publicadores canônicos.
+
+Princípio:
+
+> A Central decide. O Executor atua. A Central valida. A Central encerra.
+
+Referências:
+
+- Auditoria: `docs/auditorias/auditoria_operacional_recovery_4g_v20_1q.md`.
+- Despacho: `docs/arquitetura/despacho_arquitetural_v20_1q.md`.
+- Plano: `docs/releases/implementation_plan_v20_1q.md`.
+
+Pendências pré-implementação:
+
+- default numérico de cooldown;
+- default numérico de timeout de validação;
+- confirmação de helpers equivalentes, arquivos e estratégia de restart;
+- autorização posterior após nova Etapa A.
+
+Nenhum teste físico, alteração funcional ou decommission de legado está autorizado pela formalização documental.
 
 ## V20.2 - Dedicated Engines + UX/Operational Layout
 

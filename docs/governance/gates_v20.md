@@ -83,3 +83,41 @@ Status permitido:
 - `Arquivada`
 
 Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando mudancas sem nova fase.
+
+## Gates especificos - V20.1Q Recovery 4G
+
+### Gate documental
+
+- Auditoria, despacho arquitetural e Implementation Plan presentes e referenciados.
+- Classificacao e subordinacao documental declaradas.
+- Lacunas de cooldown e timeout numericos registradas sem inferencia.
+
+### Gate pre-implementacao
+
+- Nova Etapa A executada sobre `develop` sincronizada.
+- Helpers equivalentes, consumidores, tomada, blueprint e automacao confirmados.
+- Lista exata de arquivos apresentada antes de alteracao funcional.
+- Persistencia, idempotencia, restart seguro, cancelamento e rollback definidos.
+- Fronteira V20.1Q.1/V20.1Q.2 preservada.
+
+### Gate pre-teste fisico
+
+- YAML e configuracao Home Assistant validados.
+- Tomada correta e caminho de religamento confirmados.
+- Ausencia de detector proprio, ping ou interpretacao de bytes no Executor confirmada.
+- Rollback preparado.
+- Autorizacao operacional explicita do usuario registrada antes de qualquer power cycle.
+
+### Gate de homologacao
+
+- Cenarios de recovery desabilitado, tentativas 1 e 2, cooldown, timeout, concorrencia, restart e erro executados.
+- Nenhuma terceira tentativa observada.
+- Central confirmada como unica decisora e validadora.
+- Timeline, Push, aliases finais, `sensor.status_casa` e V20.1O preservados.
+
+### Gate de encerramento
+
+- Evidencias e pendencias registradas.
+- Changelog/checkpoint e Roadmap atualizados.
+- Legado preservado ou tratado somente por fase propria.
+- Nenhuma edicao manual de `.storage`.
