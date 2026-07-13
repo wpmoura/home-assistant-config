@@ -52,24 +52,6 @@
   # ==============================================
   #
  #
-  - platform: rest
-    name: "AAPL Stock Price"
-    resource: "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=DZGW4FW5VTQX4DFS"
-    value_template: "{{ value_json['Global Quote']['05. price'] }}"
-    unit_of_measurement: "USD"
-
-  - platform: rest
-    name: "MSFT Stock Price"
-    resource: "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=MSFT&apikey=DZGW4FW5VTQX4DFS"
-    value_template: "{{ value_json['Global Quote']['05. price'] }}"
-    unit_of_measurement: "USD"
-
-  - platform: rest
-    name: "BTC/USD Price"
-    resource: "https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey=DZGW4FW5VTQX4DFS"
-    value_template: "{{ value_json['Realtime Currency Exchange Rate']['5. Exchange Rate'] }}"
-    unit_of_measurement: "USD"
-
   # ==============================================
   # 📌 INTEGRATION (ENERGIA FÍSICA)
   # ==============================================

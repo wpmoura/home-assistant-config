@@ -27,6 +27,36 @@ secrets.yaml
 ssh/
 ssh/**
 
+# Runtime/private data
+.shopping_list.json
+known_devices.yaml
+/Copia do ieee address.txt
+media/
+media/**
+
+# Certificates, private keys and credentials
+ssl/
+ssl/**
+certs/
+certs/**
+certificates/
+certificates/**
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.token
+token.txt
+tokens.txt
+/tokens.yaml
+/credentials.yaml
+/api_keys.yaml
+credentials.json
+.env
+.env.*
+
 # =========================
 # TEMP / CACHE
 # =========================
