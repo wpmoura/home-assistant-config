@@ -622,6 +622,309 @@ script:
               datetime: >
                 {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
 
+  ##########################################################
+  # RECOVERY 4G - ORQUESTRADOR DA CENTRAL (V20.1Q.1)
+  ##########################################################
+
+  central_orquestrar_recovery_4g:
+
+    alias: Central - Orquestrar Recovery 4G
+    description: >
+      A Central autoriza tentativas, valida pelo detector canonico e encerra o
+      ciclo. O Executor recebe somente request_id, tentativa e veredito.
+    icon: mdi:router-wireless-settings
+    mode: single
+    max_exceeded: silent
+
+    variables:
+      request_id_novo: >
+        {{ now().strftime('%Y%m%d%H%M%S%f') }}
+      motivo_bloqueio: >
+        {% set ultima = states('input_datetime.casa_recovery_4g_ultima_execucao') %}
+        {% set cooldown = states('input_number.casa_recovery_4g_cooldown_minutos') | int(10) * 60 %}
+        {% if not is_state('input_boolean.casa_recovery_4g_automatico', 'on') %}
+          recovery_desabilitado
+        {% elif not is_state('binary_sensor.backup_4g_operacional', 'off') %}
+          incidente_nao_confirmado
+        {% elif not is_state('binary_sensor.energia_concessionaria', 'on') %}
+          energia_ausente_ou_inconclusiva
+        {% elif states('switch.0xa4c1381045aeb344') in ['unknown', 'unavailable'] %}
+          tomada_indisponivel
+        {% elif is_state('switch.0xa4c1381045aeb344', 'off') %}
+          tomada_ja_desligada
+        {% elif is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on') %}
+          ciclo_concorrente
+        {% elif is_state('script.casa_recovery_4g_executar_tentativa', 'on') %}
+          executor_ocupado
+        {% elif ultima not in ['unknown', 'unavailable', '', none]
+              and (as_timestamp(now()) - as_timestamp(ultima, 0)) < cooldown %}
+          cooldown
+        {% else %}
+          permitido
+        {% endif %}
+
+    sequence:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ (motivo_bloqueio | trim) != 'permitido' }}"
+            sequence:
+              - service: input_select.select_option
+                target:
+                  entity_id: input_select.casa_recovery_4g_estado_executor
+                data:
+                  option: >
+                    {{ 'cooldown' if (motivo_bloqueio | trim) == 'cooldown' else 'bloqueado' }}
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_id_novo }}"
+                  fato: solicitacao_bloqueada
+                  motivo: "{{ motivo_bloqueio | trim }}"
+              - stop: A Central nao autorizou o inicio do recovery.
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_request_id
+        data:
+          value: "{{ request_id_novo }}"
+
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_veredito_central
+        data:
+          value: aguardando
+
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.casa_recovery_4g_tentativa_atual
+        data:
+          value: 0
+
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.casa_recovery_4g_estado_executor
+        data:
+          option: solicitado
+
+      - event: casa_recovery_4g_central
+        event_data:
+          request_id: "{{ request_id_novo }}"
+          fato: tentativa_autorizada
+          tentativa: 1
+
+      - service: script.turn_on
+        target:
+          entity_id: script.casa_recovery_4g_executar_tentativa
+        data:
+          variables:
+            solicitacao_id: "{{ request_id_novo }}"
+            tentativa: 1
+
+      - wait_template: >
+          {{ is_state('binary_sensor.backup_4g_operacional', 'on')
+             or states('input_select.casa_recovery_4g_estado_executor')
+                in ['timeout_validacao', 'bloqueado', 'erro'] }}
+
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.backup_4g_operacional
+                state: "on"
+            sequence:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_recovery_4g_veredito_central
+                data:
+                  value: "{{ request_id_novo ~ ':1:validado' }}"
+              - wait_template: >
+                  {{ is_state('script.casa_recovery_4g_executar_tentativa', 'off') }}
+              - service: input_datetime.set_datetime
+                target:
+                  entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                data:
+                  datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+              - service: input_select.select_option
+                target:
+                  entity_id: input_select.casa_recovery_4g_estado_executor
+                data:
+                  option: cooldown
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_id_novo }}"
+                  fato: recuperacao_validada
+                  tentativas: 1
+              - stop: Recovery validado pela Central apos a tentativa 1.
+
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ is_state('input_select.casa_recovery_4g_estado_executor', 'timeout_validacao')
+                     and states('input_number.casa_recovery_4g_max_tentativas') | int(2) >= 2 }}
+            sequence:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_recovery_4g_veredito_central
+                data:
+                  value: "{{ request_id_novo ~ ':1:autorizar_tentativa_2' }}"
+              - wait_template: >
+                  {{ is_state('script.casa_recovery_4g_executar_tentativa', 'off') }}
+              - service: input_select.select_option
+                target:
+                  entity_id: input_select.casa_recovery_4g_estado_executor
+                data:
+                  option: solicitado
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_id_novo }}"
+                  fato: tentativa_autorizada
+                  tentativa: 2
+              - service: script.turn_on
+                target:
+                  entity_id: script.casa_recovery_4g_executar_tentativa
+                data:
+                  variables:
+                    solicitacao_id: "{{ request_id_novo }}"
+                    tentativa: 2
+              - wait_template: >
+                  {{ is_state('binary_sensor.backup_4g_operacional', 'on')
+                     or states('input_select.casa_recovery_4g_estado_executor')
+                        in ['timeout_validacao', 'bloqueado', 'erro'] }}
+              - choose:
+                  - conditions:
+                      - condition: state
+                        entity_id: binary_sensor.backup_4g_operacional
+                        state: "on"
+                    sequence:
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.casa_recovery_4g_veredito_central
+                        data:
+                          value: "{{ request_id_novo ~ ':2:validado' }}"
+                      - wait_template: >
+                          {{ is_state('script.casa_recovery_4g_executar_tentativa', 'off') }}
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                        data:
+                          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.casa_recovery_4g_estado_executor
+                        data:
+                          option: cooldown
+                      - event: casa_recovery_4g_central
+                        event_data:
+                          request_id: "{{ request_id_novo }}"
+                          fato: recuperacao_validada
+                          tentativas: 2
+                      - stop: Recovery validado pela Central apos a tentativa 2.
+
+                default:
+                  - choose:
+                      - conditions:
+                          - condition: state
+                            entity_id: input_select.casa_recovery_4g_estado_executor
+                            state: timeout_validacao
+                        sequence:
+                          - service: input_text.set_value
+                            target:
+                              entity_id: input_text.casa_recovery_4g_veredito_central
+                            data:
+                              value: "{{ request_id_novo ~ ':2:encerrar' }}"
+                          - wait_template: >
+                              {{ is_state('script.casa_recovery_4g_executar_tentativa', 'off') }}
+                          - service: input_datetime.set_datetime
+                            target:
+                              entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                            data:
+                              datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+                          - service: input_boolean.turn_off
+                            target:
+                              entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+                          - service: input_select.select_option
+                            target:
+                              entity_id: input_select.casa_recovery_4g_estado_executor
+                            data:
+                              option: esgotado
+                          - event: casa_recovery_4g_central
+                            event_data:
+                              request_id: "{{ request_id_novo }}"
+                              fato: tentativas_esgotadas
+                              tentativas: 2
+                          - stop: Duas tentativas encerradas sem validacao positiva da Central.
+                    default:
+                      - service: switch.turn_on
+                        target:
+                          entity_id: switch.0xa4c1381045aeb344
+                        continue_on_error: true
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                        data:
+                          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+                      - event: casa_recovery_4g_central
+                        event_data:
+                          request_id: "{{ request_id_novo }}"
+                          fato: tentativa_2_interrompida
+                      - stop: Tentativa 2 interrompida por bloqueio ou erro tecnico.
+
+        default:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ is_state('input_select.casa_recovery_4g_estado_executor', 'timeout_validacao') }}
+                sequence:
+                  - service: input_text.set_value
+                    target:
+                      entity_id: input_text.casa_recovery_4g_veredito_central
+                    data:
+                      value: "{{ request_id_novo ~ ':1:encerrar' }}"
+                  - wait_template: >
+                      {{ is_state('script.casa_recovery_4g_executar_tentativa', 'off') }}
+                  - service: input_datetime.set_datetime
+                    target:
+                      entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                    data:
+                      datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+                  - service: input_select.select_option
+                    target:
+                      entity_id: input_select.casa_recovery_4g_estado_executor
+                    data:
+                      option: esgotado
+            default:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.0xa4c1381045aeb344
+                continue_on_error: true
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >
+                          {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) > 0 }}
+                    sequence:
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+                        data:
+                          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+          - event: casa_recovery_4g_central
+            event_data:
+              request_id: "{{ request_id_novo }}"
+              fato: ciclo_encerrado_sem_validacao
+
 ############################################################
 # AUTOMAÇÕES
 ############################################################
@@ -685,6 +988,299 @@ automation:
 
     action:
       - service: script.central_recalcular_mensagem_operacional
+
+  ##########################################################
+  # RECOVERY 4G - SOLICITACAO CANONICA (V20.1Q.1)
+  ##########################################################
+
+  - id: central_recovery_4g_solicitar
+
+    alias: Central - Solicitar Recovery 4G
+    description: A Central decide iniciar o recovery apos a deteccao homologada.
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.backup_4g_operacional
+        to: "off"
+        for:
+          minutes: 3
+
+    action:
+      - service: script.central_orquestrar_recovery_4g
+
+  ##########################################################
+  # RECOVERY 4G - RELIGAMENTO DE SEGURANCA
+  ##########################################################
+
+  - id: central_recovery_4g_religamento_seguranca
+
+    alias: Central - Recovery 4G - Religamento de seguranca
+    description: >
+      Salvaguarda independente do delay do Executor. Atua somente quando um
+      ciclo autorizado desligou a tomada.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: switch.0xa4c1381045aeb344
+        to: "off"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+        state: "on"
+
+    action:
+      - variables:
+          tentativa_seguranca: >
+            {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) }}
+          tempo_seguranca: >
+            {% if states('input_number.casa_recovery_4g_tentativa_atual') | int(0) == 1 %}
+              {{ states('input_number.casa_recovery_4g_tempo_off_tentativa_1') | int(5) }}
+            {% else %}
+              {{ states('input_number.casa_recovery_4g_tempo_off_tentativa_2') | int(10) }}
+            {% endif %}
+      - delay:
+          seconds: "{{ tempo_seguranca | int }}"
+      - condition: state
+        entity_id: switch.0xa4c1381045aeb344
+        state: "off"
+      - service: switch.turn_on
+        target:
+          entity_id: switch.0xa4c1381045aeb344
+        continue_on_error: true
+      - event: casa_recovery_4g_executor
+        event_data:
+          request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+          tentativa: "{{ tentativa_seguranca }}"
+          fato: religamento_seguranca_solicitado
+
+  ##########################################################
+  # RECOVERY 4G - RECONCILIACAO APOS RESTART
+  ##########################################################
+
+  - id: central_recovery_4g_reconciliar_restart
+
+    alias: Central - Recovery 4G - Reconciliar restart
+    description: Nao retoma nem repete power cycle interrompido.
+    mode: single
+
+    trigger:
+      - platform: homeassistant
+        event: start
+
+    condition:
+      - condition: template
+        value_template: >
+          {{ is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on')
+             or states('input_select.casa_recovery_4g_estado_executor')
+                in ['solicitado', 'executando_tentativa_1',
+                    'executando_tentativa_2', 'aguardando_validacao',
+                    'concluido_tecnicamente', 'timeout_validacao'] }}
+
+    action:
+      - variables:
+          request_restart: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+          tentativa_restart: >
+            {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.0xa4c1381045aeb344
+                continue_on_error: true
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_veredito_central
+        data:
+          value: "{{ request_restart ~ ':' ~ tentativa_restart ~ ':cancelado_restart' }}"
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.casa_recovery_4g_estado_executor
+        data:
+          option: erro
+      - event: casa_recovery_4g_executor
+        event_data:
+          request_id: "{{ request_restart }}"
+          tentativa: "{{ tentativa_restart }}"
+          fato: ciclo_cancelado_por_restart
+
+  ##########################################################
+  # RECOVERY 4G - INTERRUPCAO DE ENERGIA
+  ##########################################################
+
+  - id: central_recovery_4g_interromper_sem_energia
+
+    alias: Central - Recovery 4G - Interromper sem energia
+    description: Cancela o ciclo tecnico se a energia ficar ausente ou inconclusiva.
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.energia_concessionaria
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+        state: "on"
+      - condition: template
+        value_template: >
+          {{ not is_state('binary_sensor.energia_concessionaria', 'on') }}
+
+    action:
+      - variables:
+          request_energia: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+          tentativa_energia: >
+            {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) }}
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_veredito_central
+        data:
+          value: "{{ request_energia ~ ':' ~ tentativa_energia ~ ':cancelado_energia' }}"
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.0xa4c1381045aeb344
+                continue_on_error: true
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.casa_recovery_4g_estado_executor
+        data:
+          option: bloqueado
+      - event: casa_recovery_4g_executor
+        event_data:
+          request_id: "{{ request_energia }}"
+          tentativa: "{{ tentativa_energia }}"
+          fato: ciclo_cancelado_por_energia
+
+  ##########################################################
+  # RECOVERY 4G - CANCELAMENTO PELO CONTROLE AUTOMATICO
+  ##########################################################
+
+  - id: central_recovery_4g_cancelar_desabilitado
+
+    alias: Central - Recovery 4G - Cancelar ao desabilitar
+    description: Desligar a politica automatica cancela com seguranca o ciclo ativo.
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: input_boolean.casa_recovery_4g_automatico
+        to: "off"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+        state: "on"
+
+    action:
+      - variables:
+          request_cancelamento: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+          tentativa_cancelamento: >
+            {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) }}
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_veredito_central
+        data:
+          value: >
+            {{ request_cancelamento ~ ':' ~ tentativa_cancelamento ~ ':cancelado_operador' }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.0xa4c1381045aeb344
+                continue_on_error: true
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.casa_recovery_4g_ultima_execucao
+        data:
+          datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.casa_recovery_4g_estado_executor
+        data:
+          option: bloqueado
+      - event: casa_recovery_4g_executor
+        event_data:
+          request_id: "{{ request_cancelamento }}"
+          tentativa: "{{ tentativa_cancelamento }}"
+          fato: ciclo_cancelado_por_operador
+
+  ##########################################################
+  # RECOVERY 4G - ENCERRAMENTO DO COOLDOWN TECNICO
+  ##########################################################
+
+  - id: central_recovery_4g_encerrar_cooldown
+
+    alias: Central - Recovery 4G - Encerrar cooldown
+    mode: single
+
+    trigger:
+      - platform: time_pattern
+        minutes: "/1"
+
+    condition:
+      - condition: state
+        entity_id: input_select.casa_recovery_4g_estado_executor
+        state: cooldown
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
+        state: "off"
+      - condition: template
+        value_template: >
+          {% set ultima = states('input_datetime.casa_recovery_4g_ultima_execucao') %}
+          {% set cooldown = states('input_number.casa_recovery_4g_cooldown_minutos') | int(10) * 60 %}
+          {{ ultima not in ['unknown', 'unavailable', '', none]
+             and (as_timestamp(now()) - as_timestamp(ultima, 0)) >= cooldown }}
+
+    action:
+      - service: input_select.select_option
+        target:
+          entity_id: input_select.casa_recovery_4g_estado_executor
+        data:
+          option: ocioso
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.casa_recovery_4g_tentativa_atual
+        data:
+          value: 0
+      - event: casa_recovery_4g_executor
+        event_data:
+          request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+          fato: cooldown_encerrado
 
   ##########################################################
   # BACKUP 4G INDISPONÍVEL

@@ -4,7 +4,8 @@
 # Helpers de preparacao para a matriz contextual de prioridade e para a camada
 # de controle operacional da timeline/feed.
 #
-# Nao altera score, automacoes, dashboards produtivos ou entidades legadas.
+# Inclui a politica parametrizavel e o estado tecnico persistente do Executor
+# de Recovery 4G V20.1Q.1. Nao publica Timeline/Push e nao altera detectores.
 ###############################################################################
 
 input_number:
@@ -67,7 +68,85 @@ input_number:
     icon: mdi:format-list-numbered
     initial: 6
 
+  casa_recovery_4g_max_tentativas:
+    name: Casa - Recovery 4G Maximo de Tentativas
+    min: 1
+    max: 2
+    step: 1
+    mode: box
+    unit_of_measurement: tentativas
+    icon: mdi:counter
+    initial: 2
+
+  casa_recovery_4g_tempo_off_tentativa_1:
+    name: Casa - Recovery 4G Tempo OFF Tentativa 1
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-outline
+    initial: 5
+
+  casa_recovery_4g_tempo_off_tentativa_2:
+    name: Casa - Recovery 4G Tempo OFF Tentativa 2
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-alert-outline
+    initial: 10
+
+  casa_recovery_4g_cooldown_minutos:
+    name: Casa - Recovery 4G Cooldown
+    min: 1
+    max: 120
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-lock-outline
+    initial: 10
+
+  casa_recovery_4g_timeout_validacao_segundos:
+    name: Casa - Recovery 4G Timeout de Validacao
+    min: 30
+    max: 600
+    step: 10
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-sand
+    initial: 120
+
+  casa_recovery_4g_tentativa_atual:
+    name: Casa - Recovery 4G Tentativa Atual
+    min: 0
+    max: 2
+    step: 1
+    mode: box
+    unit_of_measurement: tentativas
+    icon: mdi:counter
+
 input_boolean:
+  casa_recovery_4g_automatico:
+    name: Casa - Recovery 4G Automatico
+    icon: mdi:router-wireless-settings
+    initial: false
+
+  casa_recovery_4g_timeline:
+    name: Casa - Recovery 4G Timeline
+    icon: mdi:timeline-text-outline
+    initial: true
+
+  casa_recovery_4g_push:
+    name: Casa - Recovery 4G Push
+    icon: mdi:bell-outline
+    initial: false
+
+  casa_recovery_4g_ciclo_em_andamento:
+    name: Casa - Recovery 4G Ciclo em Andamento
+    icon: mdi:progress-wrench
+
   casa_eventos_visiveis:
     name: Casa - Eventos Visiveis
     icon: mdi:eye-outline
@@ -182,3 +261,43 @@ input_boolean:
     name: Casa - Agregacao Microondas
     icon: mdi:timeline-plus-outline
     initial: true
+
+input_select:
+  casa_recovery_4g_estado_executor:
+    name: Casa - Recovery 4G Estado do Executor
+    icon: mdi:state-machine
+    options:
+      - ocioso
+      - bloqueado
+      - solicitado
+      - executando_tentativa_1
+      - executando_tentativa_2
+      - aguardando_validacao
+      - concluido_tecnicamente
+      - timeout_validacao
+      - esgotado
+      - cooldown
+      - erro
+
+input_text:
+  casa_recovery_4g_request_id:
+    name: Casa - Recovery 4G Request ID
+    max: 255
+    icon: mdi:identifier
+
+  casa_recovery_4g_ultima_tentativa_processada:
+    name: Casa - Recovery 4G Ultima Tentativa Processada
+    max: 255
+    icon: mdi:check-decagram-outline
+
+  casa_recovery_4g_veredito_central:
+    name: Casa - Recovery 4G Veredito da Central
+    max: 255
+    icon: mdi:gavel
+
+input_datetime:
+  casa_recovery_4g_ultima_execucao:
+    name: Casa - Recovery 4G Ultima Execucao
+    has_date: true
+    has_time: true
+    icon: mdi:clock-check-outline
