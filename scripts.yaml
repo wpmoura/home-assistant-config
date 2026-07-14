@@ -30,9 +30,9 @@ casa_recovery_4g_executar_tentativa:
           mode: box
 
   variables:
-    request_id_recebido: "{{ solicitacao_id | default('') | string | trim }}"
+    request_id_recebido: "{{ solicitacao_id | default('', true) | string | trim }}"
     tentativa_numero: "{{ tentativa | int(0) }}"
-    token_tentativa: "{{ request_id_recebido ~ ':' ~ tentativa_numero }}"
+    token_tentativa: "{{ (request_id_recebido | string | trim) ~ ':' ~ (tentativa_numero | string) }}"
     tempo_off_segundos: >
       {% if tentativa_numero | int == 1 %}
         {{ states('input_number.casa_recovery_4g_tempo_off_tentativa_1') | int(5) }}
@@ -40,11 +40,11 @@ casa_recovery_4g_executar_tentativa:
         {{ states('input_number.casa_recovery_4g_tempo_off_tentativa_2') | int(10) }}
       {% endif %}
     motivo_bloqueio: >
-      {% set request_atual = states('input_text.casa_recovery_4g_request_id') %}
-      {% set ultima = states('input_text.casa_recovery_4g_ultima_tentativa_processada') %}
+      {% set request_atual = states('input_text.casa_recovery_4g_request_id') | string | trim %}
+      {% set ultima = states('input_text.casa_recovery_4g_ultima_tentativa_processada') | string | trim %}
       {% set ciclo = is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on') %}
       {% set tentativa_atual = states('input_number.casa_recovery_4g_tentativa_atual') | int(0) %}
-      {% set veredito = states('input_text.casa_recovery_4g_veredito_central') %}
+      {% set veredito = states('input_text.casa_recovery_4g_veredito_central') | string | trim %}
       {% set ultima_execucao = states('input_datetime.casa_recovery_4g_ultima_execucao') %}
       {% set cooldown = states('input_number.casa_recovery_4g_cooldown_minutos') | int(10) * 60 %}
       {% if not is_state('input_boolean.casa_recovery_4g_automatico', 'on') %}

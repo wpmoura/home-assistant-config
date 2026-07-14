@@ -637,8 +637,7 @@ script:
     max_exceeded: silent
 
     variables:
-      request_id_novo: >
-        {{ now().strftime('%Y%m%d%H%M%S%f') }}
+      request_id_novo: "{{ 'r4g-' ~ now().strftime('%Y%m%d%H%M%S%f') }}"
       motivo_bloqueio: >
         {% set ultima = states('input_datetime.casa_recovery_4g_ultima_execucao') %}
         {% set cooldown = states('input_number.casa_recovery_4g_cooldown_minutos') | int(10) * 60 %}
@@ -1005,6 +1004,25 @@ automation:
         to: "off"
         for:
           minutes: 3
+        id: backup_indisponivel
+
+      - platform: state
+        entity_id: input_boolean.casa_recovery_4g_automatico
+        from: "off"
+        to: "on"
+        id: recovery_habilitado
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_automatico
+        state: "on"
+
+      - condition: template
+        value_template: >
+          {% set detector = states.binary_sensor.backup_4g_operacional %}
+          {{ detector is not none
+             and detector.state == 'off'
+             and (as_timestamp(now()) - as_timestamp(detector.last_changed, 0)) >= 180 }}
 
     action:
       - service: script.central_orquestrar_recovery_4g
@@ -1289,7 +1307,7 @@ automation:
   - id: central_conectividade_backup_4g_indisponivel
 
     alias: Central - Backup 4G indisponível
-    mode: single
+    mode: restart
 
     trigger:
       - platform: state
@@ -1297,8 +1315,31 @@ automation:
         to: "on"
         for:
           minutes: 3
+        id: backup_indisponivel
+
+      - platform: homeassistant
+        event: start
+        id: reconciliar_startup
 
     action:
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.id == 'reconciliar_startup' }}"
+            sequence:
+              - delay:
+                  minutes: 3
+
+      - condition: state
+        entity_id: binary_sensor.internet_backup_4g_indisponivel
+        state: "on"
+
+      - condition: template
+        value_template: >
+          {% set indicador = states.binary_sensor.internet_backup_4g_indisponivel %}
+          {{ indicador is not none
+             and (as_timestamp(now()) - as_timestamp(indicador.last_changed, 0)) >= 180 }}
 
       - service: script.central_publicar_mensagem
         data:
