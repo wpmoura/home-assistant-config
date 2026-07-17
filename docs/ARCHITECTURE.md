@@ -225,6 +225,27 @@ Helpers principais:
 - `input_boolean.casa_eventos_visiveis`
 - `input_boolean.casa_prioridade_contextual_ativa`
 
+## Arquitetura Lovelace e dashboard Parâmetros
+
+A arquitetura Lovelace oficial separa definição operacional de entidades e definição visual:
+
+```text
+YAML versionado
+  └── packages e helpers
+
+Lovelace Storage
+  ├── .storage/lovelace_dashboards        cadastro, título, URL e modo
+  └── .storage/lovelace.dashboard_lixo    views, seções e cards de Parâmetros
+```
+
+O dashboard exibido ao usuário como `Parâmetros` é um dashboard Lovelace Storage. `dashboard_lixo` é somente seu identificador técnico legado; não é o nome funcional da interface. O cadastro fica em `.storage/lovelace_dashboards` e o conteúdo fica em `.storage/lovelace.dashboard_lixo`.
+
+Os helpers consumidos pelo dashboard são definidos em YAML, principalmente em `packages/parametros_operacionais_v20.yaml`. Os cards que expõem esses helpers não são definidos nesse package: criar, remover, renomear ou substituir um helper não atualiza automaticamente o dashboard Storage.
+
+Regra obrigatória de impacto: toda implementação que altere helpers utilizados pela Central Operacional deve verificar se o dashboard `Parâmetros` também precisa ser atualizado. A análise deve declarar separadamente a mudança YAML e a eventual mudança visual Storage.
+
+O modo Storage não determina qual executor deve realizar a alteração. Não se deve presumir que HA-MCP seja obrigatório, nem que Codex seja incapaz de atuar, apenas pelo tipo de armazenamento. A escolha depende do mecanismo operacional disponível, suportado e autorizado. Enquanto não existir mecanismo automatizado homologado para dashboards Storage, a interface do Home Assistant permanece o método suportado conhecido.
+
 ## Contexto
 
 O contexto V20 ainda é uma camada inicial.

@@ -34,6 +34,9 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - Alertas contextuais futuros devem ser assistivos e desacoplados
 - V20.1O não deve ser reaberta silenciosamente; mudanças futuras devem abrir lote formal e citar dependências do V20.1O
 - V20.1C não autoriza decommission; nenhuma limpeza ou desativação automática está autorizada e ações futuras exigem rollback
+- O dashboard visível `Parâmetros` é Lovelace Storage: cadastro em `.storage/lovelace_dashboards`, conteúdo em `.storage/lovelace.dashboard_lixo`; `dashboard_lixo` é apenas ID técnico legado
+- Helpers são definidos em YAML, mas cards Storage não são atualizados automaticamente; toda mudança de helper consumido pela Central deve avaliar impacto no dashboard `Parâmetros`
+- Dashboard Storage não determina o executor: usar mecanismo operacional disponível e suportado, sem presumir obrigatoriedade de HA-MCP; enquanto não houver automação homologada, a interface do Home Assistant é o método suportado conhecido
 - Seguir a política documental definida na Constituição/Governança; `AGENTS.md` deve permanecer curto, normativo e operacional
 
 ## Gate obrigatório - conhecimento prévio

@@ -1,5 +1,15 @@
 # Central Operacional V20 - Changelog
 
+## 2026-07-17 - Formalização da arquitetura Lovelace
+
+- Formalizado que `Parâmetros` é dashboard Lovelace Storage, cadastrado em `.storage/lovelace_dashboards` e armazenado em `.storage/lovelace.dashboard_lixo`.
+- Registrado que `dashboard_lixo` é ID técnico legado, não o nome exibido ao usuário.
+- Separada formalmente a definição dos helpers em YAML da definição dos cards em Storage.
+- Toda alteração futura de helpers consumidos pela Central passa a exigir avaliação explícita de impacto no dashboard `Parâmetros`.
+- O tipo Storage não determina o executor e não implica obrigatoriedade de HA-MCP; a escolha depende de mecanismo suportado e autorizado.
+- Enquanto não houver mecanismo automatizado homologado, a interface do Home Assistant permanece o método suportado conhecido para manutenção do dashboard.
+- Alteração exclusivamente documental; nenhum YAML operacional, dashboard, `.storage` ou runtime foi modificado.
+
 ## 2026-07-17 - Recovery 4G genérico — pacote corretivo
 
 - Tentativas fixas substituídas por laço genérico com snapshot do helper de máximo.
