@@ -382,6 +382,10 @@ template:
         for:
           minutes: "{{ states('input_number.casa_timeout_porta_aberta_minutos') | int(5) }}"
 
+      - platform: event
+        id: recovery_4g
+        event_type: casa_recovery_4g_central
+
     sensor:
       - name: Casa Evento Publicavel V20
         unique_id: casa_evento_publicavel_v20
@@ -389,9 +393,13 @@ template:
         state: >
           {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
           {% set tid = trigger.id if trigger is defined else '' %}
-          {% set eid = trigger.entity_id if trigger is defined else '' %}
-          {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-          {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+          {% set eid = trigger.entity_id | default('', true) if trigger is defined else '' %}
+          {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
+          {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is defined and trigger.to_state is not none else '' %}
+          {% set recovery = trigger.event.data if tid == 'recovery_4g' and trigger.event is defined else dict() %}
+          {% set recovery_fato = recovery.fato | default('', true) | string | trim %}
+          {% set recovery_motivo = recovery.motivo | default('', true) | string | trim %}
+          {% set recovery_tentativa = recovery.tentativa | default(0, true) | int(0) %}
           {% set timeout_min = states('input_number.casa_timeout_porta_aberta_minutos') | int(5) %}
           {% set porta_sala_timeout = 'binary_sensor.sensor_porta_sala_contact' %}
           {% set porta_sala = 'sensor.casa_porta_sala_estado_v20' %}
@@ -414,8 +422,21 @@ template:
           {% set publica_energia = not is_state('input_boolean.casa_timeline_evento_energia', 'off') %}
           {% set publica_internet = not is_state('input_boolean.casa_timeline_evento_internet', 'off') %}
           {% set publica_failover = not is_state('input_boolean.casa_timeline_evento_failover', 'off') %}
+          {% set publica_recovery = is_state('input_boolean.casa_recovery_4g_timeline', 'on') %}
 
-          {% if publica_porta_sala and tid == 'porta_timeout' and eid == porta_sala_timeout and new == 'on' %}
+          {% if publica_recovery and tid == 'recovery_4g' and recovery_fato == 'tentativa_autorizada' and recovery_tentativa > 0 %}
+            {% set evento = now().strftime('%H:%M') ~ ' 🔄 Recovery 4G iniciado — tentativa ' ~ recovery_tentativa %}
+          {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato == 'recuperacao_validada' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ✅ Recovery 4G concluído — backup operacional' %}
+          {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato in ['tentativas_esgotadas', 'ciclo_encerrado_sem_validacao'] %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⚠️ Recovery 4G concluído sem recuperação' %}
+          {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato == 'solicitacao_bloqueada' and recovery_motivo == 'cooldown' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⛔ Recovery 4G bloqueado — cooldown ativo' %}
+          {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato == 'solicitacao_bloqueada' and recovery_motivo == 'limite_de_tentativas' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⛔ Recovery 4G bloqueado — limite de tentativas' %}
+          {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato == 'solicitacao_bloqueada' and recovery_motivo == 'recovery_desabilitado' %}
+            {% set evento = now().strftime('%H:%M') ~ ' ⛔ Recovery 4G bloqueado — automático desligado' %}
+          {% elif publica_porta_sala and tid == 'porta_timeout' and eid == porta_sala_timeout and new == 'on' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta há ' ~ timeout_min ~ ' min' %}
           {% elif publica_porta_sala and eid == porta_sala and new == 'aberta' and old == 'fechada' %}
             {% set evento = now().strftime('%H:%M') ~ ' 🚪 Porta sala aberta' %}
@@ -545,7 +566,7 @@ template:
           {% elif publica_failover and eid == 'sensor.casa_failover_estado_v20' and new == 'inativo' and old == 'ativo' %}
             {% set evento = now().strftime('%H:%M') ~ ' 📡 Failover 4G encerrado' %}
           {% elif tid == 'atividade_assinatura' and eid == 'sensor.casa_atividade_operacional_v20' %}
-            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
             {% set new_sig = trigger.to_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.to_state is not none else '' %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
@@ -741,7 +762,12 @@ template:
             {{ evento }}
           {% endif %}
         attributes:
-          fonte: "{{ trigger.entity_id if trigger is defined else 'motor_timeline_v20' }}"
+          fonte: >
+            {% if trigger is defined and trigger.id == 'recovery_4g' %}
+              event.casa_recovery_4g_central
+            {% else %}
+              {{ trigger.entity_id | default('motor_timeline_v20', true) if trigger is defined else 'motor_timeline_v20' }}
+            {% endif %}
           formato_publicacao: HH:MM mensagem
           timeout_porta_minutos: "{{ states('input_number.casa_timeout_porta_aberta_minutos') | int(5) }}"
           publica_tv: "{{ not is_state('input_boolean.casa_timeline_evento_tv', 'off') }}"
@@ -754,6 +780,7 @@ template:
           publica_energia: "{{ not is_state('input_boolean.casa_timeline_evento_energia', 'off') }}"
           publica_internet: "{{ not is_state('input_boolean.casa_timeline_evento_internet', 'off') }}"
           publica_failover: "{{ not is_state('input_boolean.casa_timeline_evento_failover', 'off') }}"
+          publica_recovery_4g: "{{ is_state('input_boolean.casa_recovery_4g_timeline', 'on') }}"
           estado_controle_tv: "{{ states('input_boolean.casa_timeline_evento_tv') }}"
           estado_controle_chuva: "{{ states('input_boolean.casa_timeline_evento_chuva') }}"
           estado_controle_porta_sala: "{{ states('input_boolean.casa_timeline_evento_porta_sala') }}"
@@ -769,19 +796,21 @@ template:
             {{ estado not in ['', 'unknown', 'unavailable', 'sem_evento'] }}
           dominio_evento: >
             {% set tid = trigger.id if trigger is defined else '' %}
-            {% set eid = trigger.entity_id if trigger is defined else '' %}
-            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set eid = trigger.entity_id | default('', true) if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is defined and trigger.to_state is not none else '' %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
             {% set dominios = atividades | map(attribute='dominio') | list %}
-            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
             {% set old_marcado = '+' ~ old_sig ~ '+' %}
             {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
             {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
             {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
             {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
-            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+            {% if tid == 'recovery_4g' %}
+              recovery_4g
+            {% elif eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
               banho
             {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
               maquina_lavar
@@ -804,19 +833,21 @@ template:
             {% endif %}
           publicar_timeline: >
             {% set tid = trigger.id if trigger is defined else '' %}
-            {% set eid = trigger.entity_id if trigger is defined else '' %}
-            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set eid = trigger.entity_id | default('', true) if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is defined and trigger.to_state is not none else '' %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
             {% set dominios = atividades | map(attribute='dominio') | list %}
-            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
             {% set old_marcado = '+' ~ old_sig ~ '+' %}
             {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
             {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
             {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
             {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
-            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+            {% if tid == 'recovery_4g' %}
+              {{ is_state('input_boolean.casa_recovery_4g_timeline', 'on') }}
+            {% elif eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
               {{ not is_state('input_boolean.casa_timeline_evento_banho', 'off') }}
             {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
               {{ not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') }}
@@ -839,19 +870,21 @@ template:
             {% endif %}
           enviar_push: >
             {% set tid = trigger.id if trigger is defined else '' %}
-            {% set eid = trigger.entity_id if trigger is defined else '' %}
-            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set eid = trigger.entity_id | default('', true) if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is defined and trigger.to_state is not none else '' %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
             {% set dominios = atividades | map(attribute='dominio') | list %}
-            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
             {% set old_marcado = '+' ~ old_sig ~ '+' %}
             {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
             {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
             {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
             {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
-            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+            {% if tid == 'recovery_4g' %}
+              false
+            {% elif eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
               {{ is_state('input_boolean.casa_push_evento_banho', 'on') }}
             {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
               {{ is_state('input_boolean.casa_push_evento_maquina_lavar', 'on') }}
@@ -872,19 +905,21 @@ template:
             {% endif %}
           permitir_agregacao: >
             {% set tid = trigger.id if trigger is defined else '' %}
-            {% set eid = trigger.entity_id if trigger is defined else '' %}
-            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is not none else '' %}
-            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is not none else '' %}
+            {% set eid = trigger.entity_id | default('', true) if trigger is defined else '' %}
+            {% set old = trigger.from_state.state if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
+            {% set new = trigger.to_state.state if trigger is defined and trigger.to_state is defined and trigger.to_state is not none else '' %}
             {% set raw_atividades = state_attr('sensor.casa_atividade_operacional_v20', 'atividades_ativas') | default('[]', true) %}
             {% set atividades = raw_atividades | from_json(default=[]) if raw_atividades is string else raw_atividades %}
             {% set dominios = atividades | map(attribute='dominio') | list %}
-            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is not none else '' %}
+            {% set old_sig = trigger.from_state.attributes.assinatura_atividades | default('', true) if trigger is defined and trigger.from_state is defined and trigger.from_state is not none else '' %}
             {% set old_marcado = '+' ~ old_sig ~ '+' %}
             {% set agregacao_tv = not is_state('input_boolean.casa_timeline_evento_tv', 'off') and is_state('input_boolean.casa_agregacao_evento_tv', 'on') %}
             {% set agregacao_microondas = not is_state('input_boolean.casa_timeline_evento_microondas', 'off') and is_state('input_boolean.casa_agregacao_evento_microondas', 'on') %}
             {% set agregacao_maquina = not is_state('input_boolean.casa_timeline_evento_maquina_lavar', 'off') and is_state('input_boolean.casa_agregacao_evento_maquina_lavar', 'on') %}
             {% set agregacao_banho = not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') %}
-            {% if eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
+            {% if tid == 'recovery_4g' %}
+              false
+            {% elif eid in ['sensor.casa_banho_estado_v20', 'binary_sensor.movimento_alto_banheiro_occupancy'] %}
               {{ not is_state('input_boolean.casa_timeline_evento_banho', 'off') and is_state('input_boolean.casa_agregacao_evento_banho', 'on') }}
             {% elif (tid == 'atividade_assinatura' or (eid == 'sensor.casa_atividade_operacional_v20' and new == 'multiatividade' and old != 'multiatividade')) and 'maquina_lavar' in dominios and '+maquina_lavar+' not in old_marcado and not agregacao_maquina %}
               false

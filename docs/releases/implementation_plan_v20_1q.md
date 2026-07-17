@@ -1,10 +1,33 @@
 # Implementation Plan V20.1Q — Recovery Automático do Modem 4G
 
 Data: 2026-07-13
-Status: PLANEJADO, NÃO IMPLEMENTADO
+Status: PACOTE CORRETIVO IMPLEMENTADO ESTATICAMENTE; HOMOLOGAÇÃO OPERACIONAL PENDENTE
 Classificação: release transitório operacional
 Validade: execução e homologação da V20.1Q
 Autoridade: subordinada à Constituição, Source of Truth, Arquitetura, Roadmap e Gates
+
+## Adendo corretivo aprovado — 2026-07-17
+
+Este adendo substitui as regras numeradas deste plano onde houver conflito. O Recovery usa laço genérico e snapshot de `casa_recovery_4g_max_tentativas`, sem limite interno de duas ou dez tentativas. Todas as tentativas consomem `casa_recovery_4g_tempo_off_segundos`; os dois helpers numerados permanecem deprecados e sem consumidores. A queda é confirmada por `casa_recovery_4g_confirmacao_queda_minutos`. O sucesso somente ocorre após estabilidade contínua e revalidação final em `on`. Cooldown e gravação de `ultima_execucao` ocorrem somente após esgotamento completo e seguro. Restart, energia e cancelamento do operador não consomem cooldown.
+
+Matriz obrigatória, ainda não executada: máximos 1, 2, 5 e 10; alteração do máximo durante o ciclo; Tempo OFF único e alteração entre tentativas; retorno estável, oscilação, `unknown`, `unavailable`, janela zero e timeout; falha intermediária, erro técnico seguro, esgotamento, bloqueio e expiração do cooldown; restart nas fases OFF, validação e estabilização; cancelamento por energia e operador; inicialização automática sem power cycle antes da confirmação da queda; Timeline com 16 eventos e índices superiores a 2.
+
+### Procedimento de homologação pendente
+
+Pré-condições para todos os casos: autorização operacional explícita, tomada confirmada, rollback preparado, trace habilitado e registro dos valores de todos os helpers antes do ciclo. Para cada cenário, guardar request ID, sequência de eventos, índices executados, estados da tomada, veredito, estado final do Executor, `ciclo_em_andamento`, `tentativa_atual` e timestamp de `ultima_execucao`.
+
+1. Quantidade: executar incidentes controlados com máximo 1, 2, 5 e 10 sem retorno; contar exatamente os índices e confirmar cooldown somente ao final. Em outro ciclo, alterar o helper após o primeiro índice e confirmar que o snapshot original permanece válido. Repetir com retorno estabilizado em índice intermediário e confirmar ausência de índices posteriores.
+2. Tempo OFF: definir um valor observável antes do ciclo e medir cada intervalo OFF. Alterar o helper entre duas tentativas e confirmar que o Executor o lê no início de cada tentativa; os helpers numerados não podem produzir efeito.
+3. Estabilização: testar retorno que permanece `on`, queda para `off` antes do prazo, múltiplas oscilações, transições para `unknown` e `unavailable`, janela zero e ausência total de retorno até timeout. Somente a janela concluída e revalidada em `on` pode publicar `recuperacao_validada`.
+4. Cooldown: confirmar ausência após falha intermediária, retorno instável, erro técnico seguro e sucesso. No esgotamento, confirmar uma única gravação de `ultima_execucao`, estado `cooldown`, bloqueio de nova solicitação e retorno para `ocioso` após expiração.
+5. Cancelamentos: reiniciar durante OFF, espera de retorno e estabilização; repetir com falta de energia e desligamento pelo operador. Confirmar tomada ligada quando controlável, ciclo desligado, tentativa zero, nenhum timestamp novo e nenhum cooldown.
+6. Inicialização e Timeline: após restart autorizado, confirmar Recovery automático `on`, ausência de power cycle antes da confirmação completa da queda, reconciliação de estado residual e limite padrão de 16 eventos. Gerar tentativa com índice superior a 2 e confirmar renderização dinâmica e apenas um evento final.
+
+Nenhum item deste procedimento foi executado durante a implementação estática.
+
+### Limitação do dashboard Parâmetros
+
+O dashboard ativo foi localizado em `.storage/lovelace.dashboard_lixo`, sem arquivo YAML versionado equivalente. Em respeito à proibição de edição manual de `.storage`, esta implementação não alterou a interface. Após autorização operacional, a UI deverá adicionar Tempo OFF genérico e Confirmação da Queda, manter Automático e Estabilização e retirar da visualização os dois Tempos OFF numerados legados.
 
 ## 1. Objetivo
 
@@ -56,8 +79,9 @@ Caso não existam equivalentes, usar preferencialmente:
 
 - `input_boolean.casa_recovery_4g_automatico`;
 - `input_number.casa_recovery_4g_max_tentativas`;
-- `input_number.casa_recovery_4g_tempo_off_tentativa_1`;
-- `input_number.casa_recovery_4g_tempo_off_tentativa_2`;
+- `input_number.casa_recovery_4g_tempo_off_segundos`;
+- `input_number.casa_recovery_4g_confirmacao_queda_minutos`;
+- `input_number.casa_recovery_4g_estabilizacao_retorno_minutos`;
 - `input_number.casa_recovery_4g_cooldown_minutos`;
 - `input_number.casa_recovery_4g_timeout_validacao_segundos`;
 - `input_boolean.casa_recovery_4g_timeline`;
@@ -65,14 +89,15 @@ Caso não existam equivalentes, usar preferencialmente:
 
 A nomenclatura deve ser confirmada pela inspeção antes da implementação. Não duplicar helpers semanticamente equivalentes.
 
+Os helpers numerados antigos de Tempo OFF permanecem somente como legado deprecado e sem consumidores até limpeza futura autorizada.
+
 Helpers adicionais para estado, correlação, cancelamento, idempotência ou restart somente podem ser propostos após inspeção e devem ser apresentados antes da alteração funcional.
 
 ## 5. Defaults aprovados
 
 - Recovery automático: ligado.
-- Máximo de tentativas: 2, com mínimo 1 e máximo arquitetural 2.
-- Tentativa 1: 5 segundos de tomada desligada.
-- Tentativa 2: 10 segundos de tomada desligada.
+- Máximo de tentativas: definido exclusivamente pelo helper e capturado em snapshot no início do ciclo.
+- Tempo OFF: único e parametrizado para qualquer índice.
 - Timeline: configurável.
 - Push: configurável.
 
@@ -182,8 +207,9 @@ Adicionar futuramente uma seção `Recovery 4G` no painel de Parâmetros existen
 
 - Recovery automático;
 - Máximo de tentativas;
-- Tempo OFF — tentativa 1;
-- Tempo OFF — tentativa 2;
+- Tempo OFF único;
+- Confirmação da queda;
+- Estabilização do retorno;
 - Cooldown;
 - Timeout de validação;
 - Timeline;
@@ -206,20 +232,20 @@ O layout deve:
 4. O Executor aguarda o tempo OFF configurado para a tentativa.
 5. O Executor religa a tomada, inclusive em caminho de erro quando aplicável.
 6. O Executor registra conclusão técnica e aguarda validação.
-7. A Central valida e decide encerrar, autorizar tentativa 2 ou declarar falha.
-8. O Executor nunca executa tentativa 3.
+7. A Central valida e decide encerrar, executar o próximo índice ou declarar esgotamento.
+8. O Executor nunca executa além do snapshot capturado pela Central.
 
 ## 14. Testes a preparar
 
 Preparar homologação para:
 
 1. Recovery desabilitado.
-2. Tentativa 1 com tempo configurado.
-3. Sucesso validado pela Central após tentativa 1.
-4. Falha da tentativa 1 sem decisão autônoma do Executor.
-5. Tentativa 2 autorizada pela Central.
-6. Sucesso após tentativa 2.
-7. Esgotamento sem terceira tentativa.
+2. Máximos 1, 2, 5 e 10 com Tempo OFF único.
+3. Sucesso estabilizado em tentativa inicial e intermediária.
+4. Falha intermediária sem decisão autônoma do Executor.
+5. Próximo índice autorizado genericamente pela Central.
+6. Oscilação, `unknown` e `unavailable` durante a estabilização.
+7. Esgotamento exatamente no limite do snapshot.
 8. Cooldown impedindo novo ciclo.
 9. Alteração de parâmetros pelo painel.
 10. Timeline desligada sem afetar recovery.
@@ -268,7 +294,7 @@ O plano exige:
 ### Gate de homologação
 
 - Cenários de testes executados e evidenciados.
-- Ausência de concorrência, terceira tentativa e detector paralelo confirmada.
+- Ausência de concorrência, execução além do snapshot e detector paralelo confirmada.
 
 ### Gate de encerramento
 
@@ -282,11 +308,11 @@ A V20.1Q.1 somente estará apta à homologação se:
 - a Central for a única decisora;
 - o Executor não possuir detector;
 - não houver leitura de bytes ou ping no Executor;
-- houver no máximo duas tentativas;
+- a quantidade de tentativas vier exclusivamente do snapshot do helper;
 - tempos, cooldown e timeout forem parametrizáveis;
 - recovery puder ser desligado;
 - Timeline e Push forem independentes da execução;
-- não houver concorrência ou terceira tentativa;
+- não houver concorrência ou tentativa além do snapshot;
 - a tomada estiver protegida contra permanência desligada;
 - `sensor.status_casa` e aliases finais estiverem inalterados;
 - V20.1O não tiver sido reaberta;

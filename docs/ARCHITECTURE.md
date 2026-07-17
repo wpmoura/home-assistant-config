@@ -26,7 +26,7 @@ Estado oficial:
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
 - V20.1N = homologada; checkpoint de estabilização registrado
 - V20.1O = congelada; política Timeline / Push / Agregação estabilizada
-- V20.1Q = decisão arquitetural formalizada; implementação não iniciada
+- V20.1Q = pacote corretivo implementado estaticamente; homologação operacional pendente
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
@@ -245,6 +245,8 @@ Princípio arquitetural aprovado:
 > A Central decide. O Executor atua. A Central valida. A Central encerra.
 
 A Central mantém detecção, decisão, validação, encerramento e publicação canônica. O Executor futuro fica restrito à execução física subordinada e ao relato de fatos técnicos, sem detector próprio, interpretação de ping/bytes ou decisão semântica.
+
+Contrato corretivo vigente: a Central captura um snapshot de `casa_recovery_4g_max_tentativas`, controla um laço sem índice fixo e só declara sucesso após permanência contínua de `backup_4g_operacional` em `on` durante a janela configurada. Todas as tentativas usam um Tempo OFF único. Cooldown e `ultima_execucao` pertencem exclusivamente ao esgotamento completo; sucesso e cancelamentos retornam sem cooldown.
 
 O despacho subordinado está em `docs/arquitetura/despacho_arquitetural_v20_1q.md`. A implementação permanece bloqueada pelos gates e pelo plano `docs/releases/implementation_plan_v20_1q.md`.
 

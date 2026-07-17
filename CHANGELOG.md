@@ -1,5 +1,22 @@
 # Changelog
 
+## [v20.1q-recovery-generico-corretivo] - 2026-07-17
+
+### Changed
+
+- Recovery automático passa a iniciar ligado após restart e Timeline passa a 16 eventos por padrão.
+- Orquestrador refatorado para tentativas genéricas com snapshot do máximo configurado.
+- Tempo OFF único, confirmação de queda própria e estabilização contínua do retorno.
+- Sucesso encerra em `ocioso`, sem cooldown; cooldown ocorre somente após esgotamento completo.
+- Cancelamentos por restart, energia e operador deixam de gravar `ultima_execucao`.
+- `ultima_execucao` passa a significar o último esgotamento completo que iniciou cooldown.
+- Dashboard “Parâmetros” identificado somente em `.storage`; ajuste visual ficou pendente para fluxo suportado pela UI.
+
+### Validation
+
+- Validação exclusivamente estática; homologação no Home Assistant permanece pendente.
+- Nenhum reload, restart, power cycle ou push executado.
+
 Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepachangelog.com/), com versões orientadas por baseline arquitetural da Central Operacional.
 
 ## [v20.1q-formalizacao-documental] - 2026-07-13

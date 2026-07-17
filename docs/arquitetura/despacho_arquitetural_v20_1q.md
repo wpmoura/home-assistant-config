@@ -87,12 +87,13 @@ O retorno do Executor não contém veredito semântico sobre o 4G. Ele informa a
 
 Esses estados descrevem somente o Executor. `concluido_tecnicamente` significa que o power cycle terminou; não significa que o 4G foi recuperado.
 
-## Power cycle aprovado
+## Power cycle aprovado — adendo corretivo de 2026-07-17
 
-- Tentativa 1: tomada desligada por 5 segundos.
-- Tentativa 2: tomada desligada por 10 segundos.
-- Máximo: 2 tentativas.
-- Nenhuma terceira tentativa.
+- Cada tentativa usa o mesmo Tempo OFF parametrizado.
+- A quantidade é definida exclusivamente por `input_number.casa_recovery_4g_max_tentativas`.
+- A Central captura um snapshot imutável desse máximo no início do ciclo.
+- Não existe limite funcional interno de duas ou dez tentativas.
+- O Executor recebe e executa uma única tentativa de índice genérico.
 - Validação exclusivamente pela Central.
 
 ## Parametrização aprovada
@@ -100,10 +101,12 @@ Esses estados descrevem somente o Executor. `concluido_tecnicamente` significa q
 Devem ser parametrizáveis:
 
 - habilitação do recovery automático;
-- máximo de tentativas, limitado arquiteturalmente a 2;
-- tempo OFF da tentativa 1;
-- tempo OFF da tentativa 2;
+- máximo de tentativas definido exclusivamente pelo helper, sem teto funcional interno;
+- Tempo OFF único para qualquer tentativa;
 - cooldown;
+- confirmação da queda;
+- estabilização contínua do retorno;
+- Tempo OFF único;
 - timeout de espera pela validação da Central;
 - publicação em Timeline;
 - envio de Push.
@@ -111,6 +114,8 @@ Devem ser parametrizáveis:
 Timeline e Push não controlam a execução física. Recovery desligado impede ação física automática, mas não desativa detecção ou diagnóstico.
 
 Os defaults numéricos de cooldown e timeout de validação permanecem pendentes de decisão antes da implementação funcional.
+
+O sucesso exige retorno contínuo durante `casa_recovery_4g_estabilizacao_retorno_minutos`. Perda para `off`, `unknown` ou `unavailable` invalida a janela. `ultima_execucao` significa o timestamp do último esgotamento completo que iniciou cooldown. Sucesso, restart, falta de energia e cancelamento pelo operador não iniciam cooldown.
 
 ## Segurança física
 
@@ -120,7 +125,7 @@ O desenho deve impedir que:
 - dois ciclos sejam executados simultaneamente;
 - uma nova execução ignore cooldown;
 - restart ou erro deixe o modem sem energia;
-- uma terceira tentativa seja disparada.
+- uma tentativa além do snapshot configurado seja disparada.
 
 Restart, cancelamento e erro durante o período OFF devem possuir caminho seguro de religamento. A estratégia concreta deve ser apresentada no Gate pré-implementação.
 

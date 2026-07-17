@@ -66,12 +66,12 @@ input_number:
     mode: slider
     unit_of_measurement: eventos
     icon: mdi:format-list-numbered
-    initial: 6
+    initial: 16
 
   casa_recovery_4g_max_tentativas:
     name: Casa - Recovery 4G Maximo de Tentativas
     min: 1
-    max: 2
+    max: 100
     step: 1
     mode: box
     unit_of_measurement: tentativas
@@ -79,7 +79,7 @@ input_number:
     initial: 2
 
   casa_recovery_4g_tempo_off_tentativa_1:
-    name: Casa - Recovery 4G Tempo OFF Tentativa 1
+    name: Casa - Recovery 4G Tempo OFF Tentativa 1 (Legado)
     min: 1
     max: 60
     step: 1
@@ -89,7 +89,7 @@ input_number:
     initial: 5
 
   casa_recovery_4g_tempo_off_tentativa_2:
-    name: Casa - Recovery 4G Tempo OFF Tentativa 2
+    name: Casa - Recovery 4G Tempo OFF Tentativa 2 (Legado)
     min: 1
     max: 60
     step: 1
@@ -97,6 +97,28 @@ input_number:
     unit_of_measurement: s
     icon: mdi:timer-alert-outline
     initial: 10
+
+  # Helpers numerados preservados acima apenas para compatibilidade e rollback.
+  # O Recovery generico consome exclusivamente o helper abaixo.
+  casa_recovery_4g_tempo_off_segundos:
+    name: Casa - Recovery 4G Tempo OFF
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-outline
+    initial: 5
+
+  casa_recovery_4g_timeout_confirmacao_tomada_segundos:
+    name: Casa - Recovery 4G Timeout Confirmação da Tomada
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    initial: 5
+    icon: mdi:power-plug-clock
 
   casa_recovery_4g_cooldown_minutos:
     name: Casa - Recovery 4G Cooldown
@@ -107,6 +129,26 @@ input_number:
     unit_of_measurement: min
     icon: mdi:timer-lock-outline
     initial: 10
+
+  casa_recovery_4g_estabilizacao_retorno_minutos:
+    name: Casa - Recovery 4G Estabilização do Retorno
+    min: 0
+    max: 10
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-check-outline
+    initial: 3
+
+  casa_recovery_4g_confirmacao_queda_minutos:
+    name: Casa - Recovery 4G Confirmação da Queda
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-alert-outline
+    initial: 3
 
   casa_recovery_4g_timeout_validacao_segundos:
     name: Casa - Recovery 4G Timeout de Validacao
@@ -121,7 +163,7 @@ input_number:
   casa_recovery_4g_tentativa_atual:
     name: Casa - Recovery 4G Tentativa Atual
     min: 0
-    max: 2
+    max: 100
     step: 1
     mode: box
     unit_of_measurement: tentativas
@@ -131,7 +173,7 @@ input_boolean:
   casa_recovery_4g_automatico:
     name: Casa - Recovery 4G Automatico
     icon: mdi:router-wireless-settings
-    initial: false
+    initial: true
 
   casa_recovery_4g_timeline:
     name: Casa - Recovery 4G Timeline
@@ -270,8 +312,7 @@ input_select:
       - ocioso
       - bloqueado
       - solicitado
-      - executando_tentativa_1
-      - executando_tentativa_2
+      - executando
       - aguardando_validacao
       - concluido_tecnicamente
       - timeout_validacao
@@ -296,8 +337,9 @@ input_text:
     icon: mdi:gavel
 
 input_datetime:
+  # Timestamp do ultimo esgotamento completo que iniciou cooldown.
   casa_recovery_4g_ultima_execucao:
-    name: Casa - Recovery 4G Ultima Execucao
+    name: Casa - Recovery 4G Último Esgotamento
     has_date: true
     has_time: true
     icon: mdi:clock-check-outline

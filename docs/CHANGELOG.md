@@ -1,5 +1,16 @@
 # Central Operacional V20 - Changelog
 
+## 2026-07-17 - Recovery 4G genérico — pacote corretivo
+
+- Tentativas fixas substituídas por laço genérico com snapshot do helper de máximo.
+- Tempo OFF consolidado em helper único; helpers numerados preservados como legado sem consumidores.
+- Confirmação de queda e estabilização de retorno passam a usar helpers distintos.
+- Perdas para `off`, `unknown` ou `unavailable` invalidam a estabilidade.
+- Sucesso e cancelamentos não iniciam cooldown; somente esgotamento grava `ultima_execucao`.
+- Timeline configurada para 16 eventos e preparada para índices arbitrários.
+- Dashboard “Parâmetros” não foi editado por existir somente em `.storage`; atualização pela UI permanece pendente.
+- Implementação estática concluída; matriz operacional ainda não executada.
+
 ## 2026-05-13 - Fases 1, 2 e 3
 
 ### Resumo

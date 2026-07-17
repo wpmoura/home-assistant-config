@@ -13,7 +13,7 @@
 - V20.1K = concluída; tag `V20.1K_FECHAMENTO` criada
 - V20.1N = homologada; checkpoint de estabilização registrado
 - V20.1O = estável com débitos aceitos; política Timeline / Push / Agregação estabilizada
-- V20.1Q = formalizada documentalmente; implementação não iniciada
+- V20.1Q = pacote corretivo implementado estaticamente; validação operacional pendente
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
@@ -31,8 +31,8 @@ Checkpoint de governança e prioridade operacional:
 - GIT-HYGIENE-01 resolvido pela Fase 0 no commit `8e59a4be2e09ebb2706d4fc46a87a7258aa646b0`.
 - Branch `develop` publicada e sincronizada, sem alteração de `main`.
 - V20.1Q — Recovery Automático do Modem 4G registrada como prioridade operacional aprovada.
-- V20.1Q.1 — Recovery Executor e parâmetros é a próxima fase, ainda não implementada.
-- V20.1Q.2 — integração canônica com Timeline e publicadores permanece posterior.
+- V20.1Q.1 — Executor genérico, parâmetros, estabilização e política de cooldown implementados no repositório.
+- V20.1Q.2 — eventos canônicos integrados à Timeline; homologação runtime permanece bloqueada até autorização explícita.
 - Governança constitucional ajustada: Constituição prevalece sobre `source_of_truth`; `source_of_truth` atua como índice/roteador documental.
 - Radar/Mapa Operacional Fase 1 está desenhado no ROADMAP, mas não autorizado para implementação.
 - Bloco técnico do Radar/Mapa está sinalizado como candidato futuro à extração controlada, sem extração autorizada.

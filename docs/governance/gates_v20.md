@@ -9,6 +9,21 @@ Definir criterios obrigatorios para encerramento de fases da Central Operacional
 
 Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 
+## Gate corretivo V20.1Q — Recovery 4G
+
+- [x] Tentativas genéricas e snapshot do máximo implementados estaticamente.
+- [x] Tempo OFF único e helpers numerados marcados como legado.
+- [x] Confirmação de queda e estabilização de retorno parametrizadas separadamente.
+- [x] Cooldown restrito ao esgotamento e `ultima_execucao` com semântica documentada.
+- [x] Cancelamentos sem cooldown implementados.
+- [x] Validação YAML e buscas estáticas executadas.
+- [ ] Cenários 1, 2, 5 e 10 homologados no runtime.
+- [ ] Oscilação, `unknown`, `unavailable` e janela zero homologados.
+- [ ] Restart, energia, operador e segurança da tomada homologados.
+- [ ] Timeline com 16 eventos validada após restart controlado.
+
+O gate permanece aberto. Nenhum reload, restart ou power cycle foi autorizado nesta implementação.
+
 ## Gate 0 - Escopo
 
 Obrigatorio antes de iniciar.
@@ -111,7 +126,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 ### Gate de homologacao
 
 - Cenarios de recovery desabilitado, tentativas 1 e 2, cooldown, timeout, concorrencia, restart e erro executados.
-- Nenhuma terceira tentativa observada.
+- Nenhuma tentativa além do snapshot configurado observada.
 - Central confirmada como unica decisora e validadora.
 - Timeline, Push, aliases finais, `sensor.status_casa` e V20.1O preservados.
 
