@@ -1,5 +1,39 @@
 # Changelog
 
+## [v20.1q-dashboard-parametros-recovery-4g-ux] - 2026-07-17
+
+### Changed
+
+- Seção "Recovery 4G" do dashboard `Parâmetros` reorganizada em três cards, conforme `docs/ux/espec_ux_param_recovery4g.md` (ESPEC-UX-PARAM-RECOVERY4G): **Operação** (Recuperação Automática, Máximo de Tentativas, Pausa após Esgotar Tentativas), **Ciclo de Recuperação** (numerado 1–5: Tempo para Confirmar a Queda, Tempo com a Tomada Desligada, Limite de Espera da Tomada, Limite de Espera do 4G, Tempo de Estabilização) e **Avisos** (Registrar na Timeline, Notificar no Celular).
+- Card de texto explicativo (markdown) removido da seção, por exceder o conteúdo exaustivo definido pela especificação.
+- Entrega anterior (entrada `v20.1q-dashboard-parametros-recovery-4g` acima) ficou parcial: havia corrigido os campos, mas não a estrutura de cards.
+
+### Method
+
+- Mesma via da entrega anterior: API/WebSocket oficial do Home Assistant (`lovelace/config` / `lovelace/config/save`), sem edição manual de `.storage`, sem alteração de helpers, automações, scripts ou arquitetura.
+
+### Notes
+
+- Validado contra os 15 critérios de aceitação da especificação (A1–A15); A8 (quebra de rótulo em celular) não verificável visualmente nesta sessão.
+- Homologação runtime do Recovery 4G continua pendente; Gate corretivo V20.1Q permanece aberto.
+
+## [v20.1q-dashboard-parametros-recovery-4g] - 2026-07-17
+
+### Changed
+
+- Seção "Recovery 4G" do dashboard `Parâmetros` (`.storage/lovelace.dashboard_lixo`) atualizada: card "Execução automática" passa a expor Tempo OFF único, Confirmação da queda e Estabilização do retorno; os dois campos legados numerados de Tempo OFF (tentativa 1 e 2) foram retirados da visualização.
+- Diagnóstico técnico, revisão de UX e resolução dos bloqueios técnicos registrados como aprovados pelo usuário para este item, conforme `docs/releases/implementation_plan_v20_1q.md`.
+
+### Method
+
+- Alteração aplicada exclusivamente via API/WebSocket oficial do Home Assistant (`lovelace/config` / `lovelace/config/save`) autenticada com `HA_TOKEN`, sem edição manual de `.storage`.
+- Backup do JSON do dashboard salvo antes e depois da escrita; leitura de confirmação executada após a gravação.
+
+### Notes
+
+- Nenhuma outra seção do dashboard, package, automação, script, entidade, alias final ou `sensor.status_casa` foi alterada.
+- Homologação runtime do Recovery 4G continua pendente; Gate corretivo V20.1Q permanece aberto.
+
 ## [v20.1q-recovery-generico-corretivo] - 2026-07-17
 
 ### Changed

@@ -27,7 +27,44 @@ Nenhum item deste procedimento foi executado durante a implementação estática
 
 ### Limitação do dashboard Parâmetros
 
-O dashboard ativo foi localizado em `.storage/lovelace.dashboard_lixo`, sem arquivo YAML versionado equivalente. Em respeito à proibição de edição manual de `.storage`, esta implementação não alterou a interface. Após autorização operacional, a UI deverá adicionar Tempo OFF genérico e Confirmação da Queda, manter Automático e Estabilização e retirar da visualização os dois Tempos OFF numerados legados.
+O dashboard ativo foi localizado em `.storage/lovelace.dashboard_lixo`, sem arquivo YAML versionado equivalente. Em respeito à proibição de edição manual de `.storage`, a implementação estática de 2026-07-17 não alterou a interface. Após autorização operacional, a UI deverá adicionar Tempo OFF genérico e Confirmação da Queda, manter Automático e Estabilização e retirar da visualização os dois Tempos OFF numerados legados.
+
+### Atualização do dashboard Parâmetros — 2026-07-17 (item concluído)
+
+Diagnóstico técnico, revisão de UX e resolução dos bloqueios técnicos foram registrados como aprovados pelo usuário nesta sessão de implementação, restritos ao escopo deste item (seção "Recovery 4G" do dashboard `Parâmetros`).
+
+Mecanismo utilizado: API/WebSocket oficial do Home Assistant (`/api/websocket`, comandos `lovelace/config` e `lovelace/config/save`), autenticada com o `HA_TOKEN` da sessão. Nenhum arquivo `.storage` foi editado manualmente; a alteração foi persistida exclusivamente pelo mecanismo oficial que o próprio frontend usa para salvar dashboards Storage. Não houve fallback para edição manual pela interface.
+
+Verificação prévia executada:
+
+- Leitura via `lovelace/dashboards/list` e `lovelace/config` confirmou que a API suporta acesso ao dashboard Storage `dashboard-lixo` (título "Parâmetros").
+- Estados reais dos helpers `casa_recovery_4g_*` foram consultados via `/api/states` antes da alteração para confirmar que todas as entidades referenciadas existem e estão disponíveis.
+- Backup do JSON completo do dashboard foi salvo antes e depois da escrita para permitir rollback simples.
+
+Alteração aplicada, restrita ao card "Execução automática" da seção "Recovery 4G":
+
+- Removidos: `input_number.casa_recovery_4g_tempo_off_tentativa_1` ("Tempo OFF — tentativa 1") e `input_number.casa_recovery_4g_tempo_off_tentativa_2` ("Tempo OFF — tentativa 2"), helpers legados deprecados e sem consumidores.
+- Adicionados: `input_number.casa_recovery_4g_tempo_off_segundos` ("Tempo OFF único"), `input_number.casa_recovery_4g_confirmacao_queda_minutos` ("Confirmação da queda") e `input_number.casa_recovery_4g_estabilizacao_retorno_minutos` ("Estabilização do retorno").
+- Mantidos sem alteração: "Recovery automático", "Máximo de tentativas", "Cooldown", "Timeout de validação" e o card "Publicação" (Timeline, Push).
+
+Nenhuma outra seção, view, package, automação, script, entidade ou alias final foi alterada. A alteração foi lida de volta via `lovelace/config` e confirmada idêntica ao esperado. Esta atualização não homologa o Recovery 4G em runtime; o Gate corretivo V20.1Q em `docs/governance/gates_v20.md` permanece aberto para os cenários de teste físico e homologação ainda não executados.
+
+### Reorganização UX conforme ESPEC-UX-PARAM-RECOVERY4G — 2026-07-17
+
+A entrega anterior deste item ficou parcial: adicionou/removeu os campos corretos, mas manteve a estrutura antiga de dois cards (`Execução automática`, `Publicação`) e não aplicou a reorganização de UX já aprovada. A especificação normativa correspondente — `docs/ux/espec_ux_param_recovery4g.md` (ESPEC-UX-PARAM-RECOVERY4G, V20.1Q) — define de forma exaustiva a estrutura correta e passa a ser a referência única desta seção.
+
+Reorganização aplicada, via a mesma API/WebSocket oficial (`lovelace/config` / `lovelace/config/save`), sem edição de `.storage`, sem alteração de helpers, automações, scripts ou arquitetura:
+
+- A seção "Recovery 4G" passou a conter exatamente três cards de entidades, nesta ordem: **Operação**, **Ciclo de Recuperação**, **Avisos**.
+- **Operação**: Recuperação Automática, Máximo de Tentativas, Pausa após Esgotar Tentativas (mapeada para `casa_recovery_4g_cooldown_minutos`).
+- **Ciclo de Recuperação** (numerado 1–5): Tempo para Confirmar a Queda, Tempo com a Tomada Desligada, Limite de Espera da Tomada (`casa_recovery_4g_timeout_confirmacao_tomada_segundos`, não exposto na entrega anterior), Limite de Espera do 4G (`casa_recovery_4g_timeout_validacao_segundos`), Tempo de Estabilização.
+- **Avisos**: Registrar na Timeline, Notificar no Celular.
+- O card de texto explicativo (markdown) da entrega anterior foi removido, pois a especificação define conteúdo exaustivo de exatamente três cards por seção.
+- O heading "Recovery 4G" foi preservado em inglês, conforme exceção normativa da Seção 3.2 da especificação.
+
+Validação executada contra os 15 critérios de aceitação (Seção 9 da especificação): A1–A7 e A9–A15 verificados por inspeção estrutural do JSON lido de volta da API. A8 (nenhum rótulo quebra em duas linhas em viewport de celular) não pôde ser verificado por inspeção visual real nesta sessão; os rótulos usados são literalmente os oficiais da especificação.
+
+Diagnóstico técnico, revisão de UX e resolução dos bloqueios técnicos para este item foram registrados como aprovados pelo usuário nesta sessão de implementação.
 
 ## 1. Objetivo
 
