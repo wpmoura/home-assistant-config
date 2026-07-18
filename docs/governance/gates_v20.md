@@ -17,6 +17,10 @@ Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 - [x] Cooldown restrito ao esgotamento e `ultima_execucao` com semântica documentada.
 - [x] Cancelamentos sem cooldown implementados.
 - [x] Validação YAML e buscas estáticas executadas.
+- [x] Dashboard "Parâmetros" reorganizado em três cards (Operação, Ciclo de Recuperação, Avisos) conforme especificação oficial de UX.
+- [x] Especificação oficial de UX documentada e versionada em `docs/ux/espec_ux_param_recovery4g.md`.
+- [x] Commit e push da entrega de UX do dashboard "Parâmetros" realizados, com rastreabilidade em `CHANGELOG.md` e `docs/releases/implementation_plan_v20_1q.md`.
+- [ ] Validação visual do critério A8 da especificação de UX (nenhum rótulo quebra em duas linhas em viewport de celular) — sem evidência visual registrada.
 - [ ] Cenários 1, 2, 5 e 10 homologados no runtime.
 - [ ] Oscilação, `unknown`, `unavailable` e janela zero homologados.
 - [ ] Restart, energia, operador e segurança da tomada homologados.
