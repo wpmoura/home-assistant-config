@@ -1,5 +1,23 @@
 # Changelog
 
+## [v20.1q-homologacao-runtime-suspensa] - 2026-07-18
+
+### Added
+
+- Ata de Homologação Runtime V20.1Q em `docs/releases/implementation_plan_v20_1q.md`, cobrindo três testes reais e controlados de power cycle (Teste 1: esgotamento mínimo max=1 + cooldown; Teste 2: cenário max=10 + integridade do snapshot; Teste 3: cenário max=5 + achado de erro técnico seguro).
+
+### Changed
+
+- `docs/governance/gates_v20.md`: Gate corretivo V20.1Q atualizado para refletir itens homologados em runtime (cenários 1/5/10, snapshot, cooldown entrada/expiração, religamento de segurança, erro técnico seguro, restart, Timeline de 16 eventos) e itens que permanecem pendentes (cancelamento pelo operador, retorno em índice intermediário, janela de estabilização zero).
+- Status do `docs/releases/implementation_plan_v20_1q.md` alterado para "Homologação Runtime Parcial — Suspensa por decisão operacional".
+
+### Notes
+
+- Homologação **suspensa por decisão operacional**, sem bloqueio técnico conhecido; implementação permanece válida.
+- Cenário "2" isoladamente e interrupção por falta de energia em ciclo ativo classificados como não bloqueadores (cobertura por generalização de código e risco residual aceito, respectivamente).
+- Nenhum helper, script, automação, package, dashboard ou arquitetura foi alterado nesta atividade — apenas documentação.
+- Recomendação registrada para a retomada: monitoramento por assinatura de eventos (WebSocket/`subscribe_events`) em vez de polling.
+
 ## [v20.1q-dashboard-parametros-recovery-4g-ux] - 2026-07-17
 
 ### Changed

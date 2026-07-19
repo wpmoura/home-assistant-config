@@ -21,12 +21,32 @@ Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 - [x] Especificação oficial de UX documentada e versionada em `docs/ux/espec_ux_param_recovery4g.md`.
 - [x] Commit e push da entrega de UX do dashboard "Parâmetros" realizados, com rastreabilidade em `CHANGELOG.md` e `docs/releases/implementation_plan_v20_1q.md`.
 - [ ] Validação visual do critério A8 da especificação de UX (nenhum rótulo quebra em duas linhas em viewport de celular) — sem evidência visual registrada.
-- [ ] Cenários 1, 2, 5 e 10 homologados no runtime.
-- [ ] Oscilação, `unknown`, `unavailable` e janela zero homologados.
-- [ ] Restart, energia, operador e segurança da tomada homologados.
-- [ ] Timeline com 16 eventos validada após restart controlado.
+- [x] Cenários 1, 5 e 10 homologados no runtime com quedas reais controladas (Testes 1, 3 e 2, respectivamente). Cenário 2 considerado suficientemente coberto por generalização de código (laço genérico único, sem hardcode por valor, confirmado por leitura de código e por execução real em três valores distintos) e não é bloqueador de encerramento.
+- [x] Snapshot dos parâmetros (`max_tentativas_ciclo`) validado contra alteração de helper em pleno ciclo — prova definitiva no Teste 2.
+- [x] Cooldown homologado — entrada e expiração, com trace de ação real da transição `cooldown → ocioso` (Testes 1 e 2).
+- [x] Religamento de segurança e proteção da tomada contra permanência desligada homologados (Testes 1–3).
+- [x] Erro técnico seguro / falha intermediária sem decisão autônoma do Executor homologado (achado real não planejado no Teste 3: atraso de confirmação da tomada tratado corretamente, sem corromper o ciclo).
+- [x] Restart durante ciclo ativo homologado (reconciliação limpa, sem cooldown).
+- [x] Timeline validada com o limite de 16 eventos em produção.
+- [ ] Oscilação, `unknown` e `unavailable` dos sensores — sem ocorrência real observada em nenhum teste; permanece sem evidência.
+- [ ] Janela de estabilização igual a zero — parametrizada em dois testes, mas nunca exercida de fato (o ciclo foi direto a timeout antes de alcançar a lógica de estabilização nas duas vezes).
+- [ ] Retorno estabilizado em índice intermediário (sucesso antes do esgotamento) — não obtido; as quedas reais tentadas duraram mais que a janela de tentativas disponível.
+- [ ] Cancelamento pelo operador em ciclo ativo — tentativa dedicada não obteve sucesso por limitação de monitoramento (reação tardia); recomenda-se assinatura de eventos (WebSocket/`subscribe_events`) em vez de polling na próxima tentativa.
+- Interrupção por falta de energia em ciclo ativo — **classificada como risco residual aceito**, não bloqueador. Mesma condição de código do cancelamento pelo operador, já comprovada por analogia estrutural (leitura de código), mas sem execução real com ciclo ativo. Não deve ser forçada deliberadamente.
 
-O gate permanece aberto. Nenhum reload, restart ou power cycle foi autorizado nesta implementação.
+### Estado da homologação runtime — Suspensa
+
+**Status:** Homologação Suspensa.
+
+**Motivo:** interrupção por decisão operacional. Não existe bloqueio técnico conhecido. A implementação permanece válida.
+
+**Evidências preservadas (não precisam ser repetidas):** Recovery 4G funcional de ponta a ponta; snapshot dos parâmetros; parametrização das tentativas (cenários 1, 5 e 10); cooldown; expiração do cooldown; religamento de segurança; tratamento de erro técnico; Timeline; estados do Executor.
+
+**Permanecem para retomada futura:** cancelamento pelo operador em ciclo ativo; retorno antes do esgotamento (índice intermediário); janela de estabilização igual a zero.
+
+Detalhamento completo dos três testes executados (Teste 1, Teste 2, Teste 3), evidências e próxima etapa recomendada em `docs/releases/implementation_plan_v20_1q.md`.
+
+Três power cycles reais e controlados foram autorizados e executados pelo usuário durante esta rodada de homologação runtime (Testes 1, 2 e 3), conforme Gate pré-teste físico.
 
 ## Gate 0 - Escopo
 

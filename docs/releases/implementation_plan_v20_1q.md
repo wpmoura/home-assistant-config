@@ -1,7 +1,7 @@
 # Implementation Plan V20.1Q — Recovery Automático do Modem 4G
 
 Data: 2026-07-13
-Status: PACOTE CORRETIVO IMPLEMENTADO ESTATICAMENTE; HOMOLOGAÇÃO OPERACIONAL PENDENTE
+Status: HOMOLOGAÇÃO RUNTIME PARCIAL — SUSPENSA POR DECISÃO OPERACIONAL. Sem bloqueio técnico conhecido; pronta para retomada futura.
 Classificação: release transitório operacional
 Validade: execução e homologação da V20.1Q
 Autoridade: subordinada à Constituição, Source of Truth, Arquitetura, Roadmap e Gates
@@ -23,7 +23,54 @@ Pré-condições para todos os casos: autorização operacional explícita, toma
 5. Cancelamentos: reiniciar durante OFF, espera de retorno e estabilização; repetir com falta de energia e desligamento pelo operador. Confirmar tomada ligada quando controlável, ciclo desligado, tentativa zero, nenhum timestamp novo e nenhum cooldown.
 6. Inicialização e Timeline: após restart autorizado, confirmar Recovery automático `on`, ausência de power cycle antes da confirmação completa da queda, reconciliação de estado residual e limite padrão de 16 eventos. Gerar tentativa com índice superior a 2 e confirmar renderização dinâmica e apenas um evento final.
 
-Nenhum item deste procedimento foi executado durante a implementação estática.
+Nenhum item deste procedimento foi executado durante a implementação estática. Parte deste procedimento foi posteriormente executada em runtime real — ver "Ata de Homologação Runtime — V20.1Q" abaixo.
+
+### Ata de Homologação Runtime — V20.1Q (2026-07-18)
+
+Status: **Homologação Suspensa por decisão operacional.** Não existe bloqueio técnico conhecido. A implementação permanece válida. Pronta para retomada futura exatamente deste ponto.
+
+Três power cycles reais e controlados foram autorizados e executados pelo usuário (Testes 1, 2 e 3), conforme Gate pré-teste físico. Todos os ajustes de parâmetro usados nos testes foram feitos via valores de helper (operação normal), sem alteração de YAML, scripts, automações, packages ou arquitetura.
+
+#### Teste 1 — Esgotamento mínimo (max=1) + Cooldown
+
+- Objetivo: esgotamento completo com o menor valor de tentativas; entrada e expiração do cooldown; tentativa de janela zero.
+- Resultado: **Aprovado** para esgotamento/cooldown. Janela zero não exercitada (estabilização ficou em 1, não 0; o ciclo foi direto a timeout sem passar pela lógica de estabilização).
+- Evidências: ciclo completo 21:24–21:27 (2026-07-18); tempo OFF exato (10s) e timeout de validação exato (30s) batendo com os parâmetros configurados; esgotamento declarado exatamente no snapshot (1=1); `ultima_execucao` gravado somente no esgotamento; cooldown expirado corretamente; Timeline com mensagens corretas no alias produtivo `sensor.casa_event_feed`; estado do Executor percorrendo integralmente o contrato documentado (`ocioso→solicitado→executando→erro/timeout→cooldown→ocioso`).
+- Critérios do Gate atendidos: Cenário "1"; esgotamento completo; cooldown (entrada e expiração).
+
+#### Teste 2 — Cenário "10" + Integridade do snapshot
+
+- Objetivo: cenário de máximo alto (10); alteração do helper em pleno ciclo; busca de retorno em índice intermediário.
+- Resultado: **Aprovado**, com escopo maior que o planejado. A queda real durou mais que o previsto e não se resolveu sozinha — esgotamento completo nas 10 tentativas em vez do retorno intermediário esperado.
+- Evidências: `max_tentativas` alterado de 10→3 em pleno ciclo (21:45:34–21:45:36); trace do orquestrador confirma `max_tentativas_ciclo` fixo em 10 do início ao fim — o laço completou as 10 iterações reais, ignorando a mudança; trace explícito da transição de expiração do cooldown (ação real, não apenas inferida por logbook); Timeline com as 10 tentativas registradas.
+- Critérios do Gate atendidos: Cenário "10"; **integridade do snapshot** (prova definitiva); reforço de esgotamento e cooldown com valor diferente do Teste 1.
+
+#### Teste 3 — Cenário "5" + tentativa de cancelamento/retorno intermediário/janela zero
+
+- Objetivo: cenário "5"; estratégia adaptativa priorizando retorno intermediário, cancelamento pelo operador e janela zero, nesta ordem.
+- Resultado: **Aprovado parcialmente**. Cenário "5" obtido, além de achado não planejado de maior valor (erro técnico seguro). Os três objetivos prioritários não foram atingidos por limitação de monitoramento (polling de ~6s não foi suficiente para reagir dentro da janela de validação de ~30s por tentativa).
+- Evidências: tentativas 1 e 2 tiveram atraso real de confirmação da tomada (Zigbee, >5s), disparando o ramo de erro técnico do orquestrador, que religou a tomada por segurança, confirmou o estado e prosseguiu ao próximo índice sem corromper o ciclo; tentativas 3–5 limpas; esgotamento em 5=5; queda real resolveu-se sozinha 45s **depois** do esgotamento.
+- Critérios do Gate atendidos: Cenário "5"; **erro técnico seguro / falha intermediária sem decisão autônoma do Executor** (achado não planejado).
+
+#### Itens já homologados (evidência operacional suficiente)
+
+Ciclo completo de sucesso (detecção → confirmação de queda → tentativa → religamento → validação → estabilização → encerramento sem cooldown → Timeline/`status_casa`); restart durante ciclo ativo; segurança da tomada / religamento independente; limite de 16 eventos na Timeline; cenários de máximo 1, 5 e 10; esgotamento completo; cooldown (entrada e expiração); integridade do snapshot; erro técnico seguro; ausência de erros técnicos no error log da API.
+
+#### Itens pendentes para retomada futura
+
+- Cancelamento pelo operador em ciclo ativo — não exercitado com sucesso (limitação de monitoramento).
+- Retorno estabilizado em índice intermediário — as quedas reais tentadas duraram mais que a janela de tentativas disponível.
+- Janela de estabilização igual a zero — configurada mas nunca exercida de fato.
+
+#### Classificações de não bloqueio
+
+- Cenário "2" isoladamente: considerado suficientemente coberto pela generalização de código (laço genérico único, sem hardcode por valor, confirmado por leitura de código e por execução real em três valores distintos — 1, 5 e 10). Não é bloqueador de encerramento.
+- Interrupção por falta de energia em ciclo ativo: classificada como **risco residual aceito**. Mesma condição de código do cancelamento pelo operador, já comprovada por analogia estrutural (leitura de código), mas sem execução real com ciclo ativo. Não deve ser forçada deliberadamente.
+- Oscilação/`unknown`/`unavailable` dos sensores: sem ocorrência real observada em nenhum teste; permanece sem evidência, sem classificação de bloqueio no momento.
+
+#### Próxima etapa recomendada
+
+Um único teste combinado e adaptativo: `estabilizacao_retorno_minutos=0`, `max_tentativas` com folga (ex.: 3), monitorado por **assinatura de eventos** (`subscribe_events`/`state_changed` via WebSocket ou mecanismo equivalente) em vez de polling, para reação em tempo real (~1s) em vez de janelas de ~6s. Se a conectividade voltar durante uma tentativa, deixar validar (fecha retorno intermediário + janela zero simultaneamente); se não voltar a tempo, desligar `automatico` durante a janela de validação (fecha cancelamento pelo operador). Estimativa: 1 execução adicional deve bastar.
 
 ### Limitação do dashboard Parâmetros
 
