@@ -16,7 +16,8 @@
 - V20.1Q = pacote corretivo implementado estaticamente; validação operacional pendente
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
-- V20.2/V20.3/V21 = planejamento futuro
+- V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação bloqueada pelo Gate específico
+- V20.2 geral/V20.3/V21 = planejamento futuro; exceção V20.2C-A1 registrada separadamente
 
 Estado operacional consolidado:
 
@@ -58,7 +59,7 @@ Fluxo oficial de processamento:
 - Nunca alterar `sensor.status_casa`
 - Nunca alterar aliases finais sem validação
 - Dashboards produtivos não consomem `_v20_2`
-- V20.2 permanece isolada em shadow
+- V20.2 permanece isolada em shadow, exceto pelo CSMR da V20.2C promovido de forma limitada e ainda bloqueado pelo Gate específico
 - IA é opcional
 - IA desligada mantém sistema 100% funcional
 - Não substituir automações legadas sem auditoria V20.1C
@@ -459,6 +460,8 @@ Nenhum teste físico, alteração funcional ou decommission de legado está auto
 
 Status: parcialmente implementada em shadow mode/paralelo; checkpoint de homologação Fase A concluído; auditoria operacional residual iniciada.
 
+A regra geral de shadow permanece vigente. A única exceção arquitetural formal é o CSMR da V20.2C, promovido de forma limitada e ainda sem implementação autorizada.
+
 Checkpoint: Homologação Fase A concluída.
 
 Referências de alinhamento:
@@ -477,6 +480,29 @@ Direções:
 - Preparar filtros, contexto e drill-down operacional.
 - Separar melhor leitura executiva, debug e governança.
 - Manter dashboards produtivos consumindo aliases finais sem versão.
+
+### V20.2C-A1 — Promoção Arquitetural da Sessão de Monitoramento Remoto
+
+Status: PROMOÇÃO LIMITADA CONSOLIDADA DOCUMENTALMENTE; IMPLEMENTAÇÃO E PUBLICAÇÃO EM RUNTIME BLOQUEADAS PELO GATE.
+
+Objetivo: reconhecer o Coordenador da Sessão de Monitoramento Remoto (CSMR) como motor oficial de coordenação operacional com escopo restrito à saída e ao retorno de Wilson, sem promover o restante da V20.2 e sem reabrir a V20.1O.
+
+Decisões consolidadas:
+
+- Sessão de Monitoramento Remoto é contrato operacional distinto da presença bruta;
+- CSMR possui autoridade exclusiva sobre ciclo de vida e ordem da sessão;
+- V20.1O permanece publicador canônico e autoridade sobre histórico, limite, deduplicação e apresentação;
+- somente quatro eventos de sessão foram autorizados arquiteturalmente;
+- C1.1, C1.2 e C1.3 são consumidores subordinados;
+- implementação depende de plano técnico restrito e aprovação do Gate específico;
+- Context Engine e demais componentes V20.2 permanecem shadow.
+
+Referências:
+
+- `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`;
+- `docs/governance/gates_v20.md`;
+- `docs/v20_2c/README.md`;
+- `docs/v20_2c/c1_saida_de_casa.md`.
 
 ### V20.2A - Legacy Dashboard Review
 

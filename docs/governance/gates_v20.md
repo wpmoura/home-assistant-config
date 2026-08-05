@@ -131,6 +131,73 @@ Status permitido:
 
 Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando mudancas sem nova fase.
 
+## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
+
+Status documental: DEFINIDO; IMPLEMENTAÇÃO E HOMOLOGAÇÃO PENDENTES
+
+Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
+
+### Gate arquitetural
+
+- [x] Promoção limitada registrada no despacho `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`.
+- [x] CSMR classificado como motor oficial de coordenação operacional com escopo restrito.
+- [x] Restante da V20.2 e Context Engine original preservados em shadow.
+- [x] V20.1O preservada como autoridade canônica da Timeline e Event Feed.
+- [x] Fronteiras entre CSMR, publicador e consumidores definidas.
+- [ ] Plano técnico restrito aprovado.
+
+### Gate de contrato
+
+- [x] Eventos autorizados limitados a `📍 Wilson saiu de casa`, `🛡️ Monitoramento remoto iniciado`, `📍 Wilson chegou em casa` e `🛡️ Monitoramento remoto encerrado`.
+- [x] Formato público `HH:MM mensagem` preservado.
+- [x] Escrita direta em aliases finais, Timeline e Event Feed proibida.
+- [x] Timeline, Event Feed, histórico e deduplicação paralelos proibidos.
+- [ ] Caminho canônico concreto validado no plano técnico sem substituir `sensor.casa_evento_publicavel_v20`.
+
+### Gate de comportamento
+
+- [ ] Cancelamento antes da graça comprovado sem abertura ou evento.
+- [ ] Abertura comprovada exatamente uma vez.
+- [ ] Ordem dos dois eventos de entrada comprovada.
+- [ ] Consumidores liberados somente depois da abertura publicada.
+- [ ] Encerramento comprovado exatamente uma vez.
+- [ ] Ordem dos dois eventos de retorno comprovada.
+- [ ] Retorno sem sessão aberta comprovado sem publicação.
+- [ ] Ciclos consecutivos completos, independentes e sem duplicidade.
+- [ ] Restart e reload comprovados sem sessão fantasma.
+- [ ] Harness comprovado como fonte de teste não publicável.
+
+### Gate de regressão
+
+- [ ] C1.1 preservado.
+- [ ] C1.2 preservado.
+- [ ] C1.3 preservado.
+- [ ] Harness preservado.
+- [ ] V20.1O preservada.
+- [ ] Timeline e Event Feed preservados.
+- [ ] Nenhum outro componente V20.2 promovido implicitamente.
+
+### Gate de falha e rollback
+
+- [ ] Falha de publicação permanece observável.
+- [ ] Nenhuma progressão silenciosa após falha crítica de abertura.
+- [ ] Rollback restrito à promoção funcional da sessão.
+- [ ] V20.1O permanece funcional após rollback.
+- [ ] Nenhuma execução ou sessão pendente após rollback.
+- [ ] Helpers e Harness terminam em estado seguro.
+
+### Gate de homologação
+
+- [ ] Parser YAML aprovado.
+- [ ] Validação estática e configuração Home Assistant aprovadas.
+- [ ] Traces e Logbook preservados.
+- [ ] Timeline e Event Feed comprovados.
+- [ ] Ordem, deduplicação e ciclos sucessivos comprovados.
+- [ ] Working tree e commit auditados.
+- [ ] Homologação real posterior executada somente com coordenação do operador.
+
+Enquanto qualquer item técnico ou de homologação permanecer aberto, a promoção possui efeito arquitetural/documental, mas a implementação e a publicação em runtime continuam bloqueadas.
+
 ## Gates especificos - V20.1Q Recovery 4G
 
 ### Gate documental

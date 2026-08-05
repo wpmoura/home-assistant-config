@@ -30,6 +30,7 @@ Estado oficial:
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
+- V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação e publicação em runtime bloqueadas pelo Gate específico
 
 Arquitetura oficial:
 
@@ -48,7 +49,7 @@ Regras fundamentais:
 - Nunca alterar aliases finais sem validação
 - Dashboards produtivos não consomem `_v20_2`
 - V20.1O não deve ser alterada diretamente após congelamento; correções futuras devem abrir lote formal
-- V20.2 permanece isolada em shadow
+- V20.2 permanece isolada em shadow, exceto pela promoção arquitetural limitada do CSMR da V20.2C; a exceção não alcança o Context Engine original nem autoriza implementação antes do Gate
 - IA é opcional; IA desligada mantém o sistema funcional
 - Não substituir automações legadas sem auditoria V20.1C
 - V20.1C não autoriza decommission; nenhuma limpeza ou desativação automática está autorizada
@@ -315,3 +316,86 @@ status_casa.yaml ── pesos/criticidade/governança histórica
 - Sensores da timeline/feed V20.
 - Helpers V20 já publicados.
 - Fallbacks dos aliases finais.
+
+## V20.2C — Sessão de Monitoramento Remoto
+
+### Classificação e estado
+
+A Sessão de Monitoramento Remoto é um contrato operacional confirmado, distinto da presença bruta de Wilson. O subconjunto V20.2C responsável por seu ciclo de vida é promovido de forma limitada como **motor oficial de coordenação operacional**, sob o nome **Coordenador da Sessão de Monitoramento Remoto (CSMR)**.
+
+A promoção está consolidada documentalmente, mas não autoriza implementação ou publicação em runtime. O restante da V20.2, incluindo o Context Engine original, permanece em shadow.
+
+Decisão subordinada: `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`.
+
+### Modelo e fronteiras
+
+```text
+person.wmoura
+→ fonte contextual
+
+binary_sensor.wilson_ausente_de_casa
+→ abstração de autorização
+
+CSMR / Sessão de Monitoramento Remoto
+→ ciclo de vida, ordem e liberação dos consumidores
+
+Publicador canônico V20.1O
+→ publicação, histórico, limite, deduplicação e apresentação
+```
+
+O CSMR é a única autoridade sobre graça, revalidação, abertura, duração lógica, encerramento, cancelamento prévio, idempotência, prevenção de sessão incompleta, sequenciamento e liberação de ações subordinadas. Ele também deve definir comportamento seguro diante de restart, reload, falha crítica de publicação e rollback.
+
+O CSMR não infere presença, não substitui a V20.1O, não mantém Timeline ou Event Feed próprios, não armazena histórico, não deduplica em paralelo e não escreve diretamente em aliases finais.
+
+### Ciclo de vida e eventos protegidos
+
+Entrada:
+
+```text
+Ausência confirmada após graça e revalidação
+→ 📍 Wilson saiu de casa
+→ 🛡️ Monitoramento remoto iniciado
+→ liberar ações subordinadas
+```
+
+Encerramento:
+
+```text
+Retorno confirmado com sessão aberta
+→ 📍 Wilson chegou em casa
+→ 🛡️ Monitoramento remoto encerrado
+```
+
+Esses quatro textos são os únicos eventos autorizados por esta promoção. O Harness, cancelamentos, revalidações e mudanças internas não são fatos publicáveis.
+
+### Ações subordinadas
+
+| Lote | Consumidor atual | Momento arquitetural |
+| --- | --- | --- |
+| C1.1 | `light.smart_lampada_wifi_1` | após abertura confirmada |
+| C1.2 | `automation.v20_2c_teste_alertar_porta_aberta_apos_saida` | após abertura confirmada |
+| C1.3 | `automation.v20_2c_garantia_habilitar_push_da_porta_ao_sair` | após abertura confirmada |
+
+Esses componentes não abrem nem encerram sessão. Módulos futuros devem declarar atuação na abertura, durante a sessão ou no encerramento.
+
+### Propriedades do contrato
+
+- uma única sessão ativa por vez;
+- nenhum início antes da graça;
+- cancelamento durante a graça não abre sessão;
+- retorno sem sessão aberta não publica encerramento;
+- dois eventos por transição, exatamente uma vez e na ordem definida;
+- ciclos consecutivos completos e independentes;
+- nenhum restart ou reload cria sessão fantasma;
+- falha crítica de abertura permanece observável e impede progressão silenciosa;
+- rollback preserva V20.1O e o restante da Central.
+
+### Publicação canônica
+
+A futura implementação somente poderá solicitar publicação pelo caminho canônico formalmente aprovado. É proibido escrever diretamente em `sensor.casa_timeline`, `sensor.casa_event_feed` ou aliases finais, criar histórico paralelo, criar outra Timeline/Event Feed, substituir `sensor.casa_evento_publicavel_v20` ou implementar deduplicação concorrente.
+
+V20.1O permanece autoridade sobre política de publicação, armazenamento, histórico, limite, deduplicação e apresentação pública.
+
+### Rollback arquitetural
+
+O rollback deve retirar somente a promoção funcional da sessão e seus consumidores subordinados. V20.1O, Timeline, Event Feed, aliases, Context Engine shadow e demais componentes V20.2 permanecem inalterados. Nenhuma sessão, execução pendente ou estado inseguro do Harness pode sobreviver ao rollback.

@@ -20,6 +20,7 @@ Este documento nao altera contratos, nao implementa funcionalidades e nao substi
 | V20.1N | Homologada como estabilizacao operacional | TD-UX-001 |
 | V20.2A | Proximos passos de evolucao contextual de atividades | TD-ARCH-001 |
 | V20.2 shadow | Parcial em shadow mode | TD-PERF-001 |
+| V20.2C / CSMR | Promocao limitada consolidada documentalmente; implementacao condicionada ao Gate | TD-ARCH-001 / TD-UX-001 |
 | V20.3 | Planejamento futuro | TD-UX-001 |
 | V21+ | Planejamento futuro | TD-RES-001 |
 
@@ -81,6 +82,10 @@ Dependencias:
 Diretriz:
 
 - V20.2 permanece desacoplada ate promocao formal.
+- A regra geral permanece: Context Engine e demais componentes V20.2 continuam em shadow.
+- A promocao limitada do CSMR da V20.2C e a unica excecao formal; ela nao promove a V20.2 inteira e nao autoriza implementacao antes do Gate especifico.
+- V20.1O permanece autoridade canônica da Timeline e do Event Feed.
+- Despacho subordinado: `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`.
 - Nenhuma inteligencia paralela sem classificacao.
 - IA deve permanecer opcional.
 

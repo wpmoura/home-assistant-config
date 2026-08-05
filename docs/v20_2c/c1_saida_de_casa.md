@@ -22,6 +22,72 @@ Harness OFF → person.wmoura = not_home autoriza o fluxo
 Estado inválido da fonte real → fallback seguro OFF
 ```
 
+## Sessão de Monitoramento Remoto e CSMR
+
+A presença bruta de Wilson e a Sessão de Monitoramento Remoto são contratos distintos:
+
+```text
+person.wmoura
+→ fonte contextual
+
+binary_sensor.wilson_ausente_de_casa
+→ abstração de autorização
+
+Coordenador da Sessão de Monitoramento Remoto (CSMR)
+→ abertura, duração lógica, encerramento, ordem e liberação dos consumidores
+```
+
+O CSMR é o motor oficial de coordenação operacional promovido de forma limitada pela V20.2C-A1. A promoção está consolidada documentalmente, porém a implementação técnica e a publicação em runtime permanecem bloqueadas pelo Gate específico.
+
+### Entrada
+
+A abertura exige tempo de graça oficial, revalidação da ausência e confirmação de que nenhuma sessão já está ativa. A ordem protegida é:
+
+```text
+Ausência de Wilson confirmada
+→ 📍 Wilson saiu de casa
+→ 🛡️ Monitoramento remoto iniciado
+→ liberar ações subordinadas
+```
+
+Cancelamento durante a graça não abre sessão e não publica evento.
+
+### Encerramento
+
+O retorno somente encerra quando existir sessão anteriormente aberta:
+
+```text
+Retorno de Wilson confirmado
+→ 📍 Wilson chegou em casa
+→ 🛡️ Monitoramento remoto encerrado
+```
+
+Retorno sem sessão aberta não publica encerramento.
+
+### Contrato protegido
+
+- uma sessão ativa por vez;
+- cada transição publica exatamente dois eventos, uma vez e na ordem definida;
+- ciclos consecutivos são independentes e completos;
+- restart ou reload não cria sessão fantasma;
+- Harness, simulações, cancelamentos e revalidações não são fatos publicáveis;
+- falha crítica de abertura é observável e impede progressão silenciosa;
+- rollback preserva V20.1O, Timeline, Event Feed e o restante da Central.
+
+### Publicação e sequenciamento
+
+O CSMR decide o ciclo de vida e a ordem. V20.1O permanece responsável por publicar, armazenar, limitar, deduplicar e apresentar. A futura implementação não poderá escrever diretamente em `sensor.casa_timeline`, `sensor.casa_event_feed` ou aliases, criar Timeline/Event Feed próprios, substituir `sensor.casa_evento_publicavel_v20` ou deduplicar em paralelo.
+
+As ações subordinadas somente podem ser liberadas depois da abertura publicada. Nenhuma delas possui autoridade independente para abrir ou encerrar a sessão:
+
+| Lote | Consumidor subordinado | Fase da sessão |
+| --- | --- | --- |
+| C1.1 | `light.smart_lampada_wifi_1` | após abertura |
+| C1.2 | `automation.v20_2c_teste_alertar_porta_aberta_apos_saida` | após abertura |
+| C1.3 | `automation.v20_2c_garantia_habilitar_push_da_porta_ao_sair` | após abertura |
+
+Módulos futuros devem declarar explicitamente se atuam na abertura, durante a sessão ou no encerramento. A promoção não autoriza automaticamente nenhum evento ou módulo adicional.
+
 ## C1.1 — Luz da Mesa
 
 A automação `v20_2c_saida_teste_desligar_luz_mesa` controla somente `light.smart_lampada_wifi_1`, a Luz Mesa Tuya da área Home Office. `light.luz_led_mesa` é outro dispositivo e permanece fora do fluxo.
@@ -65,6 +131,8 @@ Essas evidências permanecem válidas como homologação do mecanismo sob harnes
 - C1.1 preserva luz, graça, cancelamento, revalidação e uma única ação física.
 - C1.2 preserva porta, graça, cancelamento, Logbook e push único.
 - Nenhuma automação legada é alterada e nenhum recurso futuro é ativado nesta correção.
+- CSMR permanece sem implementação até aprovação do plano técnico e do Gate específico.
+- Os quatro eventos oficiais são os únicos autorizados arquiteturalmente e continuam sem publicação runtime neste lote.
 
 ## Validação observacional
 

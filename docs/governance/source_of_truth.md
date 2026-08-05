@@ -100,6 +100,12 @@ Concentra arquitetura oficial e documentos tecnicos de motores.
   - Finalidade: registrar a decisao tecnica aprovada da V20.1Q.
   - Autoridade: nao substitui `architecture.md` nem `docs/ARCHITECTURE.md`.
 
+- `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`
+  - Classificacao: arquitetura subordinada.
+  - Finalidade: registrar a promocao limitada do Coordenador da Sessao de Monitoramento Remoto (CSMR).
+  - Autoridade: nao substitui `architecture.md`, `docs/ARCHITECTURE.md`, a Constituicao nem o Gate especifico da V20.2C.
+  - Limite: consolida a decisao arquitetural, mas nao autoriza implementacao ou publicacao em runtime.
+
 ## Documentos historicos
 
 Documentos V17, V18, V19, investigacoes antigas e regras antigas permanecem como memoria operacional. Eles nao devem competir com governance, roadmap consolidado ou arquitetura V20.
