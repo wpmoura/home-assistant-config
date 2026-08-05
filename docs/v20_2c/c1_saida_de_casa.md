@@ -86,6 +86,24 @@ Essas evidências permanecem válidas como homologação do mecanismo sob harnes
 | Luz da Mesa | `light.smart_lampada_wifi_1` | desligar após graça e revalidação (C1.1) |
 | NVR | sem entidade oficial definida | integrar somente em lote futuro e governado |
 
+## C1.3 — Garantia do Push da Porta
+
+A entidade oficial de habilitação do Push Porta é a própria automação homologada C1.2, `automation.v20_2c_teste_alertar_porta_aberta_apos_saida`. Seu estado `on` mantém o fluxo habilitado; `off` desabilita seus gatilhos. O serviço `notify.mobile_app_iphonewm` continua sendo o destino, mas não é uma entidade de habilitação.
+
+A automação `v20_2c_garantir_push_porta_ao_sair` observa exclusivamente `binary_sensor.wilson_ausente_de_casa`, aguarda o mesmo tempo de graça, cancela se a ausência terminar e revalida a abstração. Após a graça, chama `automation.turn_on` apenas quando C1.2 estiver `off` e registra no Logbook somente quando essa correção ocorrer. Se C1.2 já estiver `on`, a execução termina sem serviço redundante e sem falsa correção.
+
+O harness permanece a única fonte de testes deste lote. Os cenários cobrem C1.2 já habilitada, reabilitação automática, cancelamento durante a graça, nova saída após cancelamento e porta fechada sem push. Não há abertura física da porta, mudança no destino do push ou alteração na lógica homologada de C1.2.
+
+### Homologação C1.3 — 2026-08-05
+
+- C1.2 já habilitada: a graça terminou, a condição de estado `off` foi recusada e nenhuma ação de correção foi executada (`5e812f1cf00b761c7dc885c5600d9af9`).
+- C1.2 desabilitada: após a graça e a revalidação houve uma chamada a `automation.turn_on` e um registro `logbook.log` (`120aaa6d256639b4737a3f278d080385`).
+- Cancelamento durante a graça: a abstração voltou a `off` com 11,73 segundos restantes; C1.2 permaneceu desabilitada e nenhuma correção foi registrada (`86d9d1bb790977a7410a610cdad0ab6c`).
+- Nova saída após cancelamento: a graça terminou e houve exatamente uma nova correção com Logbook (`b9f80b66f72208a886b1832ed51a6f45`).
+- Compatibilidade com C1.2: com a porta fechada, a condição física foi recusada antes do Logbook e de `notify.mobile_app_iphonewm` (`7669c1bd3e40c63ef6e4734092476655`).
+
+Nenhuma porta foi aberta, nenhum push foi enviado e nenhum erro relacionado à V20.2C foi encontrado no log do sistema. Estado final: C1.2 habilitada, harness e simulação desligados, sensor de ausência desligado e porta fechada.
+
 ## Riscos e rollback
 
 O principal risco é uma transição transitória de `person.wmoura`. O tempo de graça e a revalidação final são a proteção inicial; não são introduzidos scoring, quorum, aprendizado ou lógica da V21.

@@ -215,3 +215,55 @@ automation:
           title: "V20.2C — Wilson Ausente"
           message: >-
             ⚠️ Porta da Sala permaneceu aberta após o tempo de graça.
+
+  - id: v20_2c_garantir_push_porta_ao_sair
+    alias: V20.2C — Garantia — Habilitar Push da Porta ao Sair
+    description: >-
+      Garante de forma idempotente que a automação homologada C1.2 esteja
+      habilitada após a graça e a revalidação da ausência de Wilson.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.wilson_ausente_de_casa
+        from: "off"
+        to: "on"
+
+    condition:
+      - condition: state
+        alias: Ausência de Wilson autorizada
+        entity_id: binary_sensor.wilson_ausente_de_casa
+        state: "on"
+
+    action:
+      - wait_for_trigger:
+          - platform: state
+            entity_id: binary_sensor.wilson_ausente_de_casa
+            to: "off"
+        timeout:
+          seconds: >-
+            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
+        continue_on_timeout: true
+
+      - condition: template
+        alias: Tempo de graça concluído sem cancelamento
+        value_template: "{{ not wait.completed }}"
+      - condition: state
+        alias: Ausência de Wilson ainda autorizada
+        entity_id: binary_sensor.wilson_ausente_de_casa
+        state: "on"
+      - condition: state
+        alias: Push da Porta desabilitado
+        entity_id: automation.v20_2c_teste_alertar_porta_aberta_apos_saida
+        state: "off"
+
+      - service: automation.turn_on
+        target:
+          entity_id: automation.v20_2c_teste_alertar_porta_aberta_apos_saida
+
+      - service: logbook.log
+        data:
+          name: V20.2C — Monitoramento Remoto
+          message: >-
+            V20.2C — Push da Porta reabilitado automaticamente após a saída de Wilson.
+          entity_id: automation.v20_2c_teste_alertar_porta_aberta_apos_saida

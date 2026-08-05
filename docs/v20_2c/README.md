@@ -14,6 +14,7 @@ Esta branch foi criada diretamente sobre o commit `486aa1a` da branch V20.1Q ain
 - C1 — saída de Wilson: fonte real baseada exclusivamente em `person.wmoura`, com substituição controlada pelo harness.
 - C1.1 — desligamento da Luz da Mesa após tempo de graça e revalidação.
 - C1.2 — alerta da Porta da Sala aberta após o mesmo tempo de graça.
+- C1.3 — garantia idempotente de que a automação C1.2 esteja habilitada após a saída de Wilson.
 
 ## Fora de escopo
 
