@@ -84,7 +84,7 @@ Essas evidências permanecem válidas como homologação do mecanismo sob harnes
 | Monitoramento de Internet | `sensor.internet_estado_operacional` | ampliar observação remota da conectividade |
 | Alertas de Chuva | `sensor.casa_chuva_estado_v20` | avisar condições relevantes sem inferência comportamental |
 | Luz da Mesa | `light.smart_lampada_wifi_1` | desligar após graça e revalidação (C1.1) |
-| NVR | sem entidade oficial definida | integrar somente em lote futuro e governado |
+| NVR | `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`, inventariados no C1.4A | integrar somente em lote futuro e governado |
 
 ## C1.3 — Garantia do Push da Porta
 

@@ -15,7 +15,8 @@ Esta branch foi criada diretamente sobre o commit `486aa1a` da branch V20.1Q ain
 - C1.1 — desligamento da Luz da Mesa após tempo de graça e revalidação.
 - C1.2 — alerta da Porta da Sala aberta após o mesmo tempo de graça.
 - C1.3 — garantia idempotente de que a automação C1.2 esteja habilitada após a saída de Wilson.
+- C1.4A — descoberta somente leitura das capacidades reais do UniFi Protect para gravação contextual, documentada em `c1_4a_unifi_protect.md`.
 
 ## Fora de escopo
 
-Integração com Recovery 4G, failover, monitoramento de Internet, chuva, NVR, chegada, gestão de energia, Presence Intelligence, IA, inferência comportamental e qualquer monitoramento médico ou de bem-estar.
+Integração funcional com Recovery 4G, failover, monitoramento de Internet, chuva, NVR, chegada, gestão de energia, Presence Intelligence, IA, inferência comportamental e qualquer monitoramento médico ou de bem-estar. O C1.4A inventaria o NVR, mas não implementa comportamento.
