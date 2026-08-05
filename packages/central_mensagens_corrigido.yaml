@@ -1091,6 +1091,9 @@ automation:
       - condition: state
         entity_id: input_boolean.casa_recovery_4g_automatico
         state: "on"
+      - condition: state
+        entity_id: input_boolean.casa_comunicacao_modo_manutencao
+        state: "off"
 
     action:
       - choose:

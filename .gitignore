@@ -112,3 +112,5 @@ __pycache__/**
 .DS_Store
 Thumbs.db
 .vscode/
+.claude/
+.ha_mcp/

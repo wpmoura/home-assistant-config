@@ -68,9 +68,49 @@ Ciclo completo de sucesso (detecção → confirmação de queda → tentativa �
 - Interrupção por falta de energia em ciclo ativo: classificada como **risco residual aceito**. Mesma condição de código do cancelamento pelo operador, já comprovada por analogia estrutural (leitura de código), mas sem execução real com ciclo ativo. Não deve ser forçada deliberadamente.
 - Oscilação/`unknown`/`unavailable` dos sensores: sem ocorrência real observada em nenhum teste; permanece sem evidência, sem classificação de bloqueio no momento.
 
-#### Próxima etapa recomendada
+#### Próxima etapa recomendada (registrada em 2026-07-18; ver repetição abaixo)
 
 Um único teste combinado e adaptativo: `estabilizacao_retorno_minutos=0`, `max_tentativas` com folga (ex.: 3), monitorado por **assinatura de eventos** (`subscribe_events`/`state_changed` via WebSocket ou mecanismo equivalente) em vez de polling, para reação em tempo real (~1s) em vez de janelas de ~6s. Se a conectividade voltar durante uma tentativa, deixar validar (fecha retorno intermediário + janela zero simultaneamente); se não voltar a tempo, desligar `automatico` durante a janela de validação (fecha cancelamento pelo operador). Estimativa: 1 execução adicional deve bastar.
+
+### Ata de Homologação Runtime — Teste 3 repetido (2026-07-20)
+
+Status: **Homologação Suspensa por decisão operacional**, mesma classificação anterior. Sem bloqueio técnico conhecido.
+
+Monitoramento por assinatura de eventos (WebSocket `subscribe_events`) implementado, validado formalmente (conexão, autenticação, ≥2min de estabilidade, recepção e registro de `state_changed`, encerramento limpo — todos os 6 critérios passaram) e usado de fato nesta execução, substituindo o polling do Teste 3 original. Parâmetros usados: `max_tentativas=5`, `timeout_validacao_segundos=45`, `estabilizacao_retorno_minutos=0`, `tempo_off_segundos=10`, `confirmacao_queda_minutos=2`.
+
+**Resultados comprovados:**
+
+- Ciclo completo executado (`request_id=r4g-20260720163819459330`, 19:38:19–19:42:56 UTC): exatamente 5 tentativas, cada timeout de validação em exatamente 45s, tempo OFF de 10-11s por tentativa — todos os parâmetros respeitados com precisão de segundo.
+- Esgotamento correto ao final da 5ª tentativa: `ultima_execucao` gravado, estado → `cooldown`, Timeline publicada corretamente no alias produtivo.
+- **Achado arquitetural novo:** guard rail `tomada_ja_desligada` — o orquestrador recusa iniciar um ciclo (`fato: solicitacao_bloqueada`) se `switch.0xa4c1381045aeb344` já estiver `off` no momento da solicitação. Descoberto ao usar a tomada como mecanismo para provocar a queda de teste sem religá-la antes da confirmação. Implica que a arquitetura pressupõe queda de conectividade com a tomada ligada (ex.: sinal/operadora), não queda por corte de energia da própria tomada.
+- Janela de estabilização zero e retorno em índice intermediário **não foram exercitados** — em nenhuma das 5 tentativas houve retorno de `backup_4g_operacional` durante a validação.
+- Cancelamento pelo operador **não foi tentado** nesta execução — o monitoramento foi mantido estritamente passivo por instrução explícita, sem qualquer alteração automática de helper.
+
+**Fatos vs. hipóteses sobre o "quase-acerto" (retorno real ~18s após o esgotamento, às 19:43:14 UTC):**
+
+- Comprovado por leitura de código: `binary_sensor.backup_4g_operacional` é `template` sobre `binary_sensor.internet_wan2_4g_ok`, que por sua vez é `template` sobre três sensores de latência do gateway (`sensor.cloud_gateway_ultra_wm_{google,cloudflare,microsoft}_wan2_latency`). Recalcula no mesmo instante (sub-segundo) da atualização de qualquer uma das três sondas.
+- Comprovado por histórico: as três sondas não produziram nenhuma leitura bem-sucedida entre 19:36:19 e ~19:43:14-19:43:17 UTC (ausência total de sinal, não apenas valor desatualizado); a primeira leitura bem-sucedida das três ocorreu dentro de uma janela de 3 segundos entre si.
+- Conclusão sustentada pela evidência: a detecção (19:43:14) está próxima do retorno real, com atraso plausível limitado pelo intervalo normal de sondagem observado (~10-20s), não um atraso grande e desconhecido. Não há evidência de retorno silencioso anterior.
+- **Hipótese não comprovada — reclassificada:** a afirmação anterior de que o padrão de "quase-acerto" seria "quase estrutural" foi uma inferência excessiva para os dados disponíveis. Amostra de apenas 3 ocorrências de quase-acerto (18s, 33s, 34s) e 1 queda longa (~6h); a duração total das quedas reais variou de ~2min30s a ~6min55s entre as ocorrências — variação grande demais para sustentar um tempo de reconexão fixo/estrutural da operadora. Tratar como hipótese em aberto, não como achado.
+
+**Limitações do teste:**
+
+- Script de monitoramento teve duas falhas de conexão nas primeiras tentativas por um bug de buffering no handshake WebSocket (bytes do HTTP header vazando para o parser de frames) — corrigido e revalidado formalmente antes da execução real.
+- O monitor tinha um limite interno de 20 minutos que expirou no meio da janela de confirmação de queda, exigindo reconexão manual com um gap de observação de ~29s (sem perda de evento relevante, mas é uma falha de dimensionamento a corrigir em execuções futuras mais longas).
+- O uso da tomada como mecanismo de "provocar queda" introduziu uma variável fora do desenho original do teste (guard rail `tomada_ja_desligada`), consumindo parte da janela de observação antes do ciclo válido iniciar.
+- A análise de "detecção vs. retorno real" depende da granularidade de sondagem do gateway (~10-20s), que é externa a este repositório (integração do Cloud Gateway Ultra) — não foi medida com uma sonda independente, então o limite de incerteza é uma estimativa por analogia com o comportamento normal, não uma medição direta.
+
+**Pontos ainda pendentes de comprovação (inalterados após esta repetição):**
+
+- Cancelamento pelo operador em ciclo ativo.
+- Retorno estabilizado em índice intermediário (sucesso antes do esgotamento).
+- Janela de estabilização igual a zero exercida de fato (com retorno real durante a validação).
+
+### Guard de manutenção da comunicação — consolidação estática
+
+Foi adicionado `input_boolean.casa_comunicacao_modo_manutencao`, com `initial: false`, e uma condição correspondente em `automation.central_recovery_4g_solicitar`. Com o helper desligado, a solicitação automática segue sujeita às demais condições existentes. Com o helper ligado, novas solicitações são bloqueadas antes da ação.
+
+O guard não é consumido pelo orquestrador, pelo Executor, pelas rotinas de reconciliação nem pelo religamento de segurança. Portanto, não interrompe ciclos já iniciados e não remove o caminho independente que religa a tomada. Esta consolidação não executou power cycle nem encerra a homologação: os três cenários pendentes acima permanecem necessários para fechar o Gate.
 
 ### Limitação do dashboard Parâmetros
 

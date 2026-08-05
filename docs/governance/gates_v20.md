@@ -29,10 +29,16 @@ Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 - [x] Restart durante ciclo ativo homologado (reconciliação limpa, sem cooldown).
 - [x] Timeline validada com o limite de 16 eventos em produção.
 - [ ] Oscilação, `unknown` e `unavailable` dos sensores — sem ocorrência real observada em nenhum teste; permanece sem evidência.
-- [ ] Janela de estabilização igual a zero — parametrizada em dois testes, mas nunca exercida de fato (o ciclo foi direto a timeout antes de alcançar a lógica de estabilização nas duas vezes).
-- [ ] Retorno estabilizado em índice intermediário (sucesso antes do esgotamento) — não obtido; as quedas reais tentadas duraram mais que a janela de tentativas disponível.
-- [ ] Cancelamento pelo operador em ciclo ativo — tentativa dedicada não obteve sucesso por limitação de monitoramento (reação tardia); recomenda-se assinatura de eventos (WebSocket/`subscribe_events`) em vez de polling na próxima tentativa.
+- [ ] Janela de estabilização igual a zero — parametrizada em três execuções (incluindo a repetição do Teste 3 em 2026-07-20 com `estabilizacao_retorno_minutos=0` e monitoramento por assinatura de eventos), mas nunca exercida de fato: em nenhuma tentativa houve retorno de `backup_4g_operacional` durante a janela de validação.
+- [ ] Retorno estabilizado em índice intermediário (sucesso antes do esgotamento) — não obtido em nenhuma das quatro quedas reais tentadas até agora; a duração real das quedas variou de ~2min30s a ~6min55s, sempre excedendo a janela de tentativas configurada no momento.
+- [ ] Cancelamento pelo operador em ciclo ativo — não exercitado. Na primeira tentativa (Teste 3, 2026-07-18) faltou por limitação de monitoramento (polling); na repetição (2026-07-20), o monitor por assinatura de eventos foi validado e usado com sucesso, mas o cancelamento não foi tentado porque a execução foi mantida estritamente passiva por instrução explícita do usuário (sem alteração automática de helper).
 - Interrupção por falta de energia em ciclo ativo — **classificada como risco residual aceito**, não bloqueador. Mesma condição de código do cancelamento pelo operador, já comprovada por analogia estrutural (leitura de código), mas sem execução real com ciclo ativo. Não deve ser forçada deliberadamente.
+- [x] Achado arquitetural: guard rail `tomada_ja_desligada` confirmado — o orquestrador recusa iniciar um ciclo se a tomada já estiver desligada no momento da solicitação (`fato: solicitacao_bloqueada`). Descoberto na repetição do Teste 3 (2026-07-20); implica que o mecanismo de "provocar queda" via tomada deve sempre religá-la antes da janela de confirmação, ou usar uma fonte de queda que não envolva a tomada.
+- [x] Guard de manutenção implementado estaticamente: `input_boolean.casa_comunicacao_modo_manutencao` inicia desligado e bloqueia somente novas execuções de `automation.central_recovery_4g_solicitar` quando ligado. O orquestrador, ciclos já iniciados e `automation.central_recovery_4g_religamento_seguranca` não consomem esse helper.
+
+### Nota de rigor metodológico — 2026-07-20
+
+Uma afirmação anterior de que o padrão observado de "retorno real poucos segundos após o esgotamento" seria "quase estrutural" foi revisada e **reclassificada como hipótese não comprovada**, não como achado. Evidência disponível (leitura de código do sensor `backup_4g_operacional`/`internet_wan2_4g_ok` e histórico das sondas de latência subjacentes) mostra que a detecção está próxima do retorno real (sem indício de retorno silencioso não detectado), mas a amostra de apenas 3 quase-acertos e 1 queda longa, com duração total variando de ~2min30s a ~6min55s, não sustenta a existência de um tempo de reconexão fixo/estrutural da operadora. Ver detalhamento completo em `docs/releases/implementation_plan_v20_1q.md`.
 
 ### Estado da homologação runtime — Suspensa
 
@@ -40,13 +46,15 @@ Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 
 **Motivo:** interrupção por decisão operacional. Não existe bloqueio técnico conhecido. A implementação permanece válida.
 
-**Evidências preservadas (não precisam ser repetidas):** Recovery 4G funcional de ponta a ponta; snapshot dos parâmetros; parametrização das tentativas (cenários 1, 5 e 10); cooldown; expiração do cooldown; religamento de segurança; tratamento de erro técnico; Timeline; estados do Executor.
+**Evidências preservadas (não precisam ser repetidas):** Recovery 4G funcional de ponta a ponta; snapshot dos parâmetros; parametrização das tentativas (cenários 1, 5 e 10); cooldown; expiração do cooldown; religamento de segurança; tratamento de erro técnico; Timeline; estados do Executor; guard rail `tomada_ja_desligada`; monitoramento por assinatura de eventos (WebSocket) formalmente validado (6/6 critérios) e usado com sucesso.
 
 **Permanecem para retomada futura:** cancelamento pelo operador em ciclo ativo; retorno antes do esgotamento (índice intermediário); janela de estabilização igual a zero.
 
-Detalhamento completo dos três testes executados (Teste 1, Teste 2, Teste 3), evidências e próxima etapa recomendada em `docs/releases/implementation_plan_v20_1q.md`.
+**Limitação metodológica registrada:** a proximidade observada entre esgotamento e retorno real da conectividade não deve ser tratada como propriedade estrutural do sistema — amostra pequena (3 casos), duração real das quedas variável (~2min30s–6min55s). Ver "Nota de rigor metodológico" acima.
 
-Três power cycles reais e controlados foram autorizados e executados pelo usuário durante esta rodada de homologação runtime (Testes 1, 2 e 3), conforme Gate pré-teste físico.
+Detalhamento completo dos testes executados (Teste 1, Teste 2, Teste 3 e sua repetição em 2026-07-20), evidências, fatos vs. hipóteses e próxima etapa recomendada em `docs/releases/implementation_plan_v20_1q.md`.
+
+Quatro power cycles reais e controlados foram autorizados e executados pelo usuário durante as rodadas de homologação runtime (Testes 1, 2, 3 e sua repetição), conforme Gate pré-teste físico.
 
 ## Gate 0 - Escopo
 

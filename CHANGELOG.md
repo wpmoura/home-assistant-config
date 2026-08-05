@@ -1,5 +1,25 @@
 # Changelog
 
+## [v20.1q-teste3-repeticao-e-revisao-metodologica] - 2026-07-20
+
+### Added
+
+- Monitor de homologação por assinatura de eventos (WebSocket `subscribe_events`) implementado, validado formalmente (6/6 critérios: conexão, autenticação, estabilidade ≥2min, recepção de `state_changed`, registro de mudança real, encerramento limpo) e usado com sucesso na repetição do Teste 3.
+- Repetição completa do Teste 3 (`request_id=r4g-20260720163819459330`, parâmetros 5/45/0) documentada em `docs/releases/implementation_plan_v20_1q.md`: 5 tentativas exatas, timeouts de 45s exatos, esgotamento correto.
+- Achado arquitetural novo: guard rail `tomada_ja_desligada` no orquestrador, que bloqueia início de ciclo se a tomada já estiver desligada no momento da solicitação.
+- Helper `input_boolean.casa_comunicacao_modo_manutencao`, com estado inicial desligado, para bloquear novas solicitações automáticas de Recovery durante manutenção da comunicação.
+
+### Changed
+
+- Revisão metodológica: a hipótese de que o padrão de "retorno real segundos após o esgotamento" seria "quase estrutural" foi reclassificada como hipótese não comprovada, com separação explícita entre fatos comprovados e inferências em `docs/releases/implementation_plan_v20_1q.md` e `docs/governance/gates_v20.md`.
+- `docs/governance/gates_v20.md`: Gate corretivo V20.1Q atualizado com os achados desta rodada e a nota de rigor metodológico.
+- `automation.central_recovery_4g_solicitar` passa a exigir o modo manutenção desligado antes de aceitar uma nova solicitação; ciclos já iniciados e o religamento de segurança permanecem fora desse bloqueio.
+
+### Notes
+
+- Cancelamento pelo operador, retorno em índice intermediário e janela de estabilização zero continuam pendentes — não exercitados nesta repetição (execução mantida estritamente passiva por instrução explícita).
+- A consolidação posterior adicionou somente o helper de manutenção e a condição preventiva de novas solicitações; não alterou o orquestrador, o Executor, ciclos ativos, religamento de segurança, dashboard ou arquitetura.
+
 ## [v20.1q-homologacao-runtime-suspensa] - 2026-07-18
 
 ### Added

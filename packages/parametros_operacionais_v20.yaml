@@ -189,6 +189,11 @@ input_boolean:
     name: Casa - Recovery 4G Ciclo em Andamento
     icon: mdi:progress-wrench
 
+  casa_comunicacao_modo_manutencao:
+    name: Manutenção da Comunicação
+    icon: mdi:router-wireless-off
+    initial: false
+
   casa_eventos_visiveis:
     name: Casa - Eventos Visiveis
     icon: mdi:eye-outline
