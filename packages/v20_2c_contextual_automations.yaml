@@ -1,8 +1,8 @@
 ###############################################################################
 # V20.2C — Automações Contextuais Residenciais — C0/C1
 #
-# Harness mínimo e exclusivamente observacional para saída simulada.
-# Não publica na Timeline, não envia push e não executa ações físicas.
+# Harness de saída simulada com laboratório observacional e ação física
+# controlada exclusivamente sobre light.luz_led_mesa.
 ###############################################################################
 
 input_boolean:
@@ -15,6 +15,17 @@ input_boolean:
     name: V20.2C — Simular Casa Vazia
     icon: mdi:home-export-outline
     initial: false
+
+input_number:
+  teste_v20_2_tempo_graca_saida:
+    name: V20.2C — Tempo de Graça da Saída
+    icon: mdi:timer-sand
+    min: 5
+    max: 300
+    step: 5
+    unit_of_measurement: s
+    initial: 15
+    mode: box
 
 template:
   - binary_sensor:
@@ -68,3 +79,77 @@ automation:
           message: >-
             🧪 V20.2C — Saída simulada detectada. Nenhuma ação física foi executada.
           entity_id: binary_sensor.casa_efetivamente_vazia
+
+  - id: v20_2c_saida_teste_desligar_luz_mesa
+    alias: V20.2C — Teste — Desligar Luz da Mesa após Saída
+    description: >-
+      Desliga somente a luz da mesa após graça e revalidação integral do
+      harness de saída simulada.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.casa_efetivamente_vazia
+        from: "off"
+        to: "on"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_harness_ativo
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        state: "on"
+      - condition: state
+        entity_id: light.luz_led_mesa
+        state: "on"
+
+    action:
+      - service: logbook.log
+        data:
+          name: V20.2C — Teste de Saída
+          message: >-
+            🧪 V20.2C — Saída simulada detectada. Tempo de graça iniciado.
+          entity_id: light.luz_led_mesa
+
+      - wait_for_trigger:
+          - platform: state
+            entity_id: input_boolean.teste_v20_2_harness_ativo
+            to: "off"
+          - platform: state
+            entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+            to: "off"
+          - platform: state
+            entity_id: binary_sensor.casa_efetivamente_vazia
+            to: "off"
+        timeout:
+          seconds: >-
+            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
+        continue_on_timeout: true
+
+      - condition: template
+        alias: Tempo de graça concluído sem cancelamento
+        value_template: "{{ not wait.completed }}"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_harness_ativo
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.casa_efetivamente_vazia
+        state: "on"
+      - condition: state
+        entity_id: light.luz_led_mesa
+        state: "on"
+
+      - service: light.turn_off
+        target:
+          entity_id: light.luz_led_mesa
+
+      - service: logbook.log
+        data:
+          name: V20.2C — Teste de Saída
+          message: >-
+            🧪 V20.2C — Luz da mesa desligada após tempo de graça.
+          entity_id: light.luz_led_mesa
