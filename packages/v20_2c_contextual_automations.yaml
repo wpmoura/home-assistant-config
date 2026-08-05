@@ -1,0 +1,70 @@
+###############################################################################
+# V20.2C — Automações Contextuais Residenciais — C0/C1
+#
+# Harness mínimo e exclusivamente observacional para saída simulada.
+# Não publica na Timeline, não envia push e não executa ações físicas.
+###############################################################################
+
+input_boolean:
+  teste_v20_2_harness_ativo:
+    name: V20.2C — Harness de Teste
+    icon: mdi:test-tube
+    initial: false
+
+  teste_v20_2_simular_casa_vazia:
+    name: V20.2C — Simular Casa Vazia
+    icon: mdi:home-export-outline
+    initial: false
+
+template:
+  - binary_sensor:
+      - name: Casa Efetivamente Vazia
+        unique_id: casa_efetivamente_vazia
+        icon: mdi:home-outline
+        state: >
+          {{ is_state('input_boolean.teste_v20_2_harness_ativo', 'on')
+             and is_state('input_boolean.teste_v20_2_simular_casa_vazia', 'on') }}
+        attributes:
+          source: >
+            {{ 'simulation'
+               if is_state('input_boolean.teste_v20_2_harness_ativo', 'on')
+               else 'safe_fallback' }}
+          test_mode: >
+            {{ is_state('input_boolean.teste_v20_2_harness_ativo', 'on') }}
+          simulation_requested: >
+            {{ is_state('input_boolean.teste_v20_2_simular_casa_vazia', 'on') }}
+          production_presence_available: >
+            {{ states('binary_sensor.casa_presenca_global') in ['on', 'off'] }}
+          shadow_sensor_state: >
+            {{ states('binary_sensor.casa_vazia_v20_2') }}
+          global_presence_state: >
+            {{ states('binary_sensor.casa_presenca_global') }}
+          physical_actions_allowed: false
+
+automation:
+  - id: v20_2c_laboratorio_saida_simulada
+    alias: V20.2C — Laboratório — Saída Simulada
+    description: Registra uma saída simulada sem executar qualquer ação física.
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.casa_efetivamente_vazia
+        from: "off"
+        to: "on"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_harness_ativo
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        state: "on"
+
+    action:
+      - service: logbook.log
+        data:
+          name: V20.2C — Laboratório
+          message: >-
+            🧪 V20.2C — Saída simulada detectada. Nenhuma ação física foi executada.
+          entity_id: binary_sensor.casa_efetivamente_vazia
