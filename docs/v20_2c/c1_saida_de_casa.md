@@ -2,7 +2,7 @@
 
 ## Objetivo e estado atual
 
-Comprovar que o harness consegue simular casa vazia e, em C1.1, controlar exclusivamente `light.luz_led_mesa` depois de um tempo de graça cancelável e de uma revalidação integral. A presença real continua fora de escopo.
+Comprovar que o harness consegue simular casa vazia e, em C1.1, controlar exclusivamente a Luz da Mesa `light.smart_lampada_wifi_1` depois de um tempo de graça cancelável e de uma revalidação integral. A presença real continua fora de escopo.
 
 Não existe uma AT-001 formal no repositório ou no runtime. Foram encontradas as automações legadas `automation.lab_sai` (`LAB - Querida Fui`) e `automation.carro_iniciar_uso_ao_sair_de_casa`; elas não são alteradas nem reutilizadas neste lote.
 
@@ -23,7 +23,9 @@ O helper de graça varia de 5 a 300 segundos e inicia em 15 segundos para homolo
 
 ## Entidade física e concorrência
 
-O único alvo físico autorizado é `light.luz_led_mesa`, fornecido pela integração Yeelight e associado ao Home Office. As automações legadas de queda/retorno de conectividade podem ligá-la como sinalização. As automações noturnas ligam ou desligam a mesma luz conforme `binary_sensor.movimento_piso_quarto_maior_occupancy`, entre 23:30 e 06:10. O blueprint comercial encontrado controla `light.smart_lampada_wifi_1`, que é outra entidade.
+Existem dois dispositivos distintos. `light.luz_led_mesa` é a Luz LED da Mesa, uma fita Yeelight usada por sinalizações de conectividade e segurança noturna; ela foi usada incorretamente no primeiro ciclo C1.1. O alvo correto é `light.smart_lampada_wifi_1`, friendly name “Luz Mesa”, dispositivo Tuya “Smart Lâmpada Wi-Fi”, área Home Office.
+
+A entidade correta é ligada e desligada pelas rotinas legadas de Home Office e por duas automações baseadas em `binary_sensor.sensor_movimento_quarto_maior_occupancy`, com janelas 08:30–19:00 e 17:30–22:30. O histórico confirmou períodos em `on` associados ao uso da mesa de trabalho, incluindo permanência entre 21:42 e 23:20 em 2026-08-04.
 
 Essas automações não são modificadas. Durante homologação, seus traces e o histórico da luz devem ser observados para distinguir a ação C1.1 de eventual religamento concorrente.
 
@@ -33,7 +35,7 @@ Essas automações não são modificadas. Durante homologação, seus traces e o
 - Simulação ligada com harness desligado não altera o sensor efetivo.
 - Harness e simulação ligados colocam o sensor efetivo em `on`.
 - A transição `off → on` executa a automação uma única vez e gera Logbook com indicação explícita de simulação.
-- Nenhum script operacional, tomada, Recovery, NVR, porta, chuva ou presença real é alterado; a única ação física permitida é desligar `light.luz_led_mesa` em C1.1.
+- Nenhum script operacional, tomada, Recovery, NVR, porta, chuva ou presença real é alterado; a única ação física permitida é desligar `light.smart_lampada_wifi_1` em C1.1.
 - Timeline e push permanecem inalterados.
 - Com a luz desligada no início, a automação física não executa.
 - Cancelar harness ou simulação durante a graça mantém a luz ligada.
@@ -62,9 +64,20 @@ Estados dos helpers e da luz, valor da graça, traces observacional e físico, L
 
 ## Homologação C1.1 — 2026-08-05
 
-- Luz desligada no início: condições físicas não atendidas e nenhuma ação executada (`98271da357915892b0c5b5676b16ebb3`).
-- Cancelamento pela simulação: graça interrompida com 14,76 segundos restantes, luz preservada ligada e execução abortada antes de `light.turn_off` (`b4daeb3ebaad0db90972adb9a485e295`).
-- Desligamento válido: timeout de 15 segundos, quatro revalidações aprovadas, um único `light.turn_off` e conclusão registrada (`dc3f752509fe5d5dd49ae53a875cbdeb`).
-- Cancelamento pelo harness: graça interrompida com 14,79 segundos restantes, luz preservada ligada e execução abortada antes de `light.turn_off` (`7b8cc23cf75175bc7dbc2f0a6826fb71`).
-- Nenhuma das cinco automações legadas que referenciam a luz disparou durante a janela dos testes.
-- Estado final: harness e simulação desligados, nenhuma execução pendente e estado da luz definido pelo operador.
+As evidências abaixo permanecem válidas como homologação do mecanismo de graça, cancelamento e revalidação, mas não homologam o alvo físico real porque foram executadas sobre a Luz LED da Mesa `light.luz_led_mesa`:
+
+- Luz LED desligada no início: condições físicas não atendidas e nenhuma ação executada (`98271da357915892b0c5b5676b16ebb3`).
+- Cancelamento pela simulação: graça interrompida com 14,76 segundos restantes e execução abortada antes de `light.turn_off` (`b4daeb3ebaad0db90972adb9a485e295`).
+- Desligamento do alvo incorreto: timeout de 15 segundos, quatro revalidações aprovadas e um único `light.turn_off` sobre `light.luz_led_mesa` (`dc3f752509fe5d5dd49ae53a875cbdeb`).
+- Cancelamento pelo harness: graça interrompida com 14,79 segundos restantes e execução abortada antes de `light.turn_off` (`7b8cc23cf75175bc7dbc2f0a6826fb71`).
+
+Após a identificação inequívoca da Luz da Mesa Tuya, os quatro testes foram repetidos sobre `light.smart_lampada_wifi_1`:
+
+- Luz correta desligada no início: a condição física falhou e nenhuma ação foi executada (`26b49c76c5e3eb699f1e1479732c19c8`).
+- Cancelamento pela simulação: a graça foi interrompida com 12,87 segundos restantes, a execução foi abortada antes de `light.turn_off` e a luz correta permaneceu ligada (`620ce693594953c944c2ca6b882412a6`).
+- Desligamento válido: o timeout de 15 segundos terminou, as quatro revalidações foram aprovadas e houve exatamente um `light.turn_off` com alvo `light.smart_lampada_wifi_1` (`63c75ab8b7708c2f22e6b1bf1a35af23`).
+- Cancelamento pelo harness: a graça foi interrompida com 12,89 segundos restantes, a execução foi abortada antes de `light.turn_off` e ambas as luzes permaneceram ligadas (`fd618aa47cfd093134732a2079cbb608`).
+
+O Logbook registrou os três inícios aplicáveis e somente uma conclusão, vinculados à entidade correta. O histórico de `light.luz_led_mesa` não apresentou transição durante os Testes 2 e 3; no Teste 4 ela permaneceu ligada, com o mesmo `last_changed` anterior ao teste. Nenhuma das quatro automações legadas associadas à Luz da Mesa disparou durante a homologação e não foram encontrados erros de sistema relacionados à V20.2C.
+
+Estado final: harness e simulação desligados, nenhuma execução pendente, Luz da Mesa e Luz LED da Mesa ligadas conforme preparação manual do operador. O C1.1 está homologado sobre o alvo físico correto; a evidência anterior permanece preservada apenas como validação histórica do mecanismo no alvo incorreto.

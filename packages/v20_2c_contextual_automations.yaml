@@ -2,7 +2,7 @@
 # V20.2C — Automações Contextuais Residenciais — C0/C1
 #
 # Harness de saída simulada com laboratório observacional e ação física
-# controlada exclusivamente sobre light.luz_led_mesa.
+# controlada exclusivamente sobre light.smart_lampada_wifi_1 (Luz Mesa).
 ###############################################################################
 
 input_boolean:
@@ -101,7 +101,7 @@ automation:
         entity_id: input_boolean.teste_v20_2_simular_casa_vazia
         state: "on"
       - condition: state
-        entity_id: light.luz_led_mesa
+        entity_id: light.smart_lampada_wifi_1
         state: "on"
 
     action:
@@ -110,7 +110,7 @@ automation:
           name: V20.2C — Teste de Saída
           message: >-
             🧪 V20.2C — Saída simulada detectada. Tempo de graça iniciado.
-          entity_id: light.luz_led_mesa
+          entity_id: light.smart_lampada_wifi_1
 
       - wait_for_trigger:
           - platform: state
@@ -140,16 +140,16 @@ automation:
         entity_id: binary_sensor.casa_efetivamente_vazia
         state: "on"
       - condition: state
-        entity_id: light.luz_led_mesa
+        entity_id: light.smart_lampada_wifi_1
         state: "on"
 
       - service: light.turn_off
         target:
-          entity_id: light.luz_led_mesa
+          entity_id: light.smart_lampada_wifi_1
 
       - service: logbook.log
         data:
           name: V20.2C — Teste de Saída
           message: >-
             🧪 V20.2C — Luz da mesa desligada após tempo de graça.
-          entity_id: light.luz_led_mesa
+          entity_id: light.smart_lampada_wifi_1
