@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-A V20.2C é um lote corretivo da V20 para criar uma fundação mínima, isolada e reversível de testes contextuais residenciais. Ela não inicia formalmente a V21 nem implementa Presence Intelligence.
+A V20.2C é um lote corretivo da V20 para ativar recursos mínimos de monitoramento remoto quando Wilson estiver fora da residência. A permanência de Jacira ou de outra pessoa não bloqueia o fluxo. O lote não inicia formalmente a V21, não implementa Presence Intelligence e não representa monitoramento médico ou de bem-estar.
 
 ## Relação com a V20.1Q e Git
 
@@ -10,9 +10,11 @@ Esta branch foi criada diretamente sobre o commit `486aa1a` da branch V20.1Q ain
 
 ## Escopo
 
-- C0 — infraestrutura mínima de teste: harness desligado por padrão, simulação isolada e fallback seguro.
-- C1 — saída de casa: detecção exclusivamente laboratorial de uma transição simulada para casa vazia.
+- C0 — infraestrutura mínima: harness desligado por padrão, simulação isolada e fallback seguro.
+- C1 — saída de Wilson: fonte real baseada exclusivamente em `person.wmoura`, com substituição controlada pelo harness.
+- C1.1 — desligamento da Luz da Mesa após tempo de graça e revalidação.
+- C1.2 — alerta da Porta da Sala aberta após o mesmo tempo de graça.
 
 ## Fora de escopo
 
-Tempo de graça, luz da mesa, push da porta, Recovery 4G, NVR, chuva, chegada, gestão de energia, Presence Intelligence, IA e inferência comportamental.
+Integração com Recovery 4G, failover, monitoramento de Internet, chuva, NVR, chegada, gestão de energia, Presence Intelligence, IA, inferência comportamental e qualquer monitoramento médico ou de bem-estar.

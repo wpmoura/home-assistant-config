@@ -1,8 +1,8 @@
 ###############################################################################
 # V20.2C — Automações Contextuais Residenciais — C0/C1
 #
-# Harness de saída simulada com laboratório observacional e ação física
-# controlada exclusivamente sobre light.smart_lampada_wifi_1 (Luz Mesa).
+# Harness de ausência simulada de Wilson, com laboratório observacional e ações
+# já homologadas sobre a Luz Mesa e a Porta da Sala.
 ###############################################################################
 
 input_boolean:
@@ -11,9 +11,9 @@ input_boolean:
     icon: mdi:test-tube
     initial: false
 
-  teste_v20_2_simular_casa_vazia:
-    name: V20.2C — Simular Casa Vazia
-    icon: mdi:home-export-outline
+  teste_v20_2_simular_wilson_ausente:
+    name: V20.2C — Simular Wilson Ausente
+    icon: mdi:account-arrow-right-outline
     initial: false
 
 input_number:
@@ -29,28 +29,51 @@ input_number:
 
 template:
   - binary_sensor:
-      - name: Casa Efetivamente Vazia
+      # O unique_id legado é preservado para evitar entidade órfã no registry.
+      - name: Wilson Ausente de Casa
         unique_id: casa_efetivamente_vazia
-        icon: mdi:home-outline
+        icon: mdi:account-arrow-right-outline
         state: >
-          {{ is_state('input_boolean.teste_v20_2_harness_ativo', 'on')
-             and is_state('input_boolean.teste_v20_2_simular_casa_vazia', 'on') }}
+          {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
+            {{ is_state('input_boolean.teste_v20_2_simular_wilson_ausente', 'on') }}
+          {% else %}
+            {{ is_state('person.wmoura', 'not_home') }}
+          {% endif %}
         attributes:
           source: >
-            {{ 'simulation'
-               if is_state('input_boolean.teste_v20_2_harness_ativo', 'on')
-               else 'safe_fallback' }}
+            {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
+              simulation
+            {% elif states('person.wmoura') in ['home', 'not_home'] %}
+              real
+            {% else %}
+              safe_fallback
+            {% endif %}
           test_mode: >
             {{ is_state('input_boolean.teste_v20_2_harness_ativo', 'on') }}
           simulation_requested: >
-            {{ is_state('input_boolean.teste_v20_2_simular_casa_vazia', 'on') }}
-          production_presence_available: >
-            {{ states('binary_sensor.casa_presenca_global') in ['on', 'off'] }}
-          shadow_sensor_state: >
-            {{ states('binary_sensor.casa_vazia_v20_2') }}
-          global_presence_state: >
-            {{ states('binary_sensor.casa_presenca_global') }}
-          physical_actions_allowed: false
+            {{ is_state('input_boolean.teste_v20_2_simular_wilson_ausente', 'on') }}
+          person_considered: person.wmoura
+          wilson_tracker: "{{ state_attr('person.wmoura', 'source') | default('none', true) }}"
+          wilson_state: "{{ states('person.wmoura') }}"
+          critical_source_available: >
+            {{ states('person.wmoura') in ['home', 'not_home'] }}
+          jacira_state_observational: "{{ states('person.jacira_f_p_moura') }}"
+          reason: >
+            {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
+              harness_controls_wilson_absence
+            {% elif is_state('person.wmoura', 'not_home') %}
+              wilson_is_away
+            {% elif is_state('person.wmoura', 'home') %}
+              wilson_is_home
+            {% else %}
+              wilson_state_unavailable_safe_fallback
+            {% endif %}
+          remote_monitoring_requested: >
+            {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
+              {{ is_state('input_boolean.teste_v20_2_simular_wilson_ausente', 'on') }}
+            {% else %}
+              {{ is_state('person.wmoura', 'not_home') }}
+            {% endif %}
 
 automation:
   - id: v20_2c_laboratorio_saida_simulada
@@ -69,7 +92,7 @@ automation:
         entity_id: input_boolean.teste_v20_2_harness_ativo
         state: "on"
       - condition: state
-        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        entity_id: input_boolean.teste_v20_2_simular_wilson_ausente
         state: "on"
 
     action:
@@ -81,10 +104,10 @@ automation:
           entity_id: binary_sensor.casa_efetivamente_vazia
 
   - id: v20_2c_saida_teste_desligar_luz_mesa
-    alias: V20.2C — Teste — Desligar Luz da Mesa após Saída
+    alias: V20.2C — Monitoramento — Desligar Luz da Mesa após Saída
     description: >-
-      Desliga somente a luz da mesa após graça e revalidação integral do
-      harness de saída simulada.
+      Desliga somente a luz da mesa após graça e revalidação da ausência de
+      Wilson, real ou simulada pelo harness.
     mode: restart
 
     trigger:
@@ -95,10 +118,8 @@ automation:
 
     condition:
       - condition: state
-        entity_id: input_boolean.teste_v20_2_harness_ativo
-        state: "on"
-      - condition: state
-        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        alias: Ausência de Wilson autorizada
+        entity_id: binary_sensor.casa_efetivamente_vazia
         state: "on"
       - condition: state
         entity_id: light.smart_lampada_wifi_1
@@ -107,18 +128,12 @@ automation:
     action:
       - service: logbook.log
         data:
-          name: V20.2C — Teste de Saída
+          name: V20.2C — Monitoramento Remoto
           message: >-
-            🧪 V20.2C — Saída simulada detectada. Tempo de graça iniciado.
+            V20.2C — Wilson ausente. Tempo de graça iniciado.
           entity_id: light.smart_lampada_wifi_1
 
       - wait_for_trigger:
-          - platform: state
-            entity_id: input_boolean.teste_v20_2_harness_ativo
-            to: "off"
-          - platform: state
-            entity_id: input_boolean.teste_v20_2_simular_casa_vazia
-            to: "off"
           - platform: state
             entity_id: binary_sensor.casa_efetivamente_vazia
             to: "off"
@@ -131,12 +146,7 @@ automation:
         alias: Tempo de graça concluído sem cancelamento
         value_template: "{{ not wait.completed }}"
       - condition: state
-        entity_id: input_boolean.teste_v20_2_harness_ativo
-        state: "on"
-      - condition: state
-        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
-        state: "on"
-      - condition: state
+        alias: Ausência de Wilson ainda autorizada
         entity_id: binary_sensor.casa_efetivamente_vazia
         state: "on"
       - condition: state
@@ -149,16 +159,16 @@ automation:
 
       - service: logbook.log
         data:
-          name: V20.2C — Teste de Saída
+          name: V20.2C — Monitoramento Remoto
           message: >-
             🧪 V20.2C — Luz da mesa desligada após tempo de graça.
           entity_id: light.smart_lampada_wifi_1
 
   - id: v20_2c_saida_teste_alertar_porta_aberta
-    alias: V20.2C — Teste — Alertar Porta Aberta após Saída
+    alias: V20.2C — Monitoramento — Alertar Porta Aberta após Saída
     description: >-
-      Alerta sobre a Porta da Sala aberta após a graça, exclusivamente durante
-      uma saída simulada pelo harness da V20.2C.
+      Alerta sobre a Porta da Sala aberta após a graça quando Wilson estiver
+      ausente, por fonte real ou simulada pelo harness.
     mode: restart
 
     trigger:
@@ -169,20 +179,12 @@ automation:
 
     condition:
       - condition: state
-        entity_id: input_boolean.teste_v20_2_harness_ativo
-        state: "on"
-      - condition: state
-        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        alias: Ausência de Wilson autorizada
+        entity_id: binary_sensor.casa_efetivamente_vazia
         state: "on"
 
     action:
       - wait_for_trigger:
-          - platform: state
-            entity_id: input_boolean.teste_v20_2_harness_ativo
-            to: "off"
-          - platform: state
-            entity_id: input_boolean.teste_v20_2_simular_casa_vazia
-            to: "off"
           - platform: state
             entity_id: binary_sensor.casa_efetivamente_vazia
             to: "off"
@@ -195,12 +197,7 @@ automation:
         alias: Tempo de graça concluído sem cancelamento
         value_template: "{{ not wait.completed }}"
       - condition: state
-        entity_id: input_boolean.teste_v20_2_harness_ativo
-        state: "on"
-      - condition: state
-        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
-        state: "on"
-      - condition: state
+        alias: Ausência de Wilson ainda autorizada
         entity_id: binary_sensor.casa_efetivamente_vazia
         state: "on"
       - condition: state
@@ -209,13 +206,13 @@ automation:
 
       - service: logbook.log
         data:
-          name: V20.2C — Teste de Saída
+          name: V20.2C — Monitoramento Remoto
           message: >-
-            🧪 V20.2C — Porta da Sala permaneceu aberta após a saída simulada.
+            V20.2C — Porta da Sala permaneceu aberta após a saída de Wilson.
           entity_id: binary_sensor.sensor_porta_sala_contact
 
       - service: notify.mobile_app_iphonewm
         data:
-          title: "🧪 V20.2C — Saída Simulada"
+          title: "V20.2C — Wilson Ausente"
           message: >-
             ⚠️ Porta da Sala permaneceu aberta após o tempo de graça.

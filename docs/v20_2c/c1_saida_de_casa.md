@@ -1,123 +1,93 @@
-# C1 — Saída de casa simulada
+# C1 — Saída de Wilson e monitoramento remoto
 
-## Objetivo e estado atual
+## Regra oficial e estado atual
 
-Comprovar que o harness consegue simular casa vazia e, em C1.1, controlar exclusivamente a Luz da Mesa `light.smart_lampada_wifi_1` depois de um tempo de graça cancelável e de uma revalidação integral. A presença real continua fora de escopo.
+O C1 representa a saída de Wilson e a ativação do monitoramento remoto da residência sob sua perspectiva operacional. A decisão depende exclusivamente de `person.wmoura`: a presença de `person.jacira_f_p_moura` é contexto observacional e não bloqueia, cancela ou limita C1.1, C1.2 ou integrações futuras.
 
-Não existe uma AT-001 formal no repositório ou no runtime. Foram encontradas as automações legadas `automation.lab_sai` (`LAB - Querida Fui`) e `automation.carro_iniciar_uso_ao_sair_de_casa`; elas não são alteradas nem reutilizadas neste lote.
+O estado `not_home` autoriza o fluxo. `home` o mantém inativo. `unknown`, `unavailable` ou qualquer valor não reconhecido aplicam fallback seguro e não autorizam ações. Ausência de movimento, presença global, trackers de Jacira e sensores shadow não participam da decisão.
 
-As pessoas conhecidas são `person.wmoura` e `person.jacira_f_p_moura`. `binary_sensor.casa_presenca_global` foi observado como `unavailable`. Existe `binary_sensor.casa_vazia_v20_2`, mas ele pertence à camada shadow e não pode controlar produção.
+Não existe AT-001 formal. As automações legadas `automation.lab_sai` e `automation.carro_iniciar_uso_ao_sair_de_casa` não são alteradas nem reutilizadas.
 
-## Componentes e lógica
+## Fonte, abstração e harness
 
-O lote reutiliza os IDs previstos em `docs/harness_testes_shadow_v20_2.md`:
+O tracker selecionado por `person.wmoura` é `device_tracker.iphone69`, fornecido pelo Companion App. O histórico recente apresenta transições coerentes entre `home`, `not_home` e zonas conhecidas. Outros trackers vinculados são auxiliares ou antigos e não são consultados diretamente pelo C1; a entidade `person.wmoura` permanece a abstração oficial.
 
-- `input_boolean.teste_v20_2_harness_ativo`;
-- `input_boolean.teste_v20_2_simular_casa_vazia`.
+O helper de simulação é `input_boolean.teste_v20_2_simular_wilson_ausente`. Quando `input_boolean.teste_v20_2_harness_ativo` está ligado, ele controla o fluxo. Com o harness desligado, somente `person.wmoura` controla o fluxo real.
 
-Com o harness desligado, `binary_sensor.casa_efetivamente_vazia` permanece `off` por fallback seguro, independentemente da simulação. Com o harness ligado, o sensor reflete o helper de simulação. As fontes reais e shadow aparecem somente como atributos observacionais.
+O Entity ID `binary_sensor.casa_efetivamente_vazia` é mantido temporariamente por compatibilidade com o registry e com os traces já produzidos. Seu nome amigável passa a ser “Wilson Ausente de Casa”, e sua semântica é exclusivamente a ausência de Wilson. Uma troca imediata do `unique_id` criaria risco de entidade órfã e referências quebradas.
 
-A automação `v20_2c_laboratorio_saida_simulada` permanece exclusivamente observacional. A automação separada `v20_2c_saida_teste_desligar_luz_mesa` exige os dois helpers ligados e a luz ligada, registra o início, aguarda `input_number.teste_v20_2_tempo_graca_saida`, cancela se o harness, a simulação ou o sensor efetivo forem desligados e revalida todos os estados antes de chamar `light.turn_off`.
+```text
+Harness ON  → simulação controla Wilson Ausente de Casa
+Harness OFF → person.wmoura = not_home autoriza o fluxo
+Estado inválido da fonte real → fallback seguro OFF
+```
 
-O helper de graça varia de 5 a 300 segundos e inicia em 15 segundos para homologação. Nenhum parâmetro de iluminação por movimento foi reutilizado porque sua semântica é diferente da confirmação de saída de casa.
+## C1.1 — Luz da Mesa
 
-## Entidade física e concorrência
+A automação `v20_2c_saida_teste_desligar_luz_mesa` controla somente `light.smart_lampada_wifi_1`, a Luz Mesa Tuya da área Home Office. `light.luz_led_mesa` é outro dispositivo e permanece fora do fluxo.
 
-Existem dois dispositivos distintos. `light.luz_led_mesa` é a Luz LED da Mesa, uma fita Yeelight usada por sinalizações de conectividade e segurança noturna; ela foi usada incorretamente no primeiro ciclo C1.1. O alvo correto é `light.smart_lampada_wifi_1`, friendly name “Luz Mesa”, dispositivo Tuya “Smart Lâmpada Wi-Fi”, área Home Office.
+Após a transição de Wilson Ausente de Casa para `on`, a automação exige fonte autorizada e luz ligada, registra o início, aguarda `input_number.teste_v20_2_tempo_graca_saida` (15 segundos na homologação), cancela se o sensor efetivo voltar a `off`, revalida a fonte, o sensor e a luz e faz uma única chamada a `light.turn_off`. O modo é `restart`.
 
-A entidade correta é ligada e desligada pelas rotinas legadas de Home Office e por duas automações baseadas em `binary_sensor.sensor_movimento_quarto_maior_occupancy`, com janelas 08:30–19:00 e 17:30–22:30. O histórico confirmou períodos em `on` associados ao uso da mesa de trabalho, incluindo permanência entre 21:42 e 23:20 em 2026-08-04.
+As evidências iniciais sobre `light.luz_led_mesa` permanecem apenas como validação histórica do mecanismo: `98271da357915892b0c5b5676b16ebb3`, `b4daeb3ebaad0db90972adb9a485e295`, `dc3f752509fe5d5dd49ae53a875cbdeb` e `7b8cc23cf75175bc7dbc2f0a6826fb71`.
 
-Essas automações não são modificadas. Durante homologação, seus traces e o histórico da luz devem ser observados para distinguir a ação C1.1 de eventual religamento concorrente.
+A homologação sobre a entidade correta preserva os traces:
+
+- luz desligada e condição recusada: `26b49c76c5e3eb699f1e1479732c19c8`;
+- cancelamento pela simulação: `620ce693594953c944c2ca6b882412a6`;
+- desligamento válido e único: `63c75ab8b7708c2f22e6b1bf1a35af23`;
+- cancelamento pelo harness: `fd618aa47cfd093134732a2079cbb608`.
+
+Essas evidências homologam graça, cancelamento, revalidação e alvo físico sob o harness. A mudança atual apenas substitui a fonte semântica e não altera o serviço, o alvo ou o tempo.
+
+## C1.2 — Porta da Sala
+
+A Porta da Sala é `binary_sensor.sensor_porta_sala_contact`, Aqara via Zigbee2MQTT/MQTT. `off` significa fechada e `on`, aberta. O push oficial é `notify.mobile_app_iphonewm`.
+
+A automação `v20_2c_saida_teste_alertar_porta_aberta` usa a mesma transição e o mesmo tempo de graça. Se a ausência de Wilson continuar válida e a porta estiver aberta ao final, registra no Logbook e envia exatamente um push. Não altera a porta nem automações legadas; o modo é `restart`.
+
+Evidências preservadas:
+
+- porta fechada, sem alerta: `5d9bce5b6a189c9cbbecb771d99ec62e`;
+- cancelamento pela simulação: `c32b50f54843ed8a230fc6e99366e4b3`;
+- porta aberta, Logbook e um push confirmado: `46a0f352316a4d974af07494c73847fe`;
+- cancelamento pelo harness: `3f43023e94173dfb178bc326d8911ada`.
+
+Essas evidências permanecem válidas como homologação do mecanismo sob harness. A automação legada `automation.central_porta_sala_contextual_v2` foi observada como concorrência esperada e não foi modificada.
 
 ## Critérios de aceite
 
-- Ambos os helpers iniciam e terminam desligados.
-- Simulação ligada com harness desligado não altera o sensor efetivo.
-- Harness e simulação ligados colocam o sensor efetivo em `on`.
-- A transição `off → on` executa a automação uma única vez e gera Logbook com indicação explícita de simulação.
-- Nenhum script operacional, tomada, Recovery, NVR, porta, chuva ou presença real é alterado; a única ação física permitida é desligar `light.smart_lampada_wifi_1` em C1.1.
-- Timeline e push permanecem inalterados.
-- Com a luz desligada no início, a automação física não executa.
-- Cancelar harness ou simulação durante a graça mantém a luz ligada.
-- Com a luz ligada e a simulação mantida, a graça termina, todas as condições são revalidadas e ocorre exatamente um `light.turn_off`.
-- A luz nunca é ligada automaticamente pelo harness; a preparação física pertence ao operador.
+- `person.wmoura = not_home` com harness desligado ativa o sensor com `source: real`.
+- `person.wmoura = home` mantém o sensor desligado com `source: real`.
+- Fonte real `unknown`, `unavailable` ou não reconhecida mantém o sensor desligado com `source: safe_fallback`.
+- `person.jacira_f_p_moura = home` não bloqueia nem cancela C1.1 ou C1.2.
+- Harness ligado preserva integralmente os cenários simulados já homologados.
+- Retorno de Wilson antes do fim da graça desliga o sensor e cancela as ações pendentes.
+- C1.1 preserva luz, graça, cancelamento, revalidação e uma única ação física.
+- C1.2 preserva porta, graça, cancelamento, Logbook e push único.
+- Nenhuma automação legada é alterada e nenhum recurso futuro é ativado nesta correção.
 
-## Procedimento de teste
+## Validação observacional
 
-1. Confirmar os dois helpers em `off` e o sensor efetivo em `off` com `source: safe_fallback`.
-2. Ligar somente a simulação; confirmar que o sensor permanece `off`; desligar a simulação.
-3. Ligar o harness e depois a simulação; confirmar sensor `on`, `source: simulation`, um trace e uma entrada no Logbook.
-4. Desligar a simulação e depois o harness; confirmar sensor `off` e ausência de efeito residual.
-5. Manter a luz desligada, repetir a saída simulada e confirmar que a automação física não inicia.
-6. Com ambos os helpers desligados, o operador liga manualmente a luz. Iniciar a simulação e desligá-la antes de 15 segundos; confirmar cancelamento e luz ligada.
-7. Repetir a preparação manual, manter a simulação por toda a graça e confirmar um único desligamento e os dois registros de Logbook.
-8. Repetir a preparação manual e desligar o harness antes do timeout; confirmar cancelamento e luz ligada.
-9. Encerrar com harness e simulação desligados e sem execução pendente.
+1. Com Wilson em `home`, harness e simulação desligados, confirmar sensor `off`, `source: real` e motivo `wilson_is_home`.
+2. Ligar apenas a simulação com harness desligado; confirmar que ela é ignorada e restaurá-la para `off`.
+3. Ligar o harness e a simulação; confirmar sensor `on`, `source: simulation` e restaurar ambos para `off`.
+4. Confirmar estaticamente que estados reais inválidos produzem fallback seguro.
+5. Não executar saída física nesta correção; o primeiro teste real deverá ser coordenado separadamente.
 
-## Rollback
+## Recursos futuros mapeados, não implementados
 
-Desligar os dois helpers e confirmar que a automação física não possui execução pendente. O operador define manualmente o estado final desejado da luz. Para rollback de código, reverter o commit exclusivo de C1.1 e recarregar `input_number` e `automation` em janela controlada; não modificar as automações legadas.
+| Recurso | Referência atual | Comportamento futuro esperado |
+| --- | --- | --- |
+| Push Porta | `notify.mobile_app_iphonewm` | alertar porta aberta após a graça |
+| Recovery 4G | `input_boolean.casa_recovery_4g_automatico` | habilitar política operacional quando Wilson sair |
+| Failover | `binary_sensor.internet_em_failover_4g` | observar mudança de rota e comunicar exceções |
+| Monitoramento de Internet | `sensor.internet_estado_operacional` | ampliar observação remota da conectividade |
+| Alertas de Chuva | `sensor.casa_chuva_estado_v20` | avisar condições relevantes sem inferência comportamental |
+| Luz da Mesa | `light.smart_lampada_wifi_1` | desligar após graça e revalidação (C1.1) |
+| NVR | sem entidade oficial definida | integrar somente em lote futuro e governado |
 
-## Evidências esperadas
+## Riscos e rollback
 
-Estados dos helpers e da luz, valor da graça, traces observacional e físico, Logbook, serviço executado, cancelamentos, ausência de erros e eventuais traces concorrentes sobre a luz.
+O principal risco é uma transição transitória de `person.wmoura`. O tempo de graça e a revalidação final são a proteção inicial; não são introduzidos scoring, quorum, aprendizado ou lógica da V21.
 
-## Homologação C1.1 — 2026-08-05
-
-As evidências abaixo permanecem válidas como homologação do mecanismo de graça, cancelamento e revalidação, mas não homologam o alvo físico real porque foram executadas sobre a Luz LED da Mesa `light.luz_led_mesa`:
-
-- Luz LED desligada no início: condições físicas não atendidas e nenhuma ação executada (`98271da357915892b0c5b5676b16ebb3`).
-- Cancelamento pela simulação: graça interrompida com 14,76 segundos restantes e execução abortada antes de `light.turn_off` (`b4daeb3ebaad0db90972adb9a485e295`).
-- Desligamento do alvo incorreto: timeout de 15 segundos, quatro revalidações aprovadas e um único `light.turn_off` sobre `light.luz_led_mesa` (`dc3f752509fe5d5dd49ae53a875cbdeb`).
-- Cancelamento pelo harness: graça interrompida com 14,79 segundos restantes e execução abortada antes de `light.turn_off` (`7b8cc23cf75175bc7dbc2f0a6826fb71`).
-
-Após a identificação inequívoca da Luz da Mesa Tuya, os quatro testes foram repetidos sobre `light.smart_lampada_wifi_1`:
-
-- Luz correta desligada no início: a condição física falhou e nenhuma ação foi executada (`26b49c76c5e3eb699f1e1479732c19c8`).
-- Cancelamento pela simulação: a graça foi interrompida com 12,87 segundos restantes, a execução foi abortada antes de `light.turn_off` e a luz correta permaneceu ligada (`620ce693594953c944c2ca6b882412a6`).
-- Desligamento válido: o timeout de 15 segundos terminou, as quatro revalidações foram aprovadas e houve exatamente um `light.turn_off` com alvo `light.smart_lampada_wifi_1` (`63c75ab8b7708c2f22e6b1bf1a35af23`).
-- Cancelamento pelo harness: a graça foi interrompida com 12,89 segundos restantes, a execução foi abortada antes de `light.turn_off` e ambas as luzes permaneceram ligadas (`fd618aa47cfd093134732a2079cbb608`).
-
-O Logbook registrou os três inícios aplicáveis e somente uma conclusão, vinculados à entidade correta. O histórico de `light.luz_led_mesa` não apresentou transição durante os Testes 2 e 3; no Teste 4 ela permaneceu ligada, com o mesmo `last_changed` anterior ao teste. Nenhuma das quatro automações legadas associadas à Luz da Mesa disparou durante a homologação e não foram encontrados erros de sistema relacionados à V20.2C.
-
-Estado final: harness e simulação desligados, nenhuma execução pendente, Luz da Mesa e Luz LED da Mesa ligadas conforme preparação manual do operador. O C1.1 está homologado sobre o alvo físico correto; a evidência anterior permanece preservada apenas como validação histórica do mecanismo no alvo incorreto.
-
-## C1.2 — Alerta de Porta Aberta após Saída Simulada
-
-### Diagnóstico e contratos
-
-A Porta da Sala é representada por `binary_sensor.sensor_porta_sala_contact`: sensor Aqara “Door and window sensor”, integração Zigbee2MQTT/MQTT, área Sala de Estar. O estado `off` representa porta fechada e `on`, porta aberta. O alias V20 `sensor.casa_porta_sala_estado_v20` confirma a mesma fonte física, mas o C1.2 consulta diretamente o `binary_sensor` para não depender de transformação textual.
-
-O serviço oficial de push carregado é `notify.mobile_app_iphonewm`, já utilizado pelo publicador canônico V20.1O e pelos alertas contextuais vigentes. O C1.2 não altera nem reutiliza o gatilho de nenhuma automação legada da porta.
-
-### Fluxo controlado
-
-A automação `v20_2c_saida_teste_alertar_porta_aberta` é disparada exclusivamente pela transição de `binary_sensor.casa_efetivamente_vazia` produzida pelo harness. Ela exige harness e simulação ligados, aguarda o mesmo `input_number.teste_v20_2_tempo_graca_saida`, cancela se a saída simulada for desfeita e revalida harness, simulação, sensor efetivo e porta física ao fim da graça.
-
-Somente se a porta estiver `on` após todas as revalidações são emitidos um registro no Logbook e um push de teste. A automação não abre, fecha ou altera a porta, não modifica presença real e não executa ação sobre luz, tomada ou outro dispositivo.
-
-### Critérios de aceite e homologação
-
-- Porta fechada ao fim da graça: nenhum Logbook C1.2 e nenhum push.
-- Saída simulada cancelada durante a graça: nenhum Logbook C1.2 e nenhum push, mesmo com a porta aberta.
-- Porta aberta e saída simulada mantida durante toda a graça: exatamente um Logbook e um push de teste.
-- Cancelamento pelo harness: nenhum Logbook C1.2 e nenhum push.
-- As automações legadas permanecem inalteradas; seus disparos decorrentes da abertura física devem ser registrados separadamente como concorrência esperada.
-- Ao final, harness e simulação devem permanecer desligados, sem execução pendente.
-
-### Procedimento de teste e rollback
-
-Cada abertura ou fechamento da porta deve ser realizado manualmente pelo operador após solicitação explícita. O agente não altera o estado físico nem simula a entidade da porta. Os cenários devem registrar estado inicial/final, trace, Logbook, push, automações concorrentes e erros.
-
-Para rollback operacional, desligar os dois helpers e confirmar execução pendente igual a zero. Para rollback de código, reverter exclusivamente o commit do C1.2 e efetuar reload oficial de automações; nenhuma automação legada deve ser alterada.
-
-### Homologação C1.2 — 2026-08-05
-
-- Porta fechada ao fim da graça: execução interrompida na condição física, sem Logbook ou push C1.2 (`5d9bce5b6a189c9cbbecb771d99ec62e`).
-- Cancelamento pela simulação com a porta aberta: execução abortada antes das ações, sem Logbook ou push C1.2 (`c32b50f54843ed8a230fc6e99366e4b3`).
-- Porta aberta durante toda a graça: quatro revalidações aprovadas, um Logbook e exatamente uma chamada a `notify.mobile_app_iphonewm` (`46a0f352316a4d974af07494c73847fe`). O operador confirmou o recebimento do push no dispositivo.
-- Cancelamento pelo harness com a porta aberta: execução abortada antes das ações e nenhum alerta adicional (`3f43023e94173dfb178bc326d8911ada`).
-
-A abertura física disparou somente a concorrência legada esperada `automation.central_porta_sala_contextual_v2`; `automation.sala_porta_da_sala_abriu` permaneceu desligada. Não foram encontrados erros relacionados ao C1.2. Estado final: porta fechada, harness e simulação desligados, Luz da Mesa desligada e nenhuma execução pendente.
-
-O C1.2 está homologado exclusivamente no harness de saída simulada. Presença real e mudanças nas automações legadas continuam fora de escopo.
+Para rollback operacional, desligar harness e simulação e confirmar ausência de execução pendente. Para rollback de código, reverter somente o commit corretivo e recarregar template, helpers e automações em janela controlada. Não alterar automações legadas.
