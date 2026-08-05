@@ -29,9 +29,8 @@ input_number:
 
 template:
   - binary_sensor:
-      # O unique_id legado é preservado para evitar entidade órfã no registry.
       - name: Wilson Ausente de Casa
-        unique_id: casa_efetivamente_vazia
+        unique_id: wilson_ausente_de_casa
         icon: mdi:account-arrow-right-outline
         state: >
           {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
@@ -83,7 +82,7 @@ automation:
 
     trigger:
       - platform: state
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         from: "off"
         to: "on"
 
@@ -101,7 +100,7 @@ automation:
           name: V20.2C — Laboratório
           message: >-
             🧪 V20.2C — Saída simulada detectada. Nenhuma ação física foi executada.
-          entity_id: binary_sensor.casa_efetivamente_vazia
+          entity_id: binary_sensor.wilson_ausente_de_casa
 
   - id: v20_2c_saida_teste_desligar_luz_mesa
     alias: V20.2C — Monitoramento — Desligar Luz da Mesa após Saída
@@ -112,14 +111,14 @@ automation:
 
     trigger:
       - platform: state
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         from: "off"
         to: "on"
 
     condition:
       - condition: state
         alias: Ausência de Wilson autorizada
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         state: "on"
       - condition: state
         entity_id: light.smart_lampada_wifi_1
@@ -135,7 +134,7 @@ automation:
 
       - wait_for_trigger:
           - platform: state
-            entity_id: binary_sensor.casa_efetivamente_vazia
+            entity_id: binary_sensor.wilson_ausente_de_casa
             to: "off"
         timeout:
           seconds: >-
@@ -147,7 +146,7 @@ automation:
         value_template: "{{ not wait.completed }}"
       - condition: state
         alias: Ausência de Wilson ainda autorizada
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         state: "on"
       - condition: state
         entity_id: light.smart_lampada_wifi_1
@@ -173,20 +172,20 @@ automation:
 
     trigger:
       - platform: state
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         from: "off"
         to: "on"
 
     condition:
       - condition: state
         alias: Ausência de Wilson autorizada
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         state: "on"
 
     action:
       - wait_for_trigger:
           - platform: state
-            entity_id: binary_sensor.casa_efetivamente_vazia
+            entity_id: binary_sensor.wilson_ausente_de_casa
             to: "off"
         timeout:
           seconds: >-
@@ -198,7 +197,7 @@ automation:
         value_template: "{{ not wait.completed }}"
       - condition: state
         alias: Ausência de Wilson ainda autorizada
-        entity_id: binary_sensor.casa_efetivamente_vazia
+        entity_id: binary_sensor.wilson_ausente_de_casa
         state: "on"
       - condition: state
         entity_id: binary_sensor.sensor_porta_sala_contact

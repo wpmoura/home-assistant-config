@@ -14,7 +14,7 @@ O tracker selecionado por `person.wmoura` é `device_tracker.iphone69`, fornecid
 
 O helper de simulação é `input_boolean.teste_v20_2_simular_wilson_ausente`. Quando `input_boolean.teste_v20_2_harness_ativo` está ligado, ele controla o fluxo. Com o harness desligado, somente `person.wmoura` controla o fluxo real.
 
-O Entity ID `binary_sensor.casa_efetivamente_vazia` é mantido temporariamente por compatibilidade com o registry e com os traces já produzidos. Seu nome amigável passa a ser “Wilson Ausente de Casa”, e sua semântica é exclusivamente a ausência de Wilson. Uma troca imediata do `unique_id` criaria risco de entidade órfã e referências quebradas.
+O único sensor oficial do C1 é `binary_sensor.wilson_ausente_de_casa`, com nome amigável “Wilson Ausente de Casa” e `unique_id: wilson_ausente_de_casa`. Como a V20.2C ainda permanece em branch isolada, sua identidade foi consolidada antes da integração, sem alias, espelho ou contrato de compatibilidade.
 
 ```text
 Harness ON  → simulação controla Wilson Ausente de Casa
