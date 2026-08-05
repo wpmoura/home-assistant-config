@@ -153,3 +153,69 @@ automation:
           message: >-
             🧪 V20.2C — Luz da mesa desligada após tempo de graça.
           entity_id: light.smart_lampada_wifi_1
+
+  - id: v20_2c_saida_teste_alertar_porta_aberta
+    alias: V20.2C — Teste — Alertar Porta Aberta após Saída
+    description: >-
+      Alerta sobre a Porta da Sala aberta após a graça, exclusivamente durante
+      uma saída simulada pelo harness da V20.2C.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.casa_efetivamente_vazia
+        from: "off"
+        to: "on"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_harness_ativo
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        state: "on"
+
+    action:
+      - wait_for_trigger:
+          - platform: state
+            entity_id: input_boolean.teste_v20_2_harness_ativo
+            to: "off"
+          - platform: state
+            entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+            to: "off"
+          - platform: state
+            entity_id: binary_sensor.casa_efetivamente_vazia
+            to: "off"
+        timeout:
+          seconds: >-
+            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
+        continue_on_timeout: true
+
+      - condition: template
+        alias: Tempo de graça concluído sem cancelamento
+        value_template: "{{ not wait.completed }}"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_harness_ativo
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.teste_v20_2_simular_casa_vazia
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.casa_efetivamente_vazia
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.sensor_porta_sala_contact
+        state: "on"
+
+      - service: logbook.log
+        data:
+          name: V20.2C — Teste de Saída
+          message: >-
+            🧪 V20.2C — Porta da Sala permaneceu aberta após a saída simulada.
+          entity_id: binary_sensor.sensor_porta_sala_contact
+
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: "🧪 V20.2C — Saída Simulada"
+          message: >-
+            ⚠️ Porta da Sala permaneceu aberta após o tempo de graça.

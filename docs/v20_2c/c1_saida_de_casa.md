@@ -81,3 +81,43 @@ Após a identificação inequívoca da Luz da Mesa Tuya, os quatro testes foram 
 O Logbook registrou os três inícios aplicáveis e somente uma conclusão, vinculados à entidade correta. O histórico de `light.luz_led_mesa` não apresentou transição durante os Testes 2 e 3; no Teste 4 ela permaneceu ligada, com o mesmo `last_changed` anterior ao teste. Nenhuma das quatro automações legadas associadas à Luz da Mesa disparou durante a homologação e não foram encontrados erros de sistema relacionados à V20.2C.
 
 Estado final: harness e simulação desligados, nenhuma execução pendente, Luz da Mesa e Luz LED da Mesa ligadas conforme preparação manual do operador. O C1.1 está homologado sobre o alvo físico correto; a evidência anterior permanece preservada apenas como validação histórica do mecanismo no alvo incorreto.
+
+## C1.2 — Alerta de Porta Aberta após Saída Simulada
+
+### Diagnóstico e contratos
+
+A Porta da Sala é representada por `binary_sensor.sensor_porta_sala_contact`: sensor Aqara “Door and window sensor”, integração Zigbee2MQTT/MQTT, área Sala de Estar. O estado `off` representa porta fechada e `on`, porta aberta. O alias V20 `sensor.casa_porta_sala_estado_v20` confirma a mesma fonte física, mas o C1.2 consulta diretamente o `binary_sensor` para não depender de transformação textual.
+
+O serviço oficial de push carregado é `notify.mobile_app_iphonewm`, já utilizado pelo publicador canônico V20.1O e pelos alertas contextuais vigentes. O C1.2 não altera nem reutiliza o gatilho de nenhuma automação legada da porta.
+
+### Fluxo controlado
+
+A automação `v20_2c_saida_teste_alertar_porta_aberta` é disparada exclusivamente pela transição de `binary_sensor.casa_efetivamente_vazia` produzida pelo harness. Ela exige harness e simulação ligados, aguarda o mesmo `input_number.teste_v20_2_tempo_graca_saida`, cancela se a saída simulada for desfeita e revalida harness, simulação, sensor efetivo e porta física ao fim da graça.
+
+Somente se a porta estiver `on` após todas as revalidações são emitidos um registro no Logbook e um push de teste. A automação não abre, fecha ou altera a porta, não modifica presença real e não executa ação sobre luz, tomada ou outro dispositivo.
+
+### Critérios de aceite e homologação
+
+- Porta fechada ao fim da graça: nenhum Logbook C1.2 e nenhum push.
+- Saída simulada cancelada durante a graça: nenhum Logbook C1.2 e nenhum push, mesmo com a porta aberta.
+- Porta aberta e saída simulada mantida durante toda a graça: exatamente um Logbook e um push de teste.
+- Cancelamento pelo harness: nenhum Logbook C1.2 e nenhum push.
+- As automações legadas permanecem inalteradas; seus disparos decorrentes da abertura física devem ser registrados separadamente como concorrência esperada.
+- Ao final, harness e simulação devem permanecer desligados, sem execução pendente.
+
+### Procedimento de teste e rollback
+
+Cada abertura ou fechamento da porta deve ser realizado manualmente pelo operador após solicitação explícita. O agente não altera o estado físico nem simula a entidade da porta. Os cenários devem registrar estado inicial/final, trace, Logbook, push, automações concorrentes e erros.
+
+Para rollback operacional, desligar os dois helpers e confirmar execução pendente igual a zero. Para rollback de código, reverter exclusivamente o commit do C1.2 e efetuar reload oficial de automações; nenhuma automação legada deve ser alterada.
+
+### Homologação C1.2 — 2026-08-05
+
+- Porta fechada ao fim da graça: execução interrompida na condição física, sem Logbook ou push C1.2 (`5d9bce5b6a189c9cbbecb771d99ec62e`).
+- Cancelamento pela simulação com a porta aberta: execução abortada antes das ações, sem Logbook ou push C1.2 (`c32b50f54843ed8a230fc6e99366e4b3`).
+- Porta aberta durante toda a graça: quatro revalidações aprovadas, um Logbook e exatamente uma chamada a `notify.mobile_app_iphonewm` (`46a0f352316a4d974af07494c73847fe`). O operador confirmou o recebimento do push no dispositivo.
+- Cancelamento pelo harness com a porta aberta: execução abortada antes das ações e nenhum alerta adicional (`3f43023e94173dfb178bc326d8911ada`).
+
+A abertura física disparou somente a concorrência legada esperada `automation.central_porta_sala_contextual_v2`; `automation.sala_porta_da_sala_abriu` permaneceu desligada. Não foram encontrados erros relacionados ao C1.2. Estado final: porta fechada, harness e simulação desligados, Luz da Mesa desligada e nenhuma execução pendente.
+
+O C1.2 está homologado exclusivamente no harness de saída simulada. Presença real e mudanças nas automações legadas continuam fora de escopo.
