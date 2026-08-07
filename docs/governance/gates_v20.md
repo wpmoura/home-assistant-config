@@ -133,7 +133,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 
 ## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
 
-Status documental: I1/I2/I2A/I3A HOMOLOGADOS; I3B PROMOÇÃO OPERACIONAL PENDENTE
+Status documental: I1/I2/I2A/I3A/I3B HOMOLOGADOS; CONSUMIDORES PERMANECEM PENDENTES
 
 Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
 
@@ -238,7 +238,29 @@ Gate V20.2C-I3A — **STATUS: HOMOLOGADO**:
 
 O Gate I3A está encerrado e não deve acumular novas mudanças. Permanecem abertos somente itens de promoção produtiva, consumidores e rollback operacional pertencentes a Gates posteriores.
 
-Próximo Gate autorizado: **V20.2C-I3B — Promoção Operacional**, limitado a substituir `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e executar homologação operacional controlada. Nenhuma outra alteração arquitetural, funcional ou de consumidor está autorizada por este registro.
+O Gate seguinte ao I3A foi o **V20.2C-I3B — Promoção Operacional**, limitado à substituição de `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e à homologação operacional controlada. Sua conclusão está registrada abaixo.
+
+### Gate V20.2C-I3B — Promoção Operacional
+
+**STATUS: HOMOLOGADO**
+
+- [x] Commit funcional `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37` alterou exclusivamente quatro valores I1 de `test_mode: true` para `test_mode: false` no dispatcher homologado.
+- [x] Parser YAML, `homeassistant.check_config`, `git diff --check` e reload parcial de automações aprovados.
+- [x] Um único ciclo operacional controlado foi executado pelo Harness, sem alterar `person.wmoura` ou o helper de graça.
+- [x] Sessão única `37c7be2f-4da1-46b4-8a4d-217ce73f4d14` preservada nos quatro eventos.
+- [x] `wilson_left_home`: request `9e57d3e1-977e-4a54-8d3c-9197c66da8aa`, ACK `published` em `2026-08-07T07:48:41.974521-03:00`.
+- [x] `remote_monitoring_started`: request `3ee45057-30f2-46f8-8b61-5e7c10ced008`, ACK `published` em `2026-08-07T07:48:42.352951-03:00`.
+- [x] `wilson_arrived_home`: request `b2b3d3d0-7e9a-4ce9-89f8-be08897ece62`, ACK `published` em `2026-08-07T07:49:19.462676-03:00`.
+- [x] `remote_monitoring_ended`: request `8751c680-69a9-4e47-82ab-79c364f8105d`, ACK `published` em `2026-08-07T07:49:19.846991-03:00`.
+- [x] Timeline e Event Feed persistiram os quatro textos oficiais na ordem causal; origem e IDs foram preservados no ledger canônico V20.1O.
+- [x] CSMR terminou `idle`, sem reserva e com a sessão arquivada em `last_session_id`.
+- [x] Reload pós-ciclo preservou quatro registros no ledger e não republicou nenhum evento.
+- [x] Permanência contínua não gerou nova sessão ou publicação; traces de saída e retorno terminaram sem erro.
+- [x] C1.1, C1.2 e C1.3 mantiveram estado, `last_triggered` e ausência de execução pelo dispatcher.
+- [x] Protect cozinha/quarto permaneceram em `detections`; Recovery 4G automático permaneceu `on`.
+- [x] V20.1Q, contrato I1, estado I2/I2A, dashboards, presença, helper de graça e consumidores não foram modificados.
+
+O I3B encerra somente a promoção produtiva dos quatro eventos. Integração de C1.x, UniFi Protect e qualquer consumidor futuro continua bloqueada até Gate próprio. Rollback funcional: reverter `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37`, validar configuração e recarregar automações; os quatro fatos já publicados permanecem como histórico legítimo do ciclo homologado e não exigem edição da Timeline.
 
 ## Gates especificos - V20.1Q Recovery 4G
 

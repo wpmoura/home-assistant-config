@@ -1,5 +1,25 @@
 # Changelog
 
+## [v20.2c-i3b-promocao-operacional] - 2026-08-07
+
+### Changed
+
+- As quatro chamadas I1 do dispatcher CSMR foram promovidas de `test_mode: true` para `test_mode: false`, sem qualquer outra mudança funcional.
+
+### Validated
+
+- Ciclo produtivo único publicado pela V20.1O com sessão `37c7be2f-4da1-46b4-8a4d-217ce73f4d14` e ACK `published` para `wilson_left_home`, `remote_monitoring_started`, `wilson_arrived_home` e `remote_monitoring_ended`.
+- Timeline e Event Feed registraram os quatro textos oficiais na ordem correta; cada evento usou request ID distinto e a mesma sessão.
+- Reload parcial pós-ciclo não republicou eventos, não reabriu sessão e preservou o ledger produtivo.
+- Parser YAML, `homeassistant.check_config`, traces e `git diff --check` aprovados.
+
+### Notes
+
+- Commit funcional: `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37`.
+- CSMR terminou `idle`, sem reserva; presença permaneceu `home`.
+- V20.1Q, Recovery 4G, contrato I1, I2/I2A, C1.x, UniFi Protect, dashboards e helper de graça permaneceram inalterados.
+- Consumidores continuam fora do escopo e dependem de Gates próprios.
+
 ## [v20.2c-i3a-integracao-logica-homologada] - 2026-08-07
 
 ### Added
