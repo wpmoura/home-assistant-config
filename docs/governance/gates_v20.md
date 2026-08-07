@@ -291,9 +291,17 @@ O projeto distingue formalmente **Homologação Técnica** de **Evidência Opera
 
 ### Gate V20.2C-I4B.1 — Promoção Operacional Controlada
 
-**STATUS: EM EXECUÇÃO**
+**STATUS: HOMOLOGADO**
 
 Esta etapa valida exclusivamente pelo Harness homologado o runtime produtivo, dispatcher, Timeline, CSMR, consumidores C1.1/C1.2/C1.3, publicação, autorização temporal, push, D1, reload, rollback, ausência de duplicidade e proteção dos componentes. Não altera código funcional.
+
+- [x] Graça, abertura, publicação canônica e sessão `active` observadas pelo Harness Dispatcher.
+- [x] C1.1 e C1.3 executaram uma vez; C1.2 executou uma vez após a fronteira temporal.
+- [x] Retorno elevou o bloqueio, encerrou a sessão e invalidou a fronteira.
+- [x] Porta pós-retorno não acionou consumidor.
+- [x] Reloads HTTP 200 não reabriram sessão nem produziram evento retroativo.
+- [x] Resíduo de `cycle_id` foi reconciliado por checkpoint `idle`, sem publicação ou alteração funcional.
+- [x] Estado final seguro e componentes protegidos inalterados.
 
 ### Gate V20.2C-I4B.2 — Evidência Operacional
 

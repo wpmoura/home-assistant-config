@@ -832,3 +832,7 @@ O I4B é reestruturado em duas etapas:
 - **I4B.2 — Evidência Operacional:** registro do primeiro ciclo físico real `home → not_home → home`, sem correções durante a coleta. Comportamento inesperado abre Gate corretivo próprio.
 
 I4B.1 libera a evolução do Roadmap após aprovação. I4B.2 fica `PENDENTE DE EVIDÊNCIA OPERACIONAL` e não bloqueia I5, I6, consumidores futuros ou UniFi Protect. Hardware ou integrações sem Harness equivalente continuam sujeitos a validação física obrigatória.
+
+### Homologação I4B.1
+
+Em 2026-08-07, o Harness Dispatcher percorreu graça, abertura, publicação canônica, sessão `active`, autorização temporal e encerramento. O ciclo usou `session_id=739eb841-6033-48b0-8907-ba27c1459b43`; C1.1 e C1.3 executaram uma vez na autorização e C1.2 uma vez após `occurred_at` posterior à fronteira. O retorno invalidou a fronteira, terminou em `idle` e a porta pós-retorno não acionou C1.2. Reloads parciais retornaram HTTP 200 sem reabertura ou evento retroativo. Um `cycle_id` residual foi reconciliado por checkpoint `idle`, sem publicação ou alteração funcional. Estado final: CSMR/dispatcher `idle`, `return_pending=off`, fronteira inválida e IDs vazios. I4B.1 está HOMOLOGADO; I4B.2 permanece PENDENTE DE EVIDÊNCIA OPERACIONAL.

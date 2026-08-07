@@ -24,7 +24,7 @@ Continuam pendentes a promoção operacional real dos consumidores, a validaçã
 
 O despacho V20.2C-A2 estabelece que Homologação Técnica e Evidência Operacional são etapas distintas. A Homologação Técnica valida arquitetura, implementação, runtime, contratos, estados, concorrência, persistência, consumidores, publicação, rollback, recovery e reload; quando o Harness reproduz integralmente esses contratos, ela pode ser concluída sem aguardar oportunidade física. A Evidência Operacional registra posteriormente a observação natural em produção e não altera código, arquitetura ou runtime.
 
-Aplicação imediata: o Gate V20.2C-I4B foi dividido em I4B.1 — Promoção Operacional Controlada por Harness — e I4B.2 — Evidência Operacional do primeiro ciclo físico real. I4B.1 libera o roadmap após homologação técnica; I4B.2 permanece pendente e não bloqueia I5, I6, consumidores futuros ou UniFi Protect. Se hardware ou integração não forem reproduzíveis por Harness, o Gate correspondente continuará exigindo evidência física.
+Aplicação imediata: o Gate V20.2C-I4B foi dividido em I4B.1 — Promoção Operacional Controlada por Harness — e I4B.2 — Evidência Operacional do primeiro ciclo físico real. I4B.1 foi homologado em 2026-08-07 pelo Harness Dispatcher, incluindo sessão ativa, consumidores, retorno, D1, reload e bloqueio pós-retorno. I4B.2 permanece pendente e não bloqueia I5, I6, consumidores futuros ou UniFi Protect. Se hardware ou integração não forem reproduzíveis por Harness, o Gate correspondente continuará exigindo evidência física.
 
 ## Plano técnico restrito
 

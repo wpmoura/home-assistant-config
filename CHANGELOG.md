@@ -444,3 +444,9 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Despacho V20.2C-A2 introduz a distinção entre Homologação Técnica por Harness e Evidência Operacional natural.
 - Gate I4B dividido em I4B.1 (Promoção Operacional Controlada) e I4B.2 (Evidência Operacional), sem alteração funcional.
 - I4B.1 pode liberar o Roadmap após homologação técnica; I4B.2 permanece pendente de oportunidade física e não bloqueia I5, I6, consumidores futuros ou UniFi Protect.
+## [v20.2c-i4b1-controlled-promotion] - 2026-08-07
+
+- V20.2C-I4B.1 homologado por Harness Dispatcher: graça, abertura, publicação canônica, sessão ativa, autorização temporal, C1.1, C1.2, C1.3, retorno, D1 e reload.
+- C1.1/C1.3 executaram uma vez; C1.2 executou uma vez após `occurred_at > consumer_authorized_since`; porta pós-retorno não gerou push.
+- Estado final reconciliado: CSMR/dispatcher `idle`, `return_pending=off`, fronteira inválida e IDs vazios. I4B.2 permanece pendente de evidência operacional física.
+- Nenhum código funcional foi alterado durante I4B.1; Protect, Recovery, I1, I2/I2A e pessoa permaneceram fora do escopo funcional.
