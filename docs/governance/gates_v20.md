@@ -283,7 +283,23 @@ O Gate I4A fechou a integração temporal dos consumidores pelo commit funcional
 
 Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
 
-Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B**.
+Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B.1**.
+
+### Despacho V20.2C-A2 — Governança de homologação
+
+O projeto distingue formalmente **Homologação Técnica** de **Evidência Operacional**. Homologação Técnica pode usar Harness quando ele reproduz integralmente contratos funcionais, transacionais, estados, concorrência, idempotência, rollback, recovery, reload, consumidores e efeitos esperados. Evidência Operacional é apenas a observação natural posterior em produção; sua ausência não bloqueia o Roadmap. Hardware ou integração sem Harness equivalente permanece sujeito a Gate físico.
+
+### Gate V20.2C-I4B.1 — Promoção Operacional Controlada
+
+**STATUS: EM EXECUÇÃO**
+
+Esta etapa valida exclusivamente pelo Harness homologado o runtime produtivo, dispatcher, Timeline, CSMR, consumidores C1.1/C1.2/C1.3, publicação, autorização temporal, push, D1, reload, rollback, ausência de duplicidade e proteção dos componentes. Não altera código funcional.
+
+### Gate V20.2C-I4B.2 — Evidência Operacional
+
+**STATUS: PENDENTE DE EVIDÊNCIA OPERACIONAL**
+
+Esta etapa registrará o primeiro ciclo físico natural `home → not_home → home`, coletando traces, Timeline, Event Feed, ACKs, `session_id`, `request_id`, estados, consumidores, push e encerramento. Nenhuma correção será feita durante a coleta; comportamento inesperado exigirá Gate corretivo. I4B.2 não bloqueia I5, I6, consumidores futuros ou UniFi Protect após I4B.1 homologado.
 
 ## Gates especificos - V20.1Q Recovery 4G
 

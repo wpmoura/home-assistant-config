@@ -821,3 +821,14 @@ Sessões observadas na homologação I3A incluíram `15fb53f7-23f2-4fbf-8571-441
 Timeline e Event Feed produtivos não receberam os quatro textos; somente o ledger técnico I1 foi atualizado. V20.1Q, Recovery 4G, C1.1, C1.2, C1.3, UniFi Protect, dashboards e `person.wmoura` não foram modificados. Nenhum consumidor foi conectado ou executado.
 
 Permanecem fora do I3A: publicação produtiva, promoção operacional, C1.1, C1.2, C1.3, UniFi Protect e consumidores futuros. O próximo Gate autorizado é exclusivamente V20.2C-I3B, limitado à troca de `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e à homologação operacional controlada, sem outra alteração arquitetural ou funcional.
+
+## 27. V20.2C-A2 — Governança de homologação
+
+O despacho A2 institui a distinção permanente entre **Homologação Técnica** e **Evidência Operacional**. A primeira valida os contratos equivalentes por Harness, incluindo runtime, estados, concorrência, persistência, consumidores, publicação, rollback, recovery e reload. A segunda observa o comportamento natural em produção, sem alterar implementação; sua ausência não bloqueia o Roadmap quando a equivalência técnica estiver comprovada.
+
+O I4B é reestruturado em duas etapas:
+
+- **I4B.1 — Promoção Operacional Controlada:** homologação técnica pelo Harness dos consumidores, dispatcher, CSMR, Timeline, publicação, autorização, push, D1, reload, rollback e proteção dos componentes.
+- **I4B.2 — Evidência Operacional:** registro do primeiro ciclo físico real `home → not_home → home`, sem correções durante a coleta. Comportamento inesperado abre Gate corretivo próprio.
+
+I4B.1 libera a evolução do Roadmap após aprovação. I4B.2 fica `PENDENTE DE EVIDÊNCIA OPERACIONAL` e não bloqueia I5, I6, consumidores futuros ou UniFi Protect. Hardware ou integrações sem Harness equivalente continuam sujeitos a validação física obrigatória.

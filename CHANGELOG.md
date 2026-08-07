@@ -439,3 +439,8 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Starting, Ending, Failed, D1, Active nominal e reload com `return_pending=true` foram homologados sem consumidor indevido ou duplicação.
 - Nenhum restart ou componente protegido foi alterado. Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
 - Permanecem pendentes a promoção operacional real dos consumidores, ciclo real de saída/retorno, UniFi Protect e consumidores futuros. Próximo Gate: V20.2C-I4B.
+## [v20.2c-a2-i4b-governance] - 2026-08-07
+
+- Despacho V20.2C-A2 introduz a distinção entre Homologação Técnica por Harness e Evidência Operacional natural.
+- Gate I4B dividido em I4B.1 (Promoção Operacional Controlada) e I4B.2 (Evidência Operacional), sem alteração funcional.
+- I4B.1 pode liberar o Roadmap após homologação técnica; I4B.2 permanece pendente de oportunidade física e não bloqueia I5, I6, consumidores futuros ou UniFi Protect.
