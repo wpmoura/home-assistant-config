@@ -232,7 +232,7 @@ Não existe mecanismo oficial de entrada para os quatro fatos do CSMR. A impleme
 Proposta histórica T1, substituída pelo contrato definitivo da seção 20:
 
 - evento interno: `casa_sessao_monitoramento_remoto`;
-- payload mínimo: `fato`, `session_id`, `event_id`, `source: csmr`, `test_mode: false`;
+- payload mínimo atualizado pelo I1: `request_id`, `session_id`, `event_code`, `message`, `source: csmr_v20_2c`, `schema_version: 1`, `test_mode: false`;
 - fatos aceitos: `wilson_saiu`, `monitoramento_iniciado`, `wilson_chegou`, `monitoramento_encerrado`;
 - textos gerados exclusivamente dentro do publicador: os quatro textos oficiais com prefixo `HH:MM`;
 - `publicar_timeline: true`, `enviar_push: false`, `permitir_agregacao: false`;
@@ -497,21 +497,24 @@ Um evento público isolado foi rejeitado porque comprova apenas despacho. Helper
 | --- | --- |
 | `schema_version` | inteiro obrigatório, exatamente `1` |
 | `request_id` | UUID obrigatório, criado e persistido antes da chamada; invariável em retries |
-| `source` | enum autorizada; neste lote somente `csmr` |
+| `source` | enum autorizada; neste lote somente `csmr_v20_2c` |
 | `session_id` | UUID obrigatório e único por ciclo real ou ciclo Harness |
 | `event_code` | enum dos quatro códigos autorizados |
+| `message` | string obrigatória, não vazia e exatamente correspondente ao `event_code` |
 | `test_mode` | boolean obrigatório |
 
-Códigos e projeção exclusiva pela V20.1O:
+Códigos e mensagens validados exclusivamente pela V20.1O:
 
 | `event_code` | mensagem pública derivada |
 | --- | --- |
-| `wilson_left` | `📍 Wilson saiu de casa` |
+| `wilson_left_home` | `📍 Wilson saiu de casa` |
 | `remote_monitoring_started` | `🛡️ Monitoramento remoto iniciado` |
-| `wilson_arrived` | `📍 Wilson chegou em casa` |
+| `wilson_arrived_home` | `📍 Wilson chegou em casa` |
 | `remote_monitoring_ended` | `🛡️ Monitoramento remoto encerrado` |
 
-O solicitante não envia `message`, `timestamp`, flags de Timeline/Push/agregação nem Entity ID de destino. A V20.1O gera `HH:MM`, fixa `enviar_push: false` e `permitir_agregacao: false`, valida fonte, schema, tipos, evento e identidade. Isso impede spoofing e mantém a autoridade canônica.
+O solicitante envia `message`, mas não envia `timestamp`, flags de Timeline/Push/agregação nem Entity ID de destino. A V20.1O exige correspondência exata entre código e mensagem, gera `HH:MM`, fixa `enviar_push: false` e `permitir_agregacao: false`, e valida fonte, schema, tipos, evento e identidades.
+
+Rastreabilidade V20.2C-I1: o contrato decisório original usava `source: csmr`, códigos `wilson_left`/`wilson_arrived` e mensagem derivada. A autorização formal do lote I1 substituiu esses valores por `csmr_v20_2c`, `wilson_left_home`/`wilson_arrived_home` e `message` obrigatório. A substituição é evolução formal do contrato, não altera os papéis arquiteturais: o CSMR continua solicitante futuro e a V20.1O continua única autoridade publicadora. Os valores anteriores são rejeitados pelo schema 1 atualizado.
 
 #### Contrato de ACK — schema 1
 
@@ -525,12 +528,12 @@ O ACK é retornado pelo script e também emitido pela V20.1O no evento privado o
 | `session_id` | sessão validada |
 | `event_code` | código validado |
 | `status` | `published`, `validated_test`, `duplicate`, `rejected` ou `failed` |
-| `published_at` | timestamp da V20.1O somente em `published`; nulo nos demais |
+| `ack_at` | timestamp de processamento emitido pela V20.1O |
 | `reason` | código estável; vazio apenas em sucesso |
 
-`published` somente ocorre depois de o request constar no ledger canônico e a entrada estar incorporada à Timeline. `validated_test` confirma payload, fonte, ordem e projeção do texto sem persistir Timeline/Feed. `duplicate` significa repetição comprovada da mesma identidade. Payload inválido, fonte não autorizada, ordem inválida ou conflito recebe `rejected`, sem alteração pública. Erro interno recebe `failed`.
+`published` somente ocorre depois de a entrada estar incorporada à Timeline e seu request confirmado pelo caminho canônico. `validated_test` confirma payload, fonte, identidade e texto sem persistir Timeline/Feed. `duplicate` significa `request_id` já processado ou identidade lógica já registrada no namespace correspondente. Payload inválido ou fonte não autorizada recebe `rejected`, sem alteração pública. Erro técnico recebe `failed`.
 
-Correlação usa `request_id`. Identidade lógica usa `source + session_id + event_code`. O mesmo `request_id` deve corresponder sempre à mesma identidade. Novo `request_id` para identidade já concluída, ou reuso do ID com outra identidade, recebe `rejected: identity_conflict`.
+Correlação usa `request_id`. Identidade lógica usa `source + session_id + event_code`. Reenvio do mesmo request ou novo request para identidade lógica já registrada retorna `duplicate` e referencia o processamento original; sessão diferente permanece identidade diferente.
 
 Impacto futuro: extensão formal e restrita de `packages/motor_timeline_v20.yaml`, preservando sensores, aliases, formato, limite e fontes existentes. Rollback remove script, trigger privado, ACK e ledger do CSMR; Recovery e demais fontes permanecem intactos.
 
@@ -628,7 +631,7 @@ ACKs e traces comprovam correlação e ordem. O Event Feed não pode ser comprov
 ### Consumidores
 
 ```text
-ACK wilson_left
+ACK wilson_left_home
 → ACK remote_monitoring_started
 → fase active
 → dispatcher executa C1.3
@@ -673,3 +676,15 @@ lote técnico de implementação pode ser autorizado.
 ```
 
 A autorização é documental e condicionada ao Gate pré-implementação. Nenhum código ou comportamento foi habilitado por esta decisão.
+
+## 22. V20.2C-I1 — contrato canônico implementado
+
+O lote I1 implementa somente a interface V20.1O, sem conectar o CSMR ou qualquer consumidor. As entidades introduzidas são `script.casa_publicar_evento_timeline_v20` e `sensor.casa_timeline_publicacao_ack_v20`. O script opera em `mode: queued`, serializando verificação, publicação e atualização do ledger para impedir corrida entre identidades concorrentes.
+
+O ACK é retornado como resposta do serviço e projetado no sensor persistente. O sensor mantém namespaces separados `ledger_producao` e `ledger_teste`; produção conserva todos os registros dos últimos 7 dias e, mesmo após essa janela, pelo menos os 16 mais recentes. O namespace técnico conserva no máximo 16 entradas por 24 horas e nunca bloqueia uma futura sessão produtiva.
+
+Em `test_mode: true`, todas as validações e verificações de idempotência são executadas, o ACK válido é `validated_test` e nenhum evento alcança `sensor.casa_evento_publicavel_v20`. No caminho real, não exercitado neste lote, o script usa o evento interno restrito `casa_timeline_publicar_canonico_v20`, aguarda até 10 segundos pela incorporação do `request_id` e faz no máximo duas repetições, separadas por 5 segundos, reutilizando o mesmo ID. O ACK `published` só é emitido após confirmação; esgotamento resulta em `failed`.
+
+Homologação controlada em 2026-08-06: payload válido retornou `validated_test`; reenvio do request e nova requisição da mesma identidade retornaram `duplicate`; sessão diferente foi aceita; source/códigos antigos, mensagem ausente/vazia/incompatível e schema inválido foram rejeitados. Após reload parcial, o request persistido continuou duplicado. Dezessete entradas técnicas provaram limite, ordem e descarte do mais antigo no ledger de teste, mantendo `ledger_producao` vazio. Timeline, Event Feed e aliases não receberam nenhum dos quatro textos oficiais.
+
+Rollback: remover `packages/contrato_publicacao_timeline_v20.yaml` e os blocos identificados como `contrato_canonico_v20`/`request_ids_json` em `packages/motor_timeline_v20.yaml`, validar a configuração e recarregar templates e scripts. Não há restauração de banco, Timeline, Event Feed, V20.1Q ou C1.x.

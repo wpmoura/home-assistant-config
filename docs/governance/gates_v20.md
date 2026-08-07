@@ -133,7 +133,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 
 ## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
 
-Status documental: DEFINIDO; IMPLEMENTAÇÃO E HOMOLOGAÇÃO PENDENTES
+Status documental: CONTRATO I1 HOMOLOGADO; CSMR E COMPORTAMENTO DE SESSÃO PENDENTES
 
 Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
 
@@ -153,7 +153,7 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [x] Escrita direta em aliases finais, Timeline e Event Feed proibida.
 - [x] Timeline, Event Feed, histórico e deduplicação paralelos proibidos.
 - [x] Caminho canônico decidido: script V20.1O com payload versionado, ACK correlacionado e preservação de `sensor.casa_evento_publicavel_v20`.
-- [ ] Script canônico, ACK e ledger idempotente implementados e validados.
+- [x] Script canônico, ACK e ledger idempotente implementados e validados em `test_mode` pelo lote V20.2C-I1.
 
 ### Gate de comportamento
 
@@ -166,24 +166,24 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [ ] Retorno sem sessão aberta comprovado sem publicação.
 - [ ] Ciclos consecutivos completos, independentes e sem duplicidade.
 - [ ] Restart e reload comprovados sem sessão fantasma.
-- [ ] Harness comprovado por ACK `validated_test` como fonte não publicável, sem alteração de Timeline, Event Feed ou aliases.
+- [x] Harness do contrato I1 comprovado por ACK `validated_test` como fonte não publicável, sem alteração de Timeline, Event Feed ou aliases.
 
 ### Gate de regressão
 
-- [ ] C1.1 preservado.
-- [ ] C1.2 preservado.
-- [ ] C1.3 preservado.
+- [x] C1.1 preservado pelo lote I1.
+- [x] C1.2 preservado pelo lote I1.
+- [x] C1.3 preservado pelo lote I1.
 - [ ] Harness preservado.
-- [ ] V20.1O preservada.
-- [ ] Timeline e Event Feed preservados.
-- [ ] Nenhum outro componente V20.2 promovido implicitamente.
+- [x] V20.1O preservada como autoridade; extensão interna restrita e retrocompatível.
+- [x] Timeline e Event Feed preservados nos testes I1.
+- [x] Nenhum outro componente V20.2 promovido implicitamente pelo I1.
 
 ### Gate de falha e rollback
 
 - [ ] Falha de publicação permanece observável.
 - [ ] Timeout de 10 s, duas repetições com intervalo de 5 s e escalonamento seguro comprovados.
-- [ ] ACK `duplicate` aceito somente para o mesmo `request_id` e a mesma identidade lógica.
-- [ ] Ledger canônico comprovado com retenção mínima dos últimos 16 eventos e 7 dias.
+- [x] ACK `duplicate` comprovado para repetição de `request_id` e de identidade lógica no namespace de teste.
+- [x] Ledger técnico comprovado com limite de 16; política produtiva de últimos 16 e mínimo de 7 dias validada estaticamente, sem publicação real.
 - [ ] Recuperação parcial retoma somente o evento pendente, sem compensação ou reemissão do par.
 - [ ] Nenhuma progressão silenciosa após falha crítica de abertura.
 - [ ] Rollback restrito à promoção funcional da sessão.

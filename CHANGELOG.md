@@ -1,5 +1,22 @@
 # Changelog
 
+## [v20.2c-i1-contrato-publicacao-canonico] - 2026-08-06
+
+### Added
+
+- `script.casa_publicar_evento_timeline_v20` como entrada canônica V20.1O para payload versionado e source restrita `csmr_v20_2c`.
+- ACK correlacionado em `sensor.casa_timeline_publicacao_ack_v20`, ledger persistente separado entre produção e teste, idempotência por request e identidade lógica, timeout/retry e `test_mode` sem publicação pública.
+
+### Changed
+
+- Motor V20.1O estendido internamente para aceitar somente os quatro códigos autorizados e confirmar publicação por `request_id`, sem alterar aliases ou fontes existentes.
+- Contrato V20.2C evoluído formalmente: `csmr` foi substituído por `csmr_v20_2c`; `wilson_left`/`wilson_arrived` por `wilson_left_home`/`wilson_arrived_home`; `message` passou a ser obrigatório.
+
+### Notes
+
+- Homologação executada exclusivamente com `test_mode: true`; nenhum dos quatro textos foi publicado na Timeline ou Event Feed.
+- CSMR, sessão, dispatcher, C1.1, C1.2, C1.3, V20.1Q e UniFi Protect não foram alterados.
+
 ## [v20.1q-teste3-repeticao-e-revisao-metodologica] - 2026-07-20
 
 ### Added

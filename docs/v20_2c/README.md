@@ -6,11 +6,11 @@ A V20.2C é um lote corretivo da V20 para ativar recursos mínimos de monitorame
 
 O conceito central passa a ser a **Sessão de Monitoramento Remoto**, contrato operacional confirmado e distinto da presença bruta. Seu componente arquitetural oficial é o **Coordenador da Sessão de Monitoramento Remoto (CSMR)**, promovido de forma limitada como motor de coordenação da saída e do retorno de Wilson.
 
-A promoção e as decisões técnicas estão consolidadas documentalmente. O CSMR ainda não foi implementado e a publicação em runtime permanece desabilitada. Um lote técnico de implementação pode ser submetido ao Gate específico.
+A promoção e as decisões técnicas estão consolidadas documentalmente. O CSMR ainda não foi implementado. O lote V20.2C-I1 implementou e homologou isoladamente a interface canônica V20.1O em `test_mode`, sem publicação real nem conexão de consumidores.
 
 ## Plano técnico restrito
 
-O plano V20.2C-T1 está registrado em `plano_tecnico_csmr.md`. A decisão V20.2C-D1 nele incorporada resolve DP-1 a DP-5: script canônico V20.1O, ACK correlacionado, idempotência persistente, retomada de pares parciais, startup conservador e Harness sem persistência pública. A implementação continua inexistente, mas o lote técnico pode ser autorizado sob o Gate.
+O plano V20.2C-T1 está registrado em `plano_tecnico_csmr.md`. A decisão V20.2C-D1 nele incorporada resolve DP-1 a DP-5. O lote I1 criou `script.casa_publicar_evento_timeline_v20`, ACK correlacionado, ledger persistente e `test_mode`; não criou a máquina de estados do CSMR, dispatcher, sessão ou migração C1.x. O contrato vigente exige `source: csmr_v20_2c`, códigos `wilson_left_home`/`wilson_arrived_home` e `message` obrigatório.
 
 ## Relação com a V20.1Q e Git
 
