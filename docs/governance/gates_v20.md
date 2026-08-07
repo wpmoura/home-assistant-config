@@ -133,7 +133,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 
 ## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
 
-Status documental: I1/I2/I2A HOMOLOGADOS; INTEGRAÇÃO REAL I3 PENDENTE
+Status documental: I1/I2/I2A/I3A HOMOLOGADOS; I3B PROMOÇÃO OPERACIONAL PENDENTE
 
 Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
 
@@ -176,15 +176,31 @@ Gate isolado da emenda I2A:
 - [x] Idempotência, concorrência e persistência da reserva comprovadas.
 - [x] Fluxo D1 simulado sem consumidores e sem Timeline produtiva.
 
-- [ ] Cancelamento antes da graça comprovado sem abertura ou evento.
-- [ ] Abertura comprovada exatamente uma vez.
-- [ ] Ordem dos dois eventos de entrada comprovada.
+Gate V20.2C-I3A — **STATUS: HOMOLOGADO**:
+
+- [x] Commit funcional auditado: `b11309bf20985a9385fb7918e82883dff4c8867e`.
+- [x] Integração lógica entre `person.wmoura`, graça, revalidação, dispatcher, reserva I2A, CSMR e I1 comprovada em Harness.
+- [x] Reserva e consumo preservaram um único `session_id`; cada evento recebeu `request_id` próprio.
+- [x] Ciclo nominal concluiu `idle → active → idle` com quatro ACKs `validated_test` correlacionados e ordenados.
+- [x] Retorno durante a graça cancelou sem reserva, sessão ou publicação.
+- [x] Retorno durante `starting` aplicou D1 e concluiu abertura/encerramento na mesma sessão, sem consumidores.
+- [x] Concorrência foi serializada por `mode: queued`; nenhuma sessão ou UUID concorrente foi criado.
+- [x] Reload durante a graça preservou uma única execução e não criou abertura, reserva ou publicação duplicada.
+- [x] Persistência, duplicate, retry, cancelamento de reserva e idempotência foram comprovados pelo conjunto I1/I2/I2A/I3A, sem repetição desnecessária de testes.
+- [x] Timeout/falha de publicação referenciados à homologação I1; falhas de abertura/encerramento e recuperação referenciadas à homologação I2.
+- [x] Parser YAML, `config_check`, reload parcial, traces, ACKs, `git diff --check` e commit foram auditados.
+- [x] Timeline e Event Feed permaneceram sem os quatro eventos produtivos; todas as chamadas I1 usaram `test_mode: true`.
+- [x] V20.1Q, Recovery 4G, C1.x, UniFi Protect, dashboards e consumidores permaneceram inalterados.
+
+- [x] Cancelamento durante a graça comprovado sem abertura ou evento.
+- [x] Abertura lógica comprovada exatamente uma vez em Harness.
+- [x] Ordem dos dois eventos de entrada comprovada por ACKs `validated_test`.
 - [ ] Consumidores liberados somente depois da abertura publicada.
-- [ ] Encerramento comprovado exatamente uma vez.
-- [ ] Ordem dos dois eventos de retorno comprovada.
-- [ ] Retorno sem sessão aberta comprovado sem publicação.
+- [x] Encerramento lógico comprovado exatamente uma vez em Harness.
+- [x] Ordem dos dois eventos de retorno comprovada por ACKs `validated_test`.
+- [x] Retorno sem sessão aberta comprovado sem publicação.
 - [ ] Ciclos consecutivos completos, independentes e sem duplicidade.
-- [ ] Restart e reload comprovados sem sessão fantasma.
+- [x] Reload comprovado sem sessão fantasma; startup/restart conservador permanece coberto pela ausência de trigger e persistência homologada, sem restart físico no I3A.
 - [x] Harness do contrato I1 comprovado por ACK `validated_test` como fonte não publicável, sem alteração de Timeline, Event Feed ou aliases.
 
 ### Gate de regressão
@@ -192,19 +208,19 @@ Gate isolado da emenda I2A:
 - [x] C1.1 preservado pelo lote I1.
 - [x] C1.2 preservado pelo lote I1.
 - [x] C1.3 preservado pelo lote I1.
-- [ ] Harness preservado.
+- [x] Harness preservado.
 - [x] V20.1O preservada como autoridade; extensão interna restrita e retrocompatível.
 - [x] Timeline e Event Feed preservados nos testes I1.
 - [x] Nenhum outro componente V20.2 promovido implicitamente pelo I1.
 
 ### Gate de falha e rollback
 
-- [ ] Falha de publicação permanece observável.
-- [ ] Timeout de 10 s, duas repetições com intervalo de 5 s e escalonamento seguro comprovados.
+- [x] Falha de publicação permanece observável pelo contrato I1 e interrompe encadeamento.
+- [x] Timeout de 10 s, duas repetições com intervalo de 5 s e escalonamento seguro comprovados no I1 e reutilizados sem mecanismo paralelo no I3A.
 - [x] ACK `duplicate` comprovado para repetição de `request_id` e de identidade lógica no namespace de teste.
 - [x] Ledger técnico comprovado com limite de 16; política produtiva de últimos 16 e mínimo de 7 dias validada estaticamente, sem publicação real.
 - [ ] Recuperação parcial retoma somente o evento pendente, sem compensação ou reemissão do par.
-- [ ] Nenhuma progressão silenciosa após falha crítica de abertura.
+- [x] Nenhuma progressão silenciosa após falha crítica de abertura, conforme guards I3A e testes de falha I1/I2.
 - [ ] Rollback restrito à promoção funcional da sessão.
 - [ ] V20.1O permanece funcional após rollback.
 - [ ] Nenhuma execução ou sessão pendente após rollback.
@@ -212,15 +228,17 @@ Gate isolado da emenda I2A:
 
 ### Gate de homologação
 
-- [ ] Parser YAML aprovado.
-- [ ] Validação estática e configuração Home Assistant aprovadas.
-- [ ] Traces e Logbook preservados.
-- [ ] Timeline e Event Feed comprovados.
-- [ ] Ordem, deduplicação e ciclos sucessivos comprovados.
-- [ ] Working tree e commit auditados.
+- [x] Parser YAML aprovado.
+- [x] Validação estática e configuração Home Assistant aprovadas.
+- [x] Traces e ACKs preservados.
+- [x] Timeline e Event Feed comprovados sem publicação produtiva no I3A.
+- [x] Ordem, deduplicação e ciclos lógicos comprovados pelo conjunto I1/I2/I2A/I3A.
+- [x] Working tree e commit funcional auditados.
 - [ ] Homologação real posterior executada somente com coordenação do operador.
 
-Enquanto qualquer item técnico ou de homologação permanecer aberto, a promoção possui efeito arquitetural/documental, mas a implementação e a publicação em runtime continuam bloqueadas.
+O Gate I3A está encerrado e não deve acumular novas mudanças. Permanecem abertos somente itens de promoção produtiva, consumidores e rollback operacional pertencentes a Gates posteriores.
+
+Próximo Gate autorizado: **V20.2C-I3B — Promoção Operacional**, limitado a substituir `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e executar homologação operacional controlada. Nenhuma outra alteração arquitetural, funcional ou de consumidor está autorizada por este registro.
 
 ## Gates especificos - V20.1Q Recovery 4G
 

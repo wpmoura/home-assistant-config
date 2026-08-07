@@ -6,11 +6,15 @@ A V20.2C é um lote corretivo da V20 para ativar recursos mínimos de monitorame
 
 O conceito central passa a ser a **Sessão de Monitoramento Remoto**, contrato operacional confirmado e distinto da presença bruta. Seu componente arquitetural oficial é o **Coordenador da Sessão de Monitoramento Remoto (CSMR)**, promovido de forma limitada como motor de coordenação da saída e do retorno de Wilson.
 
-A promoção e as decisões técnicas estão consolidadas documentalmente. O CSMR operacional completo ainda não foi implementado. O lote V20.2C-I1 implementou e homologou isoladamente a interface canônica V20.1O em `test_mode`, sem publicação real nem conexão de consumidores.
+A promoção e as decisões técnicas estão consolidadas documentalmente. O CSMR operacional completo ainda não foi promovido. O lote V20.2C-I1 implementou e homologou isoladamente a interface canônica V20.1O em `test_mode`, sem publicação real nem conexão de consumidores.
 
 O lote V20.2C-I2 implementou a fundação transacional isolada do CSMR: estados `idle`, `starting`, `active`, `ending` e `failed`, UUID de sessão, idempotência por comando, checkpoint persistente, serialização e recuperação explícita. O componente permanece restrito ao Harness; presença, publicação e C1.x continuam desconectados.
 
 A emenda V20.2C-I2A autoriza reserva prévia do `session_id` pelo próprio CSMR e a origem produtiva fechada `csmr_dispatcher_v20_2c`. Durante a emenda, ambos permanecem isolados de presença e Timeline. Retorno após saída já publicada preserva D1: concluir abertura sem consumidores e encerrar imediatamente a mesma sessão.
+
+O Gate V20.2C-I3A foi homologado em 2026-08-07 pelo commit funcional `b11309bf20985a9385fb7918e82883dff4c8867e`. O dispatcher integra `person.wmoura`, a graça existente, revalidação, reserva/consumo do CSMR e o contrato I1 exclusivamente em `test_mode: true`. Ciclo nominal, cancelamento durante a graça, concorrência/D1, reload, correlação de ACKs e identidade única de sessão foram comprovados sem publicação produtiva ou consumidores.
+
+O próximo Gate autorizado é exclusivamente **V20.2C-I3B — Promoção Operacional**: alterar as quatro chamadas I1 de `test_mode: true` para `test_mode: false` e executar homologação operacional controlada, sem mudança arquitetural ou funcional adicional.
 
 ## Plano técnico restrito
 

@@ -1,7 +1,7 @@
 # V20.2C-T1 — Plano Técnico Restrito do CSMR
 
 Data: 2026-08-06
-Status: PLANEJADO; DECISÕES DP-1 A DP-5 RESOLVIDAS; IMPLEMENTAÇÃO AINDA NÃO EXECUTADA
+Status: I1, I2, I2A E I3A HOMOLOGADOS; PUBLICAÇÃO PRODUTIVA E CONSUMIDORES PENDENTES
 Classificação: plano técnico auxiliar, subordinado à arquitetura e ao Gate V20.2C
 Documento pai/índice: `docs/v20_2c/README.md`
 
@@ -763,3 +763,31 @@ Em 2026-08-06, `reserve` manteve `idle` e criou UUID persistente; reenvio devolv
 A origem `csmr_dispatcher_v20_2c` com `test_mode: false` foi aceita exclusivamente no estado transacional, sem I1 ou Timeline. Origem externa, combinação de modo incorreta, UUID divergente, `open` produtivo sem reserva e simulação de falha produtiva foram rejeitados. O `open` consumiu exatamente o UUID reservado e `close` arquivou a mesma sessão.
 
 O Harness legado sem `source` continuou operando como `harness_i2`, incluindo geração interna, fechamento, falha simulada e recuperação. Na simulação D1, `close` chegou enquanto `open` estava em `starting`; `mode: queued` concluiu `active` e depois `idle` com o mesmo UUID. Nenhuma Timeline, presença, ação C1.x ou dispositivo participou do teste.
+
+## 25. V20.2C-I3A — integração lógica homologada
+
+O I3A integra a presença oficial `person.wmoura`, o helper existente `input_number.teste_v20_2_tempo_graca_saida`, o dispatcher, a reserva I2A, o estado transacional e o contrato I1. A implementação funcional está no commit `b11309bf20985a9385fb7918e82883dff4c8867e`, em `packages/csmr_dispatcher_integracao_v20_2c.yaml`.
+
+Todas as quatro chamadas ao I1 permanecem em `test_mode: true`. As chamadas internas `reserve`, `open`, `close` e `cancel_reservation` usam a origem fechada `csmr_dispatcher_v20_2c`; isso movimenta somente o checkpoint transacional e não autoriza publicação produtiva.
+
+### Evidências homologadas
+
+| Cenário | Evidência e resultado |
+| --- | --- |
+| ciclo nominal | graça de 15 s, reserva, consumo, `active`, retorno e `idle`; quatro ACKs `validated_test` em ordem |
+| identidade | um `session_id` por ciclo; `request_id` próprio e determinístico por evento |
+| retorno durante graça | `cancelled_during_grace`; sem reserva, sessão ou novo ACK I1 |
+| retorno durante `starting` / D1 | fila `queued` concluiu abertura e encerramento; quatro ACKs ordenados na mesma sessão; nenhum consumidor |
+| reload durante graça | execução original preservada uma única vez; nenhuma nova reserva/sessão ou republicação; encerramento controlado posterior |
+| reload com sessão/checkpoint | I2/I2A já comprovaram persistência de sessão/reserva; I3A não criou sessão fantasma nem trigger de startup |
+| duplicate, retry e idempotência | contrato I1 comprovou `duplicate`, timeout de 10 s e até duas repetições de 5 s com o mesmo request; I2/I2A comprovaram reenvio e reserva idempotentes |
+| concorrência e cancelamento de reserva | serialização I2/I2A preservada; I3A serializou saída/retorno e manteve um único UUID |
+| falhas | I1 comprovou rejeição/falha sem progressão; I2 comprovou falhas simuladas de abertura/encerramento e recuperação explícita |
+
+Sessões observadas na homologação I3A incluíram `15fb53f7-23f2-4fbf-8571-441f9cb98d0c` no ciclo nominal e `9892bf79-46fb-49ba-8e98-a890e39c5dab` no cenário D1. Em ambos, os eventos mantiveram o mesmo UUID durante todo o ciclo e request IDs distintos.
+
+### Ausência de impacto e limites
+
+Timeline e Event Feed produtivos não receberam os quatro textos; somente o ledger técnico I1 foi atualizado. V20.1Q, Recovery 4G, C1.1, C1.2, C1.3, UniFi Protect, dashboards e `person.wmoura` não foram modificados. Nenhum consumidor foi conectado ou executado.
+
+Permanecem fora do I3A: publicação produtiva, promoção operacional, C1.1, C1.2, C1.3, UniFi Protect e consumidores futuros. O próximo Gate autorizado é exclusivamente V20.2C-I3B, limitado à troca de `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e à homologação operacional controlada, sem outra alteração arquitetural ou funcional.

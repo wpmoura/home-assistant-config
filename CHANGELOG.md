@@ -1,5 +1,26 @@
 # Changelog
 
+## [v20.2c-i3a-integracao-logica-homologada] - 2026-08-07
+
+### Added
+
+- Dispatcher lógico integrando presença oficial, graça, revalidação, reserva I2A, estado CSMR e contrato I1 em Harness.
+- Observabilidade do ciclo, sessão, request IDs e ACKs no `sensor.casa_csmr_dispatcher_estado_v20_2c`.
+
+### Validated
+
+- Ciclo nominal, retorno durante graça, política D1 durante `starting`, concorrência e reload com um único `session_id` por ciclo.
+- Quatro ACKs `validated_test` correlacionados e ordenados, com `request_id` distinto por evento.
+- Timeout/retry/falha de publicação referenciados ao I1; duplicate, reserva, falhas transacionais e recuperação referenciados ao I2/I2A.
+- Parser YAML, `config_check`, reload parcial, traces e `git diff --check` aprovados.
+
+### Notes
+
+- Commit funcional homologado: `b11309bf20985a9385fb7918e82883dff4c8867e`.
+- Nenhuma publicação produtiva ocorreu; Timeline e Event Feed não receberam os quatro textos CSMR.
+- V20.1Q, Recovery 4G, C1.x, UniFi Protect, dashboards e consumidores permaneceram inalterados.
+- Próximo Gate autorizado: V20.2C-I3B, exclusivamente para promover as quatro chamadas I1 de `test_mode: true` para `test_mode: false` e homologar operacionalmente.
+
 ## [v20.2c-i2a-reserva-operacional-csmr] - 2026-08-06
 
 ### Added
