@@ -1,5 +1,5 @@
 ###############################################################################
-# V20.2C-I2 — Estado transacional isolado do CSMR
+# V20.2C-I2A — Estado transacional do CSMR com reserva controlada
 #
 # Harness de estado sem presença, Timeline, Event Feed, consumidores ou efeitos
 # físicos. O único writer é o script serial abaixo; o sensor trigger-based é o
@@ -32,7 +32,31 @@ template:
           last_consistent_state: "{{ trigger.event.data.last_consistent_state | default('idle', true) }}"
           last_error: "{{ trigger.event.data.last_error | default('', true) }}"
           last_session_id: "{{ trigger.event.data.last_session_id | default('', true) }}"
-          test_mode: true
+          session_reserved: >-
+            {{ trigger.event.data.session_reserved
+               | default(this.attributes.session_reserved | default(false), false) }}
+          reserved_session_id: >-
+            {{ trigger.event.data.reserved_session_id
+               | default(this.attributes.reserved_session_id | default('', true), false) }}
+          reservation_request_id: >-
+            {{ trigger.event.data.reservation_request_id
+               | default(this.attributes.reservation_request_id | default('', true), false) }}
+          reserved_at: >-
+            {{ trigger.event.data.reserved_at
+               | default(this.attributes.reserved_at | default('', true), false) }}
+          reservation_source: >-
+            {{ trigger.event.data.reservation_source
+               | default(this.attributes.reservation_source | default('', true), false) }}
+          reservation_reason: >-
+            {{ trigger.event.data.reservation_reason
+               | default(this.attributes.reservation_reason | default('', true), false) }}
+          reservation_test_mode: >-
+            {{ trigger.event.data.reservation_test_mode
+               | default(this.attributes.reservation_test_mode | default(true), false) }}
+          consumed_reservation_request_id: >-
+            {{ trigger.event.data.consumed_reservation_request_id
+               | default(this.attributes.consumed_reservation_request_id | default('', true), false) }}
+          test_mode: "{{ trigger.event.data.test_mode | default(this.attributes.test_mode | default(true), false) }}"
           transition_ledger: >
             {% set atual = this.attributes.transition_ledger | default([], true) %}
             {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
@@ -42,7 +66,8 @@ template:
                 'action': trigger.event.data.transition_action,
                 'result': trigger.event.data.result,
                 'state': trigger.event.data.state,
-                'session_id': trigger.event.data.session_id | default(trigger.event.data.last_session_id, true),
+                'session_id': trigger.event.data.ledger_session_id
+                  | default(trigger.event.data.session_id | default(trigger.event.data.last_session_id, true), true),
                 'processed_at': trigger.event.data.last_transition_at
               } %}
               {{ ([entrada] + atual)[:16] }}
@@ -51,20 +76,22 @@ template:
             {% endif %}
           contrato: >
             {{ {
-              'lote': 'V20.2C-I2',
+              'lote': 'V20.2C-I2A',
               'states': ['idle', 'starting', 'active', 'ending', 'failed'],
               'transition_identity': 'request_id',
               'session_identity': 'session_id',
               'source': 'harness_i2',
-              'test_mode_only': true
+              'operational_source': 'csmr_dispatcher_v20_2c',
+              'reservation_authority': 'csmr',
+              'test_mode_only': false
             } }}
 
 script:
   casa_csmr_transicionar_v20_2c:
     alias: Casa — CSMR — Transição Controlada V20.2C
     description: >-
-      Harness serial do estado transacional do CSMR. Não consulta presença,
-      não publica eventos operacionais e não aciona consumidores.
+      Interface serial do estado transacional do CSMR para Harness e dispatcher
+      operacional autorizado. Não publica eventos nem aciona consumidores.
     icon: mdi:state-machine
     mode: queued
     max: 10
@@ -78,8 +105,20 @@ script:
               - open
               - close
               - recover
+              - reserve
+              - cancel_reservation
       request_id:
         name: Request ID
+        required: false
+        selector:
+          text:
+      source:
+        name: Origem
+        required: false
+        selector:
+          text:
+      session_id:
+        name: Session ID reservado
         required: false
         selector:
           text:
@@ -103,6 +142,11 @@ script:
       - variables:
           action_norm: "{{ action | default('', true) | string | trim }}"
           request_id_norm: "{{ request_id | default('', true) | string | trim }}"
+          source_norm: >-
+            {% if source is defined %}{{ source | string | trim }}
+            {% elif test_mode is defined and test_mode is boolean and test_mode %}harness_i2
+            {% else %}{% endif %}
+          requested_session_id: "{{ session_id | default('', true) | string | trim }}"
           reason_norm: "{{ reason | default('', true) | string | trim }}"
           test_mode_raw: "{{ test_mode | default(none) }}"
           simulate_failure_raw: "{{ simulate_failure | default(false) }}"
@@ -119,6 +163,20 @@ script:
             {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'ended_at') | default('', true) }}
           current_last_session_id: >-
             {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'last_session_id') | default('', true) }}
+          session_reserved: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+          reserved_session_id: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') | default('', true) }}
+          reservation_request_id: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') | default('', true) }}
+          reserved_at: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_at') | default('', true) }}
+          reservation_source: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') | default('', true) }}
+          reservation_reason: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_reason') | default('', true) }}
+          reservation_test_mode: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') | default(true) | bool(true) }}
           ledger: >-
             {% set itens = state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_ledger') | default([], true) %}
             {{ itens if itens is iterable and itens is not string and itens is not mapping else [] }}
@@ -128,20 +186,26 @@ script:
           validation_reason: >-
             {% if action is not defined %}missing_action
             {% elif action is not string %}invalid_action_type
-            {% elif action_norm not in ['open', 'close', 'recover'] %}invalid_action
+            {% elif action_norm not in ['open', 'close', 'recover', 'reserve', 'cancel_reservation'] %}invalid_action
             {% elif request_id is not defined %}missing_request_id
             {% elif request_id is not string %}invalid_request_id_type
             {% elif request_id_norm == '' %}empty_request_id
             {% elif not request_id_norm | regex_match(uuid_pattern) %}invalid_request_id_format
+            {% elif source is defined and source is not string %}invalid_source_type
             {% elif test_mode is not defined %}missing_test_mode
             {% elif test_mode is not boolean %}invalid_test_mode_type
-            {% elif not test_mode_raw %}test_mode_required
+            {% elif test_mode_raw and source_norm != 'harness_i2' %}unauthorized_test_source
+            {% elif not test_mode_raw and source_norm != 'csmr_dispatcher_v20_2c' %}unauthorized_operational_source
             {% elif simulate_failure is defined and simulate_failure is not boolean %}invalid_simulate_failure_type
+            {% elif not test_mode_raw and simulate_failure_raw %}simulation_forbidden_in_operational_mode
+            {% elif session_id is defined and session_id is not string %}invalid_session_id_type
+            {% elif requested_session_id != '' and not requested_session_id | regex_match(uuid_pattern) %}invalid_session_id_format
             {% else %}valid{% endif %}
           generated_hex: "{{ md5(context.id ~ now().isoformat() ~ request_id_norm) }}"
           generated_session_id: >-
             {{ generated_hex[0:8] ~ '-' ~ generated_hex[8:12] ~ '-4' ~ generated_hex[13:16]
                ~ '-8' ~ generated_hex[17:20] ~ '-' ~ generated_hex[20:32] }}
+          open_session_id: "{{ reserved_session_id if session_reserved else generated_session_id }}"
           call_started_at: "{{ now().isoformat() }}"
 
       - choose:
@@ -175,6 +239,81 @@ script:
               - stop: Transição CSMR já processada.
                 response_variable: response
 
+          - conditions: "{{ action_norm == 'reserve' and current_state != 'idle' }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: reserve
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ current_session_id }}"
+                    reason: invalid_transition
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Reserva exige estado idle.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'reserve' and session_reserved }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: reserve
+                    status: rejected
+                    state: idle
+                    session_id: "{{ reserved_session_id }}"
+                    reason: reservation_exists
+                    reservation_request_id: "{{ reservation_request_id }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Já existe reserva corrente.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'cancel_reservation' and (current_state != 'idle' or not session_reserved) }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: cancel_reservation
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ reserved_session_id }}"
+                    reason: "{{ 'invalid_transition' if current_state != 'idle' else 'no_reservation' }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Não há reserva cancelável.
+                response_variable: response
+
+          - conditions: >-
+              {{ action_norm == 'cancel_reservation'
+                 and (source_norm != reservation_source or test_mode_raw != reservation_test_mode) }}
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: cancel_reservation
+                    status: rejected
+                    state: idle
+                    session_id: "{{ reserved_session_id }}"
+                    reason: reservation_authority_mismatch
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Origem não corresponde à reserva.
+                response_variable: response
+
+          - conditions: >-
+              {{ action_norm == 'cancel_reservation'
+                 and requested_session_id != '' and requested_session_id != reserved_session_id }}
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: cancel_reservation
+                    status: rejected
+                    state: idle
+                    session_id: "{{ reserved_session_id }}"
+                    reason: reservation_session_mismatch
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Session ID não corresponde à reserva.
+                response_variable: response
+
           - conditions: "{{ action_norm == 'open' and current_state != 'idle' }}"
             sequence:
               - variables:
@@ -187,6 +326,52 @@ script:
                     reason: "{{ 'session_already_active' if current_state == 'active' else 'invalid_transition' }}"
                     processed_at: "{{ now().isoformat() }}"
               - stop: Abertura incompatível com o estado atual.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'open' and not test_mode_raw and not session_reserved }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: open
+                    status: rejected
+                    state: idle
+                    session_id: ""
+                    reason: operational_open_requires_reservation
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Open produtivo exige reserva.
+                response_variable: response
+
+          - conditions: >-
+              {{ action_norm == 'open' and session_reserved
+                 and (source_norm != reservation_source or test_mode_raw != reservation_test_mode) }}
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: open
+                    status: rejected
+                    state: idle
+                    session_id: "{{ reserved_session_id }}"
+                    reason: reservation_authority_mismatch
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Origem não corresponde à reserva.
+                response_variable: response
+
+          - conditions: >-
+              {{ action_norm == 'open' and session_reserved
+                 and requested_session_id != reserved_session_id }}
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: open
+                    status: rejected
+                    state: idle
+                    session_id: "{{ reserved_session_id }}"
+                    reason: reservation_session_mismatch
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Open não confirmou o UUID reservado.
                 response_variable: response
 
           - conditions: "{{ action_norm == 'close' and current_state != 'active' }}"
@@ -219,12 +404,74 @@ script:
 
         default:
           - choose:
+              - conditions: "{{ action_norm == 'reserve' }}"
+                sequence:
+                  - event: casa_csmr_checkpoint_v20_2c
+                    event_data:
+                      state: idle
+                      session_id: ""
+                      started_at: ""
+                      ended_at: "{{ current_ended_at }}"
+                      transition_started_at: "{{ now().isoformat() }}"
+                      last_transition_at: "{{ now().isoformat() }}"
+                      transition_request_id: "{{ request_id_norm }}"
+                      transition_action: reserve
+                      transition_reason: "{{ reason_norm }}"
+                      transition_source: "{{ source_norm }}"
+                      previous_state: idle
+                      last_consistent_state: idle
+                      last_error: ""
+                      last_session_id: "{{ current_last_session_id }}"
+                      session_reserved: true
+                      reserved_session_id: "{{ generated_session_id }}"
+                      reservation_request_id: "{{ request_id_norm }}"
+                      reserved_at: "{{ now().isoformat() }}"
+                      reservation_source: "{{ source_norm }}"
+                      reservation_reason: "{{ reason_norm }}"
+                      reservation_test_mode: "{{ test_mode_raw }}"
+                      consumed_reservation_request_id: ""
+                      test_mode: "{{ test_mode_raw }}"
+                      result: reserved
+                      ledger_session_id: "{{ generated_session_id }}"
+                      append_ledger: true
+
+              - conditions: "{{ action_norm == 'cancel_reservation' }}"
+                sequence:
+                  - event: casa_csmr_checkpoint_v20_2c
+                    event_data:
+                      state: idle
+                      session_id: ""
+                      started_at: ""
+                      ended_at: "{{ current_ended_at }}"
+                      transition_started_at: "{{ now().isoformat() }}"
+                      last_transition_at: "{{ now().isoformat() }}"
+                      transition_request_id: "{{ request_id_norm }}"
+                      transition_action: cancel_reservation
+                      transition_reason: "{{ reason_norm }}"
+                      transition_source: "{{ source_norm }}"
+                      previous_state: idle
+                      last_consistent_state: idle
+                      last_error: ""
+                      last_session_id: "{{ reserved_session_id }}"
+                      session_reserved: false
+                      reserved_session_id: ""
+                      reservation_request_id: ""
+                      reserved_at: ""
+                      reservation_source: ""
+                      reservation_reason: ""
+                      reservation_test_mode: true
+                      consumed_reservation_request_id: ""
+                      test_mode: "{{ test_mode_raw }}"
+                      result: cancelled
+                      ledger_session_id: "{{ reserved_session_id }}"
+                      append_ledger: true
+
               - conditions: "{{ action_norm == 'open' }}"
                 sequence:
                   - event: casa_csmr_checkpoint_v20_2c
                     event_data:
                       state: starting
-                      session_id: "{{ generated_session_id }}"
+                      session_id: "{{ open_session_id }}"
                       started_at: ""
                       ended_at: ""
                       transition_started_at: "{{ now().isoformat() }}"
@@ -232,11 +479,20 @@ script:
                       transition_request_id: "{{ request_id_norm }}"
                       transition_action: open
                       transition_reason: "{{ reason_norm }}"
-                      transition_source: harness_i2
+                      transition_source: "{{ source_norm }}"
                       previous_state: idle
                       last_consistent_state: idle
                       last_error: ""
                       last_session_id: "{{ current_last_session_id }}"
+                      session_reserved: false
+                      reserved_session_id: ""
+                      reservation_request_id: ""
+                      reserved_at: ""
+                      reservation_source: ""
+                      reservation_reason: ""
+                      reservation_test_mode: true
+                      consumed_reservation_request_id: "{{ reservation_request_id if session_reserved else '' }}"
+                      test_mode: "{{ test_mode_raw }}"
                       result: pending
                       append_ledger: false
                   - delay:
@@ -247,7 +503,7 @@ script:
                           - event: casa_csmr_checkpoint_v20_2c
                             event_data:
                               state: failed
-                              session_id: "{{ generated_session_id }}"
+                              session_id: "{{ open_session_id }}"
                               started_at: ""
                               ended_at: ""
                               transition_started_at: "{{ call_started_at }}"
@@ -255,7 +511,7 @@ script:
                               transition_request_id: "{{ request_id_norm }}"
                               transition_action: open
                               transition_reason: "{{ reason_norm }}"
-                              transition_source: harness_i2
+                              transition_source: "{{ source_norm }}"
                               previous_state: starting
                               last_consistent_state: idle
                               last_error: simulated_open_failure
@@ -266,7 +522,7 @@ script:
                       - event: casa_csmr_checkpoint_v20_2c
                         event_data:
                           state: active
-                          session_id: "{{ generated_session_id }}"
+                          session_id: "{{ open_session_id }}"
                           started_at: "{{ now().isoformat() }}"
                           ended_at: ""
                           transition_started_at: "{{ call_started_at }}"
@@ -274,7 +530,7 @@ script:
                           transition_request_id: "{{ request_id_norm }}"
                           transition_action: open
                           transition_reason: "{{ reason_norm }}"
-                          transition_source: harness_i2
+                          transition_source: "{{ source_norm }}"
                           previous_state: starting
                           last_consistent_state: active
                           last_error: ""
@@ -295,7 +551,8 @@ script:
                       transition_request_id: "{{ request_id_norm }}"
                       transition_action: close
                       transition_reason: "{{ reason_norm }}"
-                      transition_source: harness_i2
+                      transition_source: "{{ source_norm }}"
+                      test_mode: "{{ test_mode_raw }}"
                       previous_state: active
                       last_consistent_state: active
                       last_error: ""
@@ -318,7 +575,8 @@ script:
                               transition_request_id: "{{ request_id_norm }}"
                               transition_action: close
                               transition_reason: "{{ reason_norm }}"
-                              transition_source: harness_i2
+                              transition_source: "{{ source_norm }}"
+                              test_mode: "{{ test_mode_raw }}"
                               previous_state: ending
                               last_consistent_state: active
                               last_error: simulated_close_failure
@@ -337,7 +595,8 @@ script:
                           transition_request_id: "{{ request_id_norm }}"
                           transition_action: close
                           transition_reason: "{{ reason_norm }}"
-                          transition_source: harness_i2
+                          transition_source: "{{ source_norm }}"
+                          test_mode: "{{ test_mode_raw }}"
                           previous_state: ending
                           last_consistent_state: idle
                           last_error: ""
@@ -358,7 +617,8 @@ script:
                       transition_request_id: "{{ request_id_norm }}"
                       transition_action: recover
                       transition_reason: "{{ reason_norm }}"
-                      transition_source: harness_i2
+                      transition_source: "{{ source_norm }}"
+                      test_mode: "{{ test_mode_raw }}"
                       previous_state: failed
                       last_consistent_state: idle
                       last_error: ""
@@ -377,14 +637,22 @@ script:
           - variables:
               final_state: "{{ states('sensor.casa_csmr_estado_v20_2c') if wait.completed else 'failed' }}"
               final_session_id: >-
-                {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
-                   | default(state_attr('sensor.casa_csmr_estado_v20_2c', 'last_session_id'), true) }}
+                {% if action_norm == 'reserve' %}
+                  {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') | default('', true) }}
+                {% elif action_norm == 'cancel_reservation' %}
+                  {{ reserved_session_id }}
+                {% else %}
+                  {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
+                     | default(state_attr('sensor.casa_csmr_estado_v20_2c', 'last_session_id'), true) }}
+                {% endif %}
               response:
                 request_id: "{{ request_id_norm }}"
                 action: "{{ action_norm }}"
                 status: >-
                   {% if not wait.completed %}failed
                   {% elif final_state == 'failed' %}failed
+                  {% elif action_norm == 'reserve' %}reserved
+                  {% elif action_norm == 'cancel_reservation' %}cancelled
                   {% elif action_norm == 'recover' %}recovered
                   {% else %}completed{% endif %}
                 state: "{{ final_state }}"
