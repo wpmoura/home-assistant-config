@@ -1,5 +1,21 @@
 # Changelog
 
+## [v20.2c-i2a-reserva-operacional-csmr] - 2026-08-06
+
+### Added
+
+- Operações `reserve` e `cancel_reservation` no estado transacional do CSMR, mantendo `idle` e geração exclusiva do UUID pelo coordenador.
+- Checkpoint persistente da reserva, vínculo de consumo pelo `open` e origem operacional fechada `csmr_dispatcher_v20_2c`.
+
+### Changed
+
+- I2 passa a aceitar `test_mode: false` somente para a origem operacional canônica e com reserva correspondente; Harness legado permanece compatível.
+- Política D1 reafirmada para retorno durante `starting`: concluir abertura sem consumidores e encerrar a mesma sessão em seguida.
+
+### Notes
+
+- Homologação I2A executada sem presença, contrato I1, Timeline, Event Feed, consumidores, Recovery 4G ou Protect.
+
 ## [v20.2c-i2-estado-transacional-csmr] - 2026-08-06
 
 ### Added

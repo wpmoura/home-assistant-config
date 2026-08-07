@@ -755,3 +755,11 @@ Rastreabilidade do conflito: a autorização inicial do I3 continha a regra “n
 ### Persistência e rollback
 
 A reserva usa o mesmo sensor trigger-based restaurável do I2 e o mesmo ledger limitado a 16 conclusões. Reload/startup não consome, abre ou cancela reserva automaticamente. Rollback da emenda restaura a versão I2 do package e recarrega templates/scripts; não exige restaurar Timeline, banco, consumidores ou dispositivos.
+
+### Homologação isolada I2A
+
+Em 2026-08-06, `reserve` manteve `idle` e criou UUID persistente; reenvio devolveu o mesmo UUID; novo request e reserva concorrente não criaram segunda identidade. Reload preservou reserva, request e origem. `cancel_reservation` limpou o checkpoint e sua repetição foi idempotente.
+
+A origem `csmr_dispatcher_v20_2c` com `test_mode: false` foi aceita exclusivamente no estado transacional, sem I1 ou Timeline. Origem externa, combinação de modo incorreta, UUID divergente, `open` produtivo sem reserva e simulação de falha produtiva foram rejeitados. O `open` consumiu exatamente o UUID reservado e `close` arquivou a mesma sessão.
+
+O Harness legado sem `source` continuou operando como `harness_i2`, incluindo geração interna, fechamento, falha simulada e recuperação. Na simulação D1, `close` chegou enquanto `open` estava em `starting`; `mode: queued` concluiu `active` e depois `idle` com o mesmo UUID. Nenhuma Timeline, presença, ação C1.x ou dispositivo participou do teste.

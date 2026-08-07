@@ -133,7 +133,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 
 ## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
 
-Status documental: I1/I2 HOMOLOGADOS; EMENDA I2A AUTORIZADA E EM IMPLEMENTAÇÃO; INTEGRAÇÃO REAL PENDENTE
+Status documental: I1/I2/I2A HOMOLOGADOS; INTEGRAÇÃO REAL I3 PENDENTE
 
 Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
 
@@ -171,10 +171,10 @@ Gate isolado da emenda I2A:
 - [x] Autoridade exclusiva do CSMR sobre geração do `session_id` preservada documentalmente.
 - [x] Origem operacional fechada definida como `csmr_dispatcher_v20_2c`.
 - [x] Política D1 para retorno durante `starting` reafirmada; regra conflitante do I3 substituída com rastreabilidade.
-- [ ] Reserva, cancelamento e consumo implementados sem novo estado principal.
-- [ ] Origem produtiva validada sem publicação e Harness legado preservado.
-- [ ] Idempotência, concorrência e persistência da reserva comprovadas.
-- [ ] Fluxo D1 simulado sem consumidores e sem Timeline produtiva.
+- [x] Reserva, cancelamento e consumo implementados sem novo estado principal.
+- [x] Origem produtiva validada sem publicação e Harness legado preservado.
+- [x] Idempotência, concorrência e persistência da reserva comprovadas.
+- [x] Fluxo D1 simulado sem consumidores e sem Timeline produtiva.
 
 - [ ] Cancelamento antes da graça comprovado sem abertura ou evento.
 - [ ] Abertura comprovada exatamente uma vez.
