@@ -8,6 +8,10 @@ O conceito central passa a ser a **Sessão de Monitoramento Remoto**, contrato o
 
 A promoção está consolidada apenas no plano documental e arquitetural. O CSMR ainda não foi implementado, a publicação em runtime permanece desabilitada e o próximo passo obrigatório é um plano técnico restrito seguido da execução do Gate específico.
 
+## Plano técnico restrito
+
+O plano V20.2C-T1 está registrado em `plano_tecnico_csmr.md`. Ele confirma a viabilidade do desenho, mas identifica decisões obrigatórias ainda ausentes no contrato de entrada/ack da V20.1O, na idempotência de recuperação parcial e na reconciliação de startup. Por isso, o lote de implementação permanece bloqueado; o próximo lote é exclusivamente decisório/documental.
+
 ## Relação com a V20.1Q e Git
 
 Esta branch foi criada diretamente sobre o commit `486aa1a` da branch V20.1Q ainda não integrada. O empilhamento foi uma decisão consciente para preservar o runtime atual e manter as mudanças próprias da V20.2C em commit isolado. Depois da integração da V20.1Q em `develop`, a V20.2C deverá ser rebaseada ou reconciliada antes de integração.
