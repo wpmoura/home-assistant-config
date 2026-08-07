@@ -315,7 +315,11 @@ Esta etapa registrará o primeiro ciclo físico natural `home → not_home → h
 
 O I5A homologou o modelo mínimo de intenção automática e manual para os modos de gravação das câmeras G4 Instant. `csmr_recording_requested` depende do contexto operacional autorizado do CSMR; `manual_override` é uma solicitação explícita independente. A intenção efetiva é `csmr_recording_requested OR manual_override`, mapeada exclusivamente para `always`; com ambas desligadas, o baseline é `detections`.
 
-Foram validados os dois selects Protect, retorno pendente, ending, failed, manualização em idle, retorno com override manual preservado, reload, falha parcial documentada e comandos idempotentes. Não houve novos `event_code`, publicação na Timeline/Event Feed, alteração de CSMR, dispatcher, I1/I2, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos. O próximo Gate é **V20.2C-I5B — Promoção operacional controlada**.
+Foram validados os dois selects Protect, retorno pendente, ending, failed, manualização em idle, retorno com override manual preservado, reload, falha parcial documentada e comandos idempotentes. Não houve novos `event_code`, publicação na Timeline/Event Feed, alteração de CSMR, dispatcher, I1/I2, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos.
+
+### Gate V20.2C-I5B — Promoção operacional controlada
+
+**STATUS: HOMOLOGADO** em 2026-08-07. O Harness executou CSMR ativo, retorno, override manual, `return_pending`, `failed`, reload, idempotência e divergência controlada de uma câmera. O baseline final ficou em `detections`; nenhum componente protegido foi alterado.
 
 ## Gates especificos - V20.1Q Recovery 4G
 

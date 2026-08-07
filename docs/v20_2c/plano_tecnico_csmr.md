@@ -841,4 +841,8 @@ Em 2026-08-07, o Harness Dispatcher percorreu graça, abertura, publicação can
 
 O I5A foi homologado por Harness em 2026-08-07. O modelo separa `csmr_recording_requested`, `manual_override`, `effective_state` e o estado observado dos selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`. A função canônica é `effective = csmr_recording_requested OR manual_override`: qualquer intenção ativa aplica `always`; ambas inativas restauram o baseline `detections`.
 
-O Harness cobriu idle, active autorizado, retorno pendente, ending, failed, transições manuais, retorno com override preservado, reload, concorrência e idempotência. `return_pending` bloqueia somente a intenção automática do CSMR. Não foram criados eventos de Timeline nem alterados CSMR, dispatcher, consumidores C1.x, Recovery, V20.1Q ou dashboards. O I5B fica reservado à promoção operacional controlada; a evidência física permanece posterior e não altera este contrato.
+O Harness cobriu idle, active autorizado, retorno pendente, ending, failed, transições manuais, retorno com override preservado, reload, concorrência e idempotência. `return_pending` bloqueia somente a intenção automática do CSMR. Não foram criados eventos de Timeline nem alterados CSMR, dispatcher, consumidores C1.x, Recovery, V20.1Q ou dashboards.
+
+### Homologação I5B
+
+O I5B foi homologado em 2026-08-07 no runtime por Harness. Foram executados baseline, ativação automática do CSMR, idempotência, retorno, override manual, coexistência, `return_pending`, `failed`, reload e divergência controlada de uma câmera. O estado final seguro foi restaurado: CSMR `idle`, intenções `off` e ambos os selects em `detections`.

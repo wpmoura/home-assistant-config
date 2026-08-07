@@ -456,4 +456,10 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Homologado por Harness o package `packages/v20_2c_protect_csmr.yaml`, com intenção automática CSMR e override manual independentes.
 - Regra efetiva: `csmr_recording_requested OR manual_override`; `always` quando uma intenção está ativa e `detections` quando ambas estão inativas.
 - Validados os selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`, retorno pendente, failed, ending, reload, retorno com override manual preservado e idempotência.
-- Nenhum novo evento de Timeline/Event Feed e nenhuma alteração em CSMR, dispatcher, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos. Próximo Gate: V20.2C-I5B.
+- Nenhum novo evento de Timeline/Event Feed e nenhuma alteração em CSMR, dispatcher, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos.
+
+### V20.2C-I5B — Promoção operacional controlada do UniFi Protect (2026-08-07)
+
+- **STATUS: HOMOLOGADO.** Harness executado no runtime real, sem depender de saída física.
+- Validados CSMR ativo, retorno, override manual, coexistência, `return_pending`, `failed`, reload, idempotência e divergência controlada.
+- Nenhum componente protegido ou contrato de Timeline/Event Feed foi alterado; estado final restaurado em `detections`.

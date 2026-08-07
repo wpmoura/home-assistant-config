@@ -24,7 +24,11 @@ Continuam pendentes a validação por ciclo real de saída/retorno e a evidênci
 
 Homologado em 2026-08-07 por Harness, sem promoção operacional real. O package `packages/v20_2c_protect_csmr.yaml` separa a intenção automática `csmr_recording_requested` da intenção manual `manual_override`; a intenção efetiva é a disjunção das duas. `always` é aplicado aos selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2` quando qualquer intenção está ativa; com ambas inativas, o baseline é `detections`.
 
-Foram validados idle, sessão ativa autorizada, retorno pendente, ending, failed, override manual em casa, retorno com e sem override, reload, concorrência de intenção e idempotência. O retorno retira apenas a intenção CSMR; não desliga gravação manual. Não houve novos eventos de Timeline, nem alterações em CSMR, dispatcher, C1.x, Recovery, V20.1Q, Protect além dos selects durante o Harness ou dashboards. I5B permanece reservado à promoção operacional controlada.
+Foram validados idle, sessão ativa autorizada, retorno pendente, ending, failed, override manual em casa, retorno com e sem override, reload, concorrência de intenção e idempotência. O retorno retira apenas a intenção CSMR; não desliga gravação manual. Não houve novos eventos de Timeline, nem alterações em CSMR, dispatcher, C1.x, Recovery, V20.1Q, Protect além dos selects durante o Harness ou dashboards.
+
+## Gate V20.2C-I5B — Promoção operacional controlada
+
+**STATUS: HOMOLOGADO** em 2026-08-07. O Harness executou baseline, CSMR ativo, retorno, override manual, coexistência, `return_pending`, `failed`, reload, idempotência e divergência controlada de uma câmera. O estado final foi restaurado para `idle`, intenções desligadas e ambos os selects em `detections`.
 
 ## Governança A2 — Homologação Técnica e Evidência Operacional
 
