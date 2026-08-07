@@ -18,7 +18,7 @@ O Gate V20.2C-I3B foi homologado em 2026-08-07, promovendo as quatro chamadas I1
 
 O Gate V20.2C-I4A foi homologado após a correção da corrida temporal entre eventos de consumidores e a transição para `active`, pelo commit funcional `b02e05d`. C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR. O `return_pending` persistente bloqueia a passagem D1; uma fronteira temporal persistente, vinculada ao `session_id`, somente autoriza consumidores quando `CSMR == active`, `return_pending == false` e `occurred_at > consumer_authorized_since`. C1.2 usa `trigger.to_state.last_changed`, e o Harness exige `occurred_at` explícito. Starting, Ending, Failed, D1 e reload foram homologados sem consumidor indevido; o estado final foi `idle`, `return_pending=off` e `consumer_authorized_since=1970-01-01 00:00:00`.
 
-Continuam pendentes a validação por ciclo real de saída/retorno e a evidência operacional do UniFi Protect. O próximo Gate autorizado é **V20.2C-I5B**.
+V20.2C está **FUNCIONALMENTE CONCLUÍDA**. Permanece apenas I4B.2 — Evidência Operacional do primeiro ciclo físico — como pendência não bloqueante. O baseline consolidado está em `baseline_v20_2d.md`.
 
 ## Gate V20.2C-I5A — Integração controlada do UniFi Protect
 

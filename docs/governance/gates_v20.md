@@ -321,6 +321,12 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 
 **STATUS: HOMOLOGADO** em 2026-08-07. O Harness executou CSMR ativo, retorno, override manual, `return_pending`, `failed`, reload, idempotência e divergência controlada de uma câmera. O baseline final ficou em `detections`; nenhum componente protegido foi alterado.
 
+## V20.2D — Consolidação da baseline V20.2C
+
+**STATUS: V20.2C FUNCIONALMENTE CONCLUÍDA**
+
+I4B.2 permanece exclusivamente como evidência operacional futura e não bloqueante. O catálogo de contratos, mapa arquitetural, auditoria estática e próximas evoluções elegíveis estão consolidados em `docs/v20_2c/baseline_v20_2d.md`.
+
 ## Gates especificos - V20.1Q Recovery 4G
 
 ### Gate documental

@@ -1,7 +1,7 @@
 # V20.2C-T1 — Plano Técnico Restrito do CSMR
 
 Data: 2026-08-06
-Status: I1, I2, I2A E I3A HOMOLOGADOS; PUBLICAÇÃO PRODUTIVA E CONSUMIDORES PENDENTES
+Status: V20.2C FUNCIONALMENTE CONCLUÍDA; I4B.2 PENDENTE SOMENTE COMO EVIDÊNCIA OPERACIONAL NÃO BLOQUEANTE
 Classificação: plano técnico auxiliar, subordinado à arquitetura e ao Gate V20.2C
 Documento pai/índice: `docs/v20_2c/README.md`
 
@@ -792,7 +792,7 @@ A autorização operacional exige cumulativamente:
 
 Estado final homologado: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
 
-Permanecem pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate é V20.2C-I4B.
+Registro histórico anterior à promoção: a pendência de consumidores e Protect foi posteriormente encerrada pelos Gates I4A, I4B.1, I5A e I5B; permanece apenas I4B.2 como evidência operacional não bloqueante. A baseline vigente está consolidada em `baseline_v20_2d.md`.
 
 ## 25. V20.2C-I3A — integração lógica homologada
 

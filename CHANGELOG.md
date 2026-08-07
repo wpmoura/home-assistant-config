@@ -463,3 +463,9 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - **STATUS: HOMOLOGADO.** Harness executado no runtime real, sem depender de saída física.
 - Validados CSMR ativo, retorno, override manual, coexistência, `return_pending`, `failed`, reload, idempotência e divergência controlada.
 - Nenhum componente protegido ou contrato de Timeline/Event Feed foi alterado; estado final restaurado em `detections`.
+
+### V20.2D — Consolidação da baseline V20.2C (2026-08-07)
+
+- V20.2C registrada como **FUNCIONALMENTE CONCLUÍDA**.
+- Catálogo I1–I5, mapa arquitetural, auditoria estática e próximas evoluções elegíveis consolidados em `docs/v20_2c/baseline_v20_2d.md`.
+- I4B.2 permanece somente como evidência operacional física não bloqueante. Nenhuma alteração funcional ou runtime foi realizada.
