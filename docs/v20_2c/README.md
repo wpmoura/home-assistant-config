@@ -10,6 +10,8 @@ A promoção e as decisões técnicas estão consolidadas documentalmente. O CSM
 
 O lote V20.2C-I2 implementou a fundação transacional isolada do CSMR: estados `idle`, `starting`, `active`, `ending` e `failed`, UUID de sessão, idempotência por comando, checkpoint persistente, serialização e recuperação explícita. O componente permanece restrito ao Harness; presença, publicação e C1.x continuam desconectados.
 
+A emenda V20.2C-I2A autoriza reserva prévia do `session_id` pelo próprio CSMR e a origem produtiva fechada `csmr_dispatcher_v20_2c`. Durante a emenda, ambos permanecem isolados de presença e Timeline. Retorno após saída já publicada preserva D1: concluir abertura sem consumidores e encerrar imediatamente a mesma sessão.
+
 ## Plano técnico restrito
 
 O plano V20.2C-T1 está registrado em `plano_tecnico_csmr.md`. A decisão V20.2C-D1 nele incorporada resolve DP-1 a DP-5. O lote I1 criou `script.casa_publicar_evento_timeline_v20`, ACK correlacionado, ledger persistente e `test_mode`; não criou a máquina de estados do CSMR, dispatcher, sessão ou migração C1.x. O contrato vigente exige `source: csmr_v20_2c`, códigos `wilson_left_home`/`wilson_arrived_home` e `message` obrigatório.

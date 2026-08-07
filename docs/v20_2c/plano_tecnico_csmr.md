@@ -722,3 +722,36 @@ Em 2026-08-06 foram comprovados: abertura `starting → active`; reenvio idempot
 Timeline, Event Feed, contrato I1, presença, C1.1, C1.2, C1.3, Recovery 4G e modos de gravação do Protect permaneceram fora do package e inalterados. O teste de restart físico não foi necessário: persistência foi comprovada por reload e a restauração após restart permanece propriedade nativa documentada do trigger-based template sensor, a ser reobservada junto ao futuro lote de integração.
 
 Rollback I2: remover `packages/csmr_estado_transacional_v20_2c.yaml`, validar a configuração e recarregar templates/scripts. Como o lote não publicou nem acionou dispositivos, não há banco, histórico, consumidor ou estado físico a restaurar.
+
+## 24. V20.2C-I2A — emenda operacional limitada
+
+A emenda I2A resolve formalmente os bloqueios encontrados antes do I3 sem alterar os cinco estados principais nem o contrato I1. O CSMR permanece autoridade exclusiva para gerar `session_id` e passa a oferecer reserva persistente antes da publicação de `wilson_left_home`.
+
+### Reserva e cancelamento
+
+`reserve` somente é aceito em `idle`, sem sessão ou reserva corrente. O CSMR gera UUID v4, mantém o estado principal em `idle` e persiste `session_reserved`, `reserved_session_id`, `reservation_request_id`, `reserved_at`, origem, motivo e modo. Reenvio do mesmo request recupera a mesma reserva; novo request concorrente não gera outro UUID.
+
+`cancel_reservation` somente atua sobre reserva não consumida em `idle`. O cancelamento é explícito, idempotente, registrado no ledger e limpa o checkpoint corrente sem publicar ou entrar em `failed`. Retorno durante a graça continua anterior à reserva e não cria qualquer identidade.
+
+`open` produtivo consome exatamente o UUID reservado e exige que o chamador apresente o mesmo `session_id`. O vínculo com `reservation_request_id` fica em `consumed_reservation_request_id`. O Harness legado permanece autorizado a abrir sem reserva e gerar sua sessão internamente.
+
+### Modos e origens
+
+Lista fechada:
+
+| Modo | Origem | Uso |
+| --- | --- | --- |
+| `test_mode: true` | `harness_i2` | homologação isolada; ausência histórica de `source` é normalizada para este valor |
+| `test_mode: false` | `csmr_dispatcher_v20_2c` | dispatcher operacional oficial do futuro I3 |
+
+Qualquer outra combinação é rejeitada. `test_mode: false` não autoriza publicação por si só e falha simulada permanece proibida em modo produtivo. A emenda apenas permite transições de estado; durante sua homologação não há presença, I1 ou Timeline.
+
+### Retorno durante abertura
+
+Fica preservada a decisão D1. Depois que `wilson_left_home` foi confirmado, retorno antes de `open` ou durante `starting` não desfaz a saída: a fila conclui `open`, publica `remote_monitoring_started`, não libera consumidores, publica `wilson_arrived_home`, conclui `close` e então publica `remote_monitoring_ended`, sempre com o mesmo `session_id`.
+
+Rastreabilidade do conflito: a autorização inicial do I3 continha a regra “não publicar `remote_monitoring_started` após retorno confirmado durante `starting`”. A revisão preventiva identificou incompatibilidade com D1 e risco de deixar `wilson_left_home` isolado. O despacho I2A substitui essa regra pela conclusão transacional completa acima. Falha de `open` ou da publicação de início continua interrompendo a cadeia e exige recuperação explícita.
+
+### Persistência e rollback
+
+A reserva usa o mesmo sensor trigger-based restaurável do I2 e o mesmo ledger limitado a 16 conclusões. Reload/startup não consome, abre ou cancela reserva automaticamente. Rollback da emenda restaura a versão I2 do package e recarrega templates/scripts; não exige restaurar Timeline, banco, consumidores ou dispositivos.
