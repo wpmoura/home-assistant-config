@@ -764,6 +764,36 @@ A origem `csmr_dispatcher_v20_2c` com `test_mode: false` foi aceita exclusivamen
 
 O Harness legado sem `source` continuou operando como `harness_i2`, incluindo geração interna, fechamento, falha simulada e recuperação. Na simulação D1, `close` chegou enquanto `open` estava em `starting`; `mode: queued` concluiu `active` e depois `idle` com o mesmo UUID. Nenhuma Timeline, presença, ação C1.x ou dispositivo participou do teste.
 
+## 26. V20.2C-I4A — Integração temporal dos consumidores
+
+Status: HOMOLOGADO em 2026-08-07; commit funcional `b02e05d`.
+
+O Gate confirmou a subordinação de C1.1, C1.2 e C1.3 ao CSMR, sem alterar a máquina I2/I2A, I1, Timeline, Event Feed, Recovery, Protect ou `person.wmoura`. O `input_boolean.casa_csmr_retorno_pendente_v20_2c` é persistente e bloqueia consumidores durante o retorno e D1.
+
+A autorização operacional exige cumulativamente:
+
+- `CSMR == active`;
+- `return_pending == false`;
+- `session_id` do evento igual à sessão autorizada;
+- `occurred_at > consumer_authorized_since`.
+
+`consumer_authorized_since` e a sessão autorizada são persistidos por helpers mínimos. A fronteira é criada somente após `active` operacional e ACK de `remote_monitoring_started`; é invalidada em `idle`, `starting`, `ending`, `failed` e ao ligar `return_pending`. C1.2 captura o instante físico por `trigger.to_state.last_changed`; o Harness carrega `occurred_at` explícito. C1.2 permanece reativo à abertura física da porta, e C1.3 executou uma única garantia sem duplicação indevida.
+
+### Evidências de homologação
+
+- `homeassistant.check_config` aprovado;
+- reloads parciais de helpers, templates, scripts e automações retornaram HTTP 200;
+- Starting e Ending rejeitaram eventos ocorridos fora da janela autorizada;
+- Failed não acionou consumidores;
+- D1 manteve a fronteira inválida e não acionou C1.1, C1.2 ou C1.3;
+- Active nominal produziu uma execução de C1.2 e uma execução de C1.3;
+- reload com `return_pending=true` preservou o bloqueio;
+- nenhum restart foi executado e nenhum componente protegido foi alterado.
+
+Estado final homologado: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
+
+Permanecem pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate é V20.2C-I4B.
+
 ## 25. V20.2C-I3A — integração lógica homologada
 
 O I3A integra a presença oficial `person.wmoura`, o helper existente `input_number.teste_v20_2_tempo_graca_saida`, o dispatcher, a reserva I2A, o estado transacional e o contrato I1. A implementação funcional está no commit `b11309bf20985a9385fb7918e82883dff4c8867e`, em `packages/csmr_dispatcher_integracao_v20_2c.yaml`.

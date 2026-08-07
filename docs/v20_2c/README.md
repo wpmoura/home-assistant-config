@@ -14,7 +14,11 @@ A emenda V20.2C-I2A autoriza reserva prévia do `session_id` pelo próprio CSMR 
 
 O Gate V20.2C-I3A foi homologado em 2026-08-07 pelo commit funcional `b11309bf20985a9385fb7918e82883dff4c8867e`. O dispatcher integra `person.wmoura`, a graça existente, revalidação, reserva/consumo do CSMR e o contrato I1 exclusivamente em `test_mode: true`. Ciclo nominal, cancelamento durante a graça, concorrência/D1, reload, correlação de ACKs e identidade única de sessão foram comprovados sem publicação produtiva ou consumidores.
 
-O próximo Gate autorizado é exclusivamente **V20.2C-I3B — Promoção Operacional**: alterar as quatro chamadas I1 de `test_mode: true` para `test_mode: false` e executar homologação operacional controlada, sem mudança arquitetural ou funcional adicional.
+O Gate V20.2C-I3B foi homologado em 2026-08-07, promovendo as quatro chamadas I1 para `test_mode: false` e preservando os contratos protegidos.
+
+O Gate V20.2C-I4A foi homologado após a correção da corrida temporal entre eventos de consumidores e a transição para `active`, pelo commit funcional `b02e05d`. C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR. O `return_pending` persistente bloqueia a passagem D1; uma fronteira temporal persistente, vinculada ao `session_id`, somente autoriza consumidores quando `CSMR == active`, `return_pending == false` e `occurred_at > consumer_authorized_since`. C1.2 usa `trigger.to_state.last_changed`, e o Harness exige `occurred_at` explícito. Starting, Ending, Failed, D1 e reload foram homologados sem consumidor indevido; o estado final foi `idle`, `return_pending=off` e `consumer_authorized_since=1970-01-01 00:00:00`.
+
+Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, a integração UniFi Protect e os demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B**.
 
 ## Plano técnico restrito
 

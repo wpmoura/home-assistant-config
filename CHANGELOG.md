@@ -431,3 +431,11 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - Automações antigas não foram alteradas.
 - A timeline V20 não reconstrói histórico antigo do Recorder; ela registra eventos a partir do reload/restart.
 - Mudanças futuras devem ser tratadas como V21 ou hotfix V20 documentado.
+## [v20.2c-i4a-consumer-integration] - 2026-08-07
+
+- Gate V20.2C-I4A homologado após eliminar a corrida entre eventos de consumidores e a transição para `active`.
+- C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR; `return_pending` persistente e fronteira temporal persistente vinculada ao `session_id` bloqueiam eventos ocorridos antes da autorização.
+- C1.2 usa `trigger.to_state.last_changed`; o Harness exige `occurred_at`; a regra temporal é estrita: `occurred_at > consumer_authorized_since`.
+- Starting, Ending, Failed, D1, Active nominal e reload com `return_pending=true` foram homologados sem consumidor indevido ou duplicação.
+- Nenhum restart ou componente protegido foi alterado. Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
+- Permanecem pendentes a promoção operacional real dos consumidores, ciclo real de saída/retorno, UniFi Protect e consumidores futuros. Próximo Gate: V20.2C-I4B.

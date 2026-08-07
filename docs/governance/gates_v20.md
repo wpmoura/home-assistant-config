@@ -262,6 +262,29 @@ O Gate seguinte ao I3A foi o **V20.2C-I3B — Promoção Operacional**, limitado
 
 O I3B encerra somente a promoção produtiva dos quatro eventos. Integração de C1.x, UniFi Protect e qualquer consumidor futuro continua bloqueada até Gate próprio. Rollback funcional: reverter `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37`, validar configuração e recarregar automações; os quatro fatos já publicados permanecem como histórico legítimo do ciclo homologado e não exigem edição da Timeline.
 
+### Gate V20.2C-I4A — Integração dos Consumidores
+
+**STATUS: HOMOLOGADO**
+
+O Gate I4A fechou a integração temporal dos consumidores pelo commit funcional `b02e05d`. C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR; não houve alteração em V20.1Q, Recovery, I1, I2/I2A, Timeline, Event Feed, UniFi Protect, dashboards, sensores físicos ou `person.wmoura`.
+
+- [x] `return_pending` persistente bloqueia consumidores durante retorno e D1.
+- [x] Fronteira persistente `consumer_authorized_since` vinculada ao `session_id`.
+- [x] Autorização exige `active`, `return_pending=false`, sessão correspondente e `occurred_at > consumer_authorized_since`.
+- [x] C1.2 usa `trigger.to_state.last_changed` e permanece reativa à abertura física da porta.
+- [x] Harness exige `occurred_at` explícito.
+- [x] Fronteira invalidada em `idle`, `starting`, `ending`, `failed` e retorno pendente.
+- [x] `homeassistant.check_config` aprovado e reloads parciais retornaram HTTP 200.
+- [x] Starting e Ending rejeitados; Failed não acionou consumidor.
+- [x] D1 não acionou C1.1, C1.2 ou C1.3.
+- [x] Active nominal produziu uma execução de C1.2 e uma de C1.3, sem duplicação indevida.
+- [x] Reload com `return_pending=true` preservou a proteção.
+- [x] Nenhum restart foi executado e nenhum componente protegido foi alterado.
+
+Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
+
+Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B**.
+
 ## Gates especificos - V20.1Q Recovery 4G
 
 ### Gate documental
