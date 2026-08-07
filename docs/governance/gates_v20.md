@@ -144,7 +144,7 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [x] Restante da V20.2 e Context Engine original preservados em shadow.
 - [x] V20.1O preservada como autoridade canônica da Timeline e Event Feed.
 - [x] Fronteiras entre CSMR, publicador e consumidores definidas.
-- [ ] Plano técnico restrito aprovado.
+- [x] Plano técnico restrito definido e decisões DP-1 a DP-5 resolvidas documentalmente em `docs/v20_2c/plano_tecnico_csmr.md`.
 
 ### Gate de contrato
 
@@ -152,7 +152,8 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [x] Formato público `HH:MM mensagem` preservado.
 - [x] Escrita direta em aliases finais, Timeline e Event Feed proibida.
 - [x] Timeline, Event Feed, histórico e deduplicação paralelos proibidos.
-- [ ] Caminho canônico concreto validado no plano técnico sem substituir `sensor.casa_evento_publicavel_v20`.
+- [x] Caminho canônico decidido: script V20.1O com payload versionado, ACK correlacionado e preservação de `sensor.casa_evento_publicavel_v20`.
+- [ ] Script canônico, ACK e ledger idempotente implementados e validados.
 
 ### Gate de comportamento
 
@@ -165,7 +166,7 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [ ] Retorno sem sessão aberta comprovado sem publicação.
 - [ ] Ciclos consecutivos completos, independentes e sem duplicidade.
 - [ ] Restart e reload comprovados sem sessão fantasma.
-- [ ] Harness comprovado como fonte de teste não publicável.
+- [ ] Harness comprovado por ACK `validated_test` como fonte não publicável, sem alteração de Timeline, Event Feed ou aliases.
 
 ### Gate de regressão
 
@@ -180,6 +181,10 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 ### Gate de falha e rollback
 
 - [ ] Falha de publicação permanece observável.
+- [ ] Timeout de 10 s, duas repetições com intervalo de 5 s e escalonamento seguro comprovados.
+- [ ] ACK `duplicate` aceito somente para o mesmo `request_id` e a mesma identidade lógica.
+- [ ] Ledger canônico comprovado com retenção mínima dos últimos 16 eventos e 7 dias.
+- [ ] Recuperação parcial retoma somente o evento pendente, sem compensação ou reemissão do par.
 - [ ] Nenhuma progressão silenciosa após falha crítica de abertura.
 - [ ] Rollback restrito à promoção funcional da sessão.
 - [ ] V20.1O permanece funcional após rollback.

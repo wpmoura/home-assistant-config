@@ -83,7 +83,7 @@ As ações subordinadas somente podem ser liberadas depois da abertura publicada
 | Lote | Consumidor subordinado | Fase da sessão |
 | --- | --- | --- |
 | C1.1 | `light.smart_lampada_wifi_1` | após abertura |
-| C1.2 | `automation.v20_2c_teste_alertar_porta_aberta_apos_saida` | após abertura |
+| C1.2 | `automation.v20_2c_teste_alertar_porta_aberta_apos_saida` | reativo durante sessão ativa |
 | C1.3 | `automation.v20_2c_garantia_habilitar_push_da_porta_ao_sair` | após abertura |
 
 Módulos futuros devem declarar explicitamente se atuam na abertura, durante a sessão ou no encerramento. A promoção não autoriza automaticamente nenhum evento ou módulo adicional.
@@ -110,6 +110,8 @@ Essas evidências homologam graça, cancelamento, revalidação e alvo físico s
 A Porta da Sala é `binary_sensor.sensor_porta_sala_contact`, Aqara via Zigbee2MQTT/MQTT. `off` significa fechada e `on`, aberta. O push oficial é `notify.mobile_app_iphonewm`.
 
 A automação `v20_2c_saida_teste_alertar_porta_aberta` usa a mesma transição e o mesmo tempo de graça. Se a ausência de Wilson continuar válida e a porta estiver aberta ao final, registra no Logbook e envia exatamente um push. Não altera a porta nem automações legadas; o modo é `restart`.
+
+Arquitetura-alvo decidida em V20.2C-D1: a descrição acima permanece fotografia da implementação atual. No CSMR futuro, C1.2 não será chamada pelo dispatcher nem executada no início da sessão. C1.3 a habilita como preparação; C1.2 reage à abertura física da porta enquanto a sessão estiver `active`, sem graça própria, e recusa atuação fora da sessão.
 
 Evidências preservadas:
 

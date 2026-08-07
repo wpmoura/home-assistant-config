@@ -1,7 +1,7 @@
 # V20.2C-T1 — Plano Técnico Restrito do CSMR
 
 Data: 2026-08-06
-Status: PLANEJADO; IMPLEMENTAÇÃO BLOQUEADA POR DECISÕES PENDENTES
+Status: PLANEJADO; DECISÕES DP-1 A DP-5 RESOLVIDAS; IMPLEMENTAÇÃO AINDA NÃO EXECUTADA
 Classificação: plano técnico auxiliar, subordinado à arquitetura e ao Gate V20.2C
 Documento pai/índice: `docs/v20_2c/README.md`
 
@@ -13,7 +13,7 @@ Escopo: ciclo de saída e retorno de Wilson, estado operacional da sessão, gra�
 
 Fora de escopo: NVR e `input_select.nvr_modo_gravacao`, chuva, Internet, failover, Recovery 4G, energia, Presence Intelligence, IA, novos eventos e qualquer outro componente V20.2.
 
-Nenhum YAML final é especificado neste lote. Entity IDs e eventos novos abaixo são propostas sujeitas às decisões da seção 16.
+Nenhum YAML final é especificado neste lote. A seção 20 registra a decisão V20.2C-D1 e prevalece sobre recomendações ou pendências históricas das seções anteriores.
 
 ## 2. Gate de conhecimento prévio
 
@@ -49,7 +49,7 @@ Nenhum YAML final é especificado neste lote. Entity IDs e eventos novos abaixo 
 
 ### Hipótese de trabalho
 
-Quando o repositório não define comportamento, este plano apresenta recomendação explicitamente não aprovada. Nenhuma recomendação pendente deve ser convertida em YAML antes da decisão formal correspondente.
+Na versão T1 inicial, lacunas foram registradas sem suposição. A decisão V20.2C-D1 da seção 20 resolveu essas lacunas e é a referência normativa vigente.
 
 ## 3. Estado atual auditado
 
@@ -89,7 +89,7 @@ automação CSMR (graça + revalidação + exclusão mútua)
                 └── C1.1 desligar Luz da Mesa
 ```
 
-Ordem recomendada dos consumidores: C1.3 antes de C1.1. Assim, a proteção de alerta é restabelecida antes da ação de conforto/segurança. C1.2 permanece habilitada e passa a observar a abertura confirmada, depois de C1.3, sem graça própria.
+Ordem das ações pontuais: C1.3 antes de C1.1. Assim, a proteção de alerta é restabelecida antes da ação de conforto/segurança. C1.2 não é executada pelo dispatcher; permanece consumidor reativo da abertura física da porta enquanto a sessão estiver ativa.
 
 ## 5. Representação da sessão
 
@@ -118,7 +118,7 @@ Recomenda-se um identificador persistente adicional (`input_text.casa_sessao_mon
 ### Startup
 
 - Wilson em casa + `inativa`: permanecer inativa; não publicar.
-- Wilson ausente + `inativa`: não abrir silenciosamente. Recomendação pendente: iniciar uma graça completa somente depois de startup estabilizado e apenas para fonte real; Harness nunca reconcilia publicação.
+- Wilson ausente + `inativa`: permanecer inativa e aguardar futuro ciclo real `home → not_home`; não publicar nem liberar consumidores.
 - Wilson ausente + `ativa`: restaurar ativa; não republicar entrada.
 - Wilson em casa + `ativa`: iniciar reconciliação de encerramento, sem apagar o estado antes da confirmação.
 - fase parcial: retomar do checkpoint somente se o contrato de idempotência/ack for aprovado; caso contrário, bloquear em erro observável.
@@ -164,7 +164,8 @@ trigger off → on da ausência
 → solicitar fato monitoramento_iniciado
 → confirmar publicação ou entrar em erro_abertura
 → fase ativa
-→ liberar C1.3, C1.1 e C1.2 em sequência
+→ executar C1.3 e depois C1.1
+→ manter C1.2 reativo durante a sessão
 ```
 
 A sessão somente é oficialmente aberta após confirmação do segundo evento e transição para `ativa`. Ativar antes das publicações permitiria consumidores prematuros e esconderia abertura incompleta.
@@ -185,7 +186,7 @@ Novo gatilho: chamada explícita pelo dispatcher, antes de C1.2. Operação cont
 
 ### C1.2
 
-Alteração mínima necessária: remover graça própria e receber liberação somente após C1.3. Preservar porta, Logbook, push, textos, Entity ID e `mode: restart`. A revalidação deve exigir sessão `ativa`. Sem essa adaptação, C1.2 continuaria com dupla graça e poderia ser acionada antes da abertura.
+Alteração mínima necessária: remover graça própria e o trigger de saída. C1.2 permanece automação reativa à porta, habilitada por C1.3 e autorizada somente durante sessão ativa. Seu gatilho futuro é a abertura física de `binary_sensor.sensor_porta_sala_contact`. Preservar porta, Logbook, push, textos, Entity ID e `mode: restart`. Ela não integra a sequência de chamadas pontuais do dispatcher.
 
 ### Cancelamento, testes e rollback
 
@@ -197,11 +198,12 @@ Rollback restaura integralmente os três blocos atuais do package a partir do co
 
 Mecanismo recomendado: dispatcher sequencial com chamadas explícitas a scripts consumidores, não observadores simultâneos do boolean/sensor de sessão.
 
-Ordem:
+Ordem das ações pontuais:
 
 1. C1.3 garante C1.2 habilitada;
 2. C1.1 desliga a luz se aplicável;
-3. C1.2 avalia a porta e envia push se aplicável.
+
+Depois dessas ações, C1.2 permanece armado e reage de forma independente à abertura física da porta durante a sessão. O estado ativo é autorização, não gatilho para enviar push.
 
 Cada consumidor revalida `sessão == ativa` e `session_id`. O trace do dispatcher e os traces dos scripts comprovam início/fim e ordem. Falha de consumidor é subordinada: deve ser registrada, mas os seguintes continuam por branches isolados com resposta/resultado explícito. Falha não volta a sessão para “abrindo” nem republica eventos.
 
@@ -227,7 +229,7 @@ fontes enumeradas / evento casa_recovery_4g_central
 
 Não existe mecanismo oficial de entrada para os quatro fatos do CSMR. A implementação exige um lote formal que estenda `packages/motor_timeline_v20.yaml`, preservando o mesmo sensor e sem reabrir silenciosamente a política V20.1O.
 
-Contrato recomendado, ainda pendente de aprovação:
+Proposta histórica T1, substituída pelo contrato definitivo da seção 20:
 
 - evento interno: `casa_sessao_monitoramento_remoto`;
 - payload mínimo: `fato`, `session_id`, `event_id`, `source: csmr`, `test_mode: false`;
@@ -242,7 +244,7 @@ O CSMR envia fatos, não texto público. Isso preserva formatação e autoridade
 
 A chamada `event.fire` apenas confirma aceitação local do evento; não confirma atualização da Timeline. A confirmação mínima observável hoje é aguardar que `sensor.casa_timeline_v20` tenha `linha_1` igual ao texto esperado com timestamp, e que `eventos_json` o contenha. O Feed deriva da Timeline e é confirmação secundária, não requisito independente.
 
-Essa confirmação é assíncrona e frágil sem correlação: eventos concorrentes podem mover a linha; a deduplicação pode aceitar o publicador mas não inserir a Timeline; o mesmo texto em outra sessão é indistinguível sem `event_id`. Recomendação: a extensão canônica deve expor atributos de correlação/resultado no próprio publicador ou em evento de ack emitido pela V20.1O. A forma exata é decisão pendente.
+Essa confirmação observacional isolada é assíncrona e frágil. A seção 20 resolve a lacuna por script canônico, `request_id`, ACK e ledger da V20.1O.
 
 Timeout recomendado, sujeito a homologação: 10 segundos por evento. Abertura não avança no timeout. O valor não tem fundamento runtime ainda e precisa ser validado.
 
@@ -260,7 +262,7 @@ Requisito runtime recomendado:
 
 Deduplicação de um fato novo da sessão não pode ser tratada automaticamente como sucesso: pode ocultar duplicidade ou colisão. Deve resultar em erro observável até o contrato distinguir retry idempotente do mesmo `event_id` de uma nova solicitação.
 
-Se o primeiro evento publicar e o segundo falhar, a sessão não fica ativa e consumidores não são liberados. O estado permanece `erro_abertura`, com o primeiro checkpoint preservado. Não compensar publicando evento de encerramento, pois isso inventaria contrato. Retry cego também é proibido. A retomada depende da política de idempotência pendente.
+Se o primeiro evento publicar e o segundo falhar, a sessão não fica ativa e consumidores não são liberados. O checkpoint é preservado e somente o request pendente é repetido conforme DP-3, sem compensação ou reemissão do par.
 
 Falha ao ativar `ativa` depois de dois acks deve impedir consumidores e gerar erro observacional. A falta de transação atômica entre Timeline e helper é risco residual que exige reconciliação explícita.
 
@@ -287,10 +289,10 @@ Falha parcial de encerramento mantém `erro_encerramento`, sessão logicamente n
 | Cenário | Estado esperado e correção | Publicação | Duplicidade/reconciliação | Harness |
 | --- | --- | --- | --- | --- |
 | A: home + off/inativa | permanecer inativa | proibida | nenhuma | termina/permanece desligado |
-| B: away + off/inativa | recomendação: graça completa após startup estável, apenas fonte real; decisão pendente | somente após graça e decisão aprovada | evitar inferir transição antiga | Harness não abre sessão |
+| B: away + off/inativa | permanecer inativa até novo ciclo real | proibida | não inferir transição antiga | Harness não abre sessão real |
 | C: away + on/ativa | restaurar ativa | proibida na inicialização | não republicar entrada | Harness não altera fato restaurado |
 | D: home + on/ativa | reconciliar encerramento pela fila | permitida somente com ack/idempotência aprovados | não desligar helper primeiro | Harness não autoriza publicação |
-| E: reload durante graça | automação recarregada perde espera; estado segue inativa | proibida | startup/reload não deve abreviar graça; reiniciar graça completa ou aguardar nova transição, decisão pendente | simulação não publica |
+| E: reload durante graça | abortar graça e voltar a inativa | proibida | exigir nova transição real | simulação não publica |
 | F: reload entre eventos de entrada | checkpoint parcial restaurado | proibido retry cego | retomar pelo `event_id` somente após contrato idempotente; senão `erro_abertura` | teste termina sem evento público |
 | G: reload durante encerramento | checkpoint parcial restaurado | proibido retry cego | mesma regra; manter bloqueio de novo ciclo | teste termina sem evento público |
 
@@ -352,7 +354,7 @@ Ordem:
 
 Um reload controlado de templates/helpers/automações pode bastar se a validação de configuração confirmar suporte; restart somente se exigido pelo mecanismo realmente implementado. A escolha não pode ser fixada antes do YAML futuro. Nenhum reload/restart é parte deste lote.
 
-## 16. Decisões pendentes obrigatórias
+## 16. Registro histórico das lacunas T1 — resolvidas pela seção 20
 
 ### DP-1 — Interface canônica de entrada e ack
 
@@ -399,13 +401,13 @@ Um reload controlado de templates/helpers/automações pode bastar se a validaç
 - Recomendação: 10 s inicial; sucesso em `published` ou retry do mesmo `event_id` comprovadamente já publicado, nunca deduplicação textual genérica.
 - Runtime futuro: sim.
 
-Enquanto DP-1, DP-2 e DP-3 não forem decididas, o lote de implementação não deve ser autorizado. DP-4 e DP-5 também devem constar do Gate pré-implementação.
+DP-1 a DP-5 foram resolvidas integralmente pela decisão V20.2C-D1 da seção 20.
 
 ## 17. Plano incremental
 
 | Etapa | Arquivos futuros | Comportamento | Risco | Rollback | Validação e critério de saída |
 | --- | --- | --- | --- | --- | --- |
-| 0 — decisões | documentação/Gate | aprovar DP-1 a DP-5 e contrato | decisão incompleta | manter bloqueio | despacho/lote formal aprovado |
+| 0 — decisões | documentação/Gate | resolver DP-1 a DP-5 e contrato | nenhum risco funcional | reverter commit documental | concluída pela V20.2C-D1 |
 | 1 — estado | package V20.2C | helpers de fase/ID e sensor derivado, sem consumidor | restauração errada | remover referências antes dos helpers | parser, restart matrix sem publicação |
 | 2 — CSMR shadow | package V20.2C | graça, cancelamento e fila; Harness sem publicação/efeito | sessão fantasma | desabilitar coordenador | traces de cancelamento e ciclos shadow |
 | 3 — publicador canônico | motor Timeline + package | entrada CSMR e ack, ainda sem consumidores | regressão V20.1O | reverter somente branch CSMR do template | eventos sintéticos controlados conforme autorização, aliases intactos |
@@ -477,13 +479,197 @@ Os Gates gerais 0–6 também se aplicam: escopo e limites deste plano estão de
 - C1.2 desabilitada não pode receber trigger; por isso C1.3 deve precedê-la.
 - Um consumidor físico não deve ser testado pelo Harness sem autorização explícita.
 
-## 20. Conclusão
+## 20. V20.2C-D1 — decisões técnicas definitivas
 
-O desenho mínimo é viável com estado persistente por fases, coordenador serial, extensão formal do publicador V20.1O com correlação/ack e consumidores chamados em ordem. Porém, o repositório atual não possui a interface canônica do CSMR, confirmação idempotente nem política aprovada para recuperação parcial/startup ausente.
+Esta seção resolve DP-1 a DP-5 e substitui toda marcação “pendente”, “recomendação” ou alternativa aberta registrada anteriormente neste plano. Nenhum parâmetro fica delegado ao lote de implementação.
+
+### DP-1 — entrada canônica e ACK
+
+#### Escolha
+
+A API pública escolhida é o script canônico `script.casa_publicar_evento_timeline_v20`, pertencente à V20.1O. Ele valida, solicita a publicação ao `sensor.casa_evento_publicavel_v20`, aguarda o resultado canônico e retorna resposta estruturada.
+
+Um evento público isolado foi rejeitado porque comprova apenas despacho. Helpers de comando/resposta foram rejeitados porque permitem colisão entre solicitações. Internamente, o script pode disparar um evento privado para alimentar o trigger-based template sensor; esse evento não constitui API autorizada para o CSMR ou para a V20.2 geral.
+
+#### Contrato de entrada — schema 1
+
+| Campo | Tipo e regra |
+| --- | --- |
+| `schema_version` | inteiro obrigatório, exatamente `1` |
+| `request_id` | UUID obrigatório, criado e persistido antes da chamada; invariável em retries |
+| `source` | enum autorizada; neste lote somente `csmr` |
+| `session_id` | UUID obrigatório e único por ciclo real ou ciclo Harness |
+| `event_code` | enum dos quatro códigos autorizados |
+| `test_mode` | boolean obrigatório |
+
+Códigos e projeção exclusiva pela V20.1O:
+
+| `event_code` | mensagem pública derivada |
+| --- | --- |
+| `wilson_left` | `📍 Wilson saiu de casa` |
+| `remote_monitoring_started` | `🛡️ Monitoramento remoto iniciado` |
+| `wilson_arrived` | `📍 Wilson chegou em casa` |
+| `remote_monitoring_ended` | `🛡️ Monitoramento remoto encerrado` |
+
+O solicitante não envia `message`, `timestamp`, flags de Timeline/Push/agregação nem Entity ID de destino. A V20.1O gera `HH:MM`, fixa `enviar_push: false` e `permitir_agregacao: false`, valida fonte, schema, tipos, evento e identidade. Isso impede spoofing e mantém a autoridade canônica.
+
+#### Contrato de ACK — schema 1
+
+O ACK é retornado pelo script e também emitido pela V20.1O no evento privado observacional `casa_timeline_publicacao_ack_v20`.
+
+| Campo | Tipo e regra |
+| --- | --- |
+| `schema_version` | inteiro `1` |
+| `request_id` | correlação exata |
+| `source` | fonte validada |
+| `session_id` | sessão validada |
+| `event_code` | código validado |
+| `status` | `published`, `validated_test`, `duplicate`, `rejected` ou `failed` |
+| `published_at` | timestamp da V20.1O somente em `published`; nulo nos demais |
+| `reason` | código estável; vazio apenas em sucesso |
+
+`published` somente ocorre depois de o request constar no ledger canônico e a entrada estar incorporada à Timeline. `validated_test` confirma payload, fonte, ordem e projeção do texto sem persistir Timeline/Feed. `duplicate` significa repetição comprovada da mesma identidade. Payload inválido, fonte não autorizada, ordem inválida ou conflito recebe `rejected`, sem alteração pública. Erro interno recebe `failed`.
+
+Correlação usa `request_id`. Identidade lógica usa `source + session_id + event_code`. O mesmo `request_id` deve corresponder sempre à mesma identidade. Novo `request_id` para identidade já concluída, ou reuso do ID com outra identidade, recebe `rejected: identity_conflict`.
+
+Impacto futuro: extensão formal e restrita de `packages/motor_timeline_v20.yaml`, preservando sensores, aliases, formato, limite e fontes existentes. Rollback remove script, trigger privado, ACK e ledger do CSMR; Recovery e demais fontes permanecem intactos.
+
+### DP-2 — máquina de estados e persistência
+
+Estados oficiais:
 
 ```text
-Plano técnico insuficiente:
-existem decisões obrigatórias pendentes antes da implementação
+idle
+opening_wait
+opening_event_1_pending
+opening_event_1_confirmed
+opening_event_2_pending
+active
+closing_event_1_pending
+closing_event_1_confirmed
+closing_event_2_pending
+error_opening
+error_closing
 ```
 
-O próximo lote autorizado é exclusivamente decisório/documental para resolver DP-1 a DP-5 e atualizar o Gate. Lote de implementação não pode ser autorizado neste estado.
+Transições permitidas:
+
+```text
+idle → opening_wait
+opening_wait → idle | opening_event_1_pending
+opening_event_1_pending → opening_event_1_confirmed | error_opening
+opening_event_1_confirmed → opening_event_2_pending
+opening_event_2_pending → active | error_opening
+active → closing_event_1_pending
+closing_event_1_pending → closing_event_1_confirmed | error_closing
+closing_event_1_confirmed → closing_event_2_pending
+closing_event_2_pending → idle | error_closing
+error_opening → estado pending correspondente, por retomada governada
+error_closing → estado pending correspondente, por retomada governada
+```
+
+Nenhuma outra transição é válida. Dados persistentes mínimos: fase, `session_id`, `current_request_id`, `current_event_code`, `last_confirmed_event_code`, `last_ack_status`, `last_ack_reason`, `created_at`, `source` e `test_mode`. Guardam apenas a transação corrente, não histórico paralelo.
+
+O request é persistido antes da chamada. Após restart/reload, uma fase `pending` repete somente o request corrente com o mesmo ID; se ele já tiver sido publicado, a V20.1O responde `duplicate`. `active` é restaurado sem republicação. O estado `opening_wait` perdido por reload volta a `idle`, pois nenhum evento foi publicado e uma nova transição real é exigida.
+
+Reconciliação é acionada em `homeassistant.start`, no evento nativo de reload das automações e quando o coordenador muda de desabilitado para habilitado. Automação desabilitada não progride; seus dados persistem. Reabilitação não cria sessão: apenas reconcilia a fase registrada.
+
+Abortar é permitido somente em `opening_wait`, antes de qualquer publicação. Depois do primeiro ACK, o par deve ser concluído ou permanecer em erro observável. Após conclusão de encerramento, limpar IDs, ACK, timestamps e origem, mantendo apenas `idle`.
+
+### DP-3 — recuperação de par parcial
+
+Estratégia escolhida: retomar somente o evento pendente, com o mesmo `session_id` e o mesmo `request_id`. Nunca reemitir o par completo e nunca publicar evento compensatório.
+
+Política fechada:
+
+- uma tentativa inicial e no máximo duas repetições;
+- 5 segundos entre repetições;
+- mesmo `request_id` em todas;
+- `duplicate` é sucesso somente quando ID e identidade lógica coincidem no ledger;
+- `rejected` nunca recebe retry automático;
+- `failed` e timeout recebem retry até o limite;
+- esgotamento leva a `error_opening` ou `error_closing`;
+- recuperação manual corrige a causa e retoma o mesmo request; não edita Timeline nem limpa checkpoint;
+- abertura parcial nunca libera consumidores;
+- encerramento parcial bloqueia o próximo ciclo.
+
+Se Wilson retornar durante abertura parcial, o CSMR conclui o segundo evento de entrada sem liberar consumidores e, em seguida, publica o par de encerramento da mesma sessão. Isso preserva os quatro eventos, a ordem e a rastreabilidade sem sessão operacional aberta silenciosamente.
+
+### DP-4 — startup com Wilson já ausente
+
+Política oficial: **não abrir automaticamente** quando Wilson estiver ausente e a fase persistida for `idle`.
+
+Não se publica “Wilson saiu” sem observar a saída. Ausência prolongada permanece sem sessão e sem consumidores até que ocorra um futuro ciclo real `home → not_home`. Não há comando manual para forçar os eventos oficiais.
+
+- Harness: `away + idle` em teste pode iniciar apenas ciclo `test_mode`, sem Timeline pública ou ação física;
+- sessão persistida `active` + Wilson ausente: restaurar `active`, sem republicar;
+- sessão persistida `active` + Wilson em casa: reconciliar o par de encerramento;
+- Wilson em casa + `idle`: permanecer `idle`;
+- consumidores: nenhum é liberado em `away + idle`;
+- risco residual aceito: uma ausência real prolongada pode ficar sem monitoramento após perda/ausência de sessão persistida;
+- teste futuro obrigatório: restart nos quatro estados básicos e prova negativa de `away + idle`.
+
+### DP-5 — timeout, unicidade e retenção
+
+Timeout de ACK: 10 segundos por chamada. Depois de timeout/`failed`, aguardar 5 segundos e repetir até duas vezes. Após três chamadas totais, entrar em erro. Os valores são normativos; qualquer ajuste futuro exige lote formal.
+
+`duplicate` só equivale a sucesso quando o ledger confirma simultaneamente o mesmo `request_id`, `source`, `session_id` e `event_code`. Deduplicação visual por texto nunca é ACK e não participa da idempotência transacional.
+
+A V20.1O retém requests publicados até que ambas as condições sejam excedidas: últimos 16 eventos **e** no mínimo 7 dias. Requests `validated_test` ficam em ledger técnico não público por 24 horas. O CSMR mantém a transação corrente até conclusão; se o ledger expirar e não houver prova inequívoca, permanece em erro para recuperação manual, sem republicar.
+
+Sessões diferentes podem publicar a mesma mensagem porque possuem `session_id` distinto. A mesma identidade com request diferente é conflito; o mesmo request com identidade diferente também é conflito.
+
+### Harness definitivo
+
+O Harness usa a API canônica com `test_mode: true`. A V20.1O executa todas as validações, deriva os textos e devolve `validated_test`, mas não altera `sensor.casa_evento_publicavel_v20`, Timeline, Event Feed ou aliases. Ações físicas permanecem bloqueadas.
+
+ACKs e traces comprovam correlação e ordem. O Event Feed não pode ser comprovado dinamicamente por teste que deliberadamente não persiste: sua derivação é validada estaticamente e, depois, um ciclo real coordenado e autorizado comprova Timeline e Event Feed com os quatro textos oficiais. O Harness termina desligado, simulação desligada e fase de teste limpa.
+
+### Consumidores
+
+```text
+ACK wilson_left
+→ ACK remote_monitoring_started
+→ fase active
+→ dispatcher executa C1.3
+→ dispatcher executa C1.1
+→ C1.2 permanece reativo à porta durante active
+```
+
+C1.3 e C1.1 são ações pontuais de preparação. C1.2 não é chamada pelo dispatcher e não envia push ao simples início da sessão; C1.3 apenas garante que ela esteja habilitada. C1.2 reage a `binary_sensor.sensor_porta_sala_contact` e exige sessão ativa.
+
+### Quadro decisório
+
+| Decisão | Escolha | Fundamentação | Risco residual | Impacto futuro |
+| --- | --- | --- | --- | --- |
+| DP-1 | script canônico + ACK | validação pertence à V20.1O | atomicidade script/evento | extensão restrita do motor |
+| DP-2 | fase persistente + ledger | retry seguro após restart | expiração do ledger | helpers e atributos internos |
+| DP-3 | retomar somente pendente | exatamente uma ocorrência e ordem | bloqueio em erro | reconciliação governada |
+| DP-4 | não abrir `away + idle` | não afirmar saída falsa | ausência sem sessão | teste negativo obrigatório |
+| DP-5 | 10 s, 2 retries, 5 s, retenção 16/7 dias | limite determinístico | ajuste exige novo lote | matriz de falhas |
+
+### Matriz final de autorização
+
+| Item | Resolvido? | Evidência documental |
+| --- | --- | --- |
+| Entrada canônica | Sim | DP-1, contrato de entrada |
+| ACK correlacionado | Sim | DP-1, contrato de ACK |
+| Máquina de estados | Sim | DP-2 |
+| Restart/reload | Sim | DP-2 |
+| Par parcial | Sim | DP-3 |
+| Startup ausente | Sim | DP-4 |
+| Timeout | Sim | DP-5 |
+| Idempotência | Sim | DP-2 e DP-5 |
+| Harness | Sim | Harness definitivo |
+| Liberação de consumidores | Sim | Consumidores |
+
+## 21. Conclusão
+
+O desenho mínimo está fechado com estado persistente por fases, coordenador serial, script canônico V20.1O, ACK correlacionado, ledger idempotente, retomada exclusiva do evento pendente, startup conservador e Harness por ACK sem persistência pública. A interface ainda não existe no runtime; sua implementação pertence ao próximo lote.
+
+```text
+Decisões obrigatórias resolvidas:
+lote técnico de implementação pode ser autorizado.
+```
+
+A autorização é documental e condicionada ao Gate pré-implementação. Nenhum código ou comportamento foi habilitado por esta decisão.
