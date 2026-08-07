@@ -1,0 +1,520 @@
+###############################################################################
+# V20.2C-I3A — Dispatcher lógico do CSMR
+#
+# Integra presença, graça, I2A e I1 exclusivamente com publicações test_mode.
+# Não possui consumidores, serviços de dispositivos ou trigger de startup.
+###############################################################################
+
+template:
+  - trigger:
+      - platform: event
+        event_type: casa_csmr_dispatcher_checkpoint_v20_2c
+
+    sensor:
+      - name: Casa CSMR Dispatcher Estado V20 2C
+        unique_id: casa_csmr_dispatcher_estado_v20_2c
+        icon: mdi:transit-connection-variant
+        state: "{{ trigger.event.data.phase | default('failed', true) }}"
+        attributes:
+          schema_version: 1
+          cycle_id: >-
+            {{ trigger.event.data.cycle_id
+               | default(this.attributes.cycle_id | default('', true), false) }}
+          session_id: >-
+            {{ trigger.event.data.session_id
+               | default(this.attributes.session_id | default('', true), false) }}
+          source: >-
+            {{ trigger.event.data.source
+               | default(this.attributes.source | default('', true), false) }}
+          presence_observed: >-
+            {{ trigger.event.data.presence_observed
+               | default(this.attributes.presence_observed | default('', true), false) }}
+          grace_seconds: >-
+            {{ trigger.event.data.grace_seconds
+               | default(this.attributes.grace_seconds | default(0), false) }}
+          reserve_request_id: >-
+            {{ trigger.event.data.reserve_request_id
+               | default(this.attributes.reserve_request_id | default('', true), false) }}
+          left_request_id: >-
+            {{ trigger.event.data.left_request_id
+               | default(this.attributes.left_request_id | default('', true), false) }}
+          open_request_id: >-
+            {{ trigger.event.data.open_request_id
+               | default(this.attributes.open_request_id | default('', true), false) }}
+          started_request_id: >-
+            {{ trigger.event.data.started_request_id
+               | default(this.attributes.started_request_id | default('', true), false) }}
+          arrived_request_id: >-
+            {{ trigger.event.data.arrived_request_id
+               | default(this.attributes.arrived_request_id | default('', true), false) }}
+          close_request_id: >-
+            {{ trigger.event.data.close_request_id
+               | default(this.attributes.close_request_id | default('', true), false) }}
+          ended_request_id: >-
+            {{ trigger.event.data.ended_request_id
+               | default(this.attributes.ended_request_id | default('', true), false) }}
+          last_ack_status: >-
+            {{ trigger.event.data.last_ack_status
+               | default(this.attributes.last_ack_status | default('', true), false) }}
+          last_ack_request_id: >-
+            {{ trigger.event.data.last_ack_request_id
+               | default(this.attributes.last_ack_request_id | default('', true), false) }}
+          last_error: >-
+            {{ trigger.event.data.last_error
+               | default(this.attributes.last_error | default('', true), false) }}
+          updated_at: "{{ trigger.event.data.updated_at | default(now().isoformat(), true) }}"
+          publication_test_mode: true
+          consumers_connected: false
+
+automation:
+  - id: casa_csmr_dispatcher_logico_v20_2c
+    alias: Casa — CSMR — Dispatcher Lógico V20.2C
+    description: >-
+      Coordena presença, graça, reserva, estado CSMR e ACKs I1 em test_mode.
+      Não aciona consumidores ou dispositivos.
+    mode: queued
+    max: 10
+
+    trigger:
+      - platform: state
+        entity_id: person.wmoura
+        from: home
+        to: not_home
+        id: real_departure
+
+      - platform: state
+        entity_id: person.wmoura
+        from: not_home
+        to: home
+        id: real_return
+
+      - platform: event
+        event_type: casa_csmr_i3a_harness
+        id: harness
+
+    variables:
+      is_harness: "{{ trigger.id == 'harness' }}"
+      command: >-
+        {% if trigger.id == 'real_departure' %}departure
+        {% elif trigger.id == 'real_return' %}return
+        {% else %}{{ trigger.event.data.command | default('', true) | string | trim }}{% endif %}
+      cycle_id: >-
+        {% if trigger.id == 'harness' %}
+          {{ trigger.event.data.cycle_id | default('', true) | string | trim }}
+        {% else %}
+          {{ trigger.to_state.context.id }}
+        {% endif %}
+      dispatcher_source: "{{ 'harness_i3a' if is_harness else 'person.wmoura' }}"
+      grace_seconds: "{{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}"
+      reserve_hash: "{{ md5(cycle_id ~ ':reserve') }}"
+      left_hash: "{{ md5(cycle_id ~ ':wilson_left_home') }}"
+      open_hash: "{{ md5(cycle_id ~ ':open') }}"
+      started_hash: "{{ md5(cycle_id ~ ':remote_monitoring_started') }}"
+      reserve_request_id: >-
+        {{ reserve_hash[0:8] ~ '-' ~ reserve_hash[8:12] ~ '-4' ~ reserve_hash[13:16]
+           ~ '-8' ~ reserve_hash[17:20] ~ '-' ~ reserve_hash[20:32] }}
+      left_request_id: >-
+        {{ left_hash[0:8] ~ '-' ~ left_hash[8:12] ~ '-4' ~ left_hash[13:16]
+           ~ '-8' ~ left_hash[17:20] ~ '-' ~ left_hash[20:32] }}
+      open_request_id: >-
+        {{ open_hash[0:8] ~ '-' ~ open_hash[8:12] ~ '-4' ~ open_hash[13:16]
+           ~ '-8' ~ open_hash[17:20] ~ '-' ~ open_hash[20:32] }}
+      started_request_id: >-
+        {{ started_hash[0:8] ~ '-' ~ started_hash[8:12] ~ '-4' ~ started_hash[13:16]
+           ~ '-8' ~ started_hash[17:20] ~ '-' ~ started_hash[20:32] }}
+
+    action:
+      - choose:
+          - conditions: "{{ command == 'departure' }}"
+            sequence:
+              - condition: template
+                value_template: >-
+                  {{ is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                     and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: grace
+                  cycle_id: "{{ cycle_id }}"
+                  session_id: ""
+                  source: "{{ dispatcher_source }}"
+                  presence_observed: not_home
+                  grace_seconds: "{{ grace_seconds }}"
+                  reserve_request_id: "{{ reserve_request_id }}"
+                  left_request_id: "{{ left_request_id }}"
+                  open_request_id: "{{ open_request_id }}"
+                  started_request_id: "{{ started_request_id }}"
+                  arrived_request_id: ""
+                  close_request_id: ""
+                  ended_request_id: ""
+                  last_ack_status: ""
+                  last_ack_request_id: ""
+                  last_error: ""
+                  updated_at: "{{ now().isoformat() }}"
+
+              - wait_for_trigger:
+                  - platform: state
+                    entity_id: person.wmoura
+                    to: home
+                    id: real_home
+                  - platform: event
+                    event_type: casa_csmr_i3a_harness
+                    event_data:
+                      command: return
+                    id: harness_return
+                timeout:
+                  seconds: "{{ grace_seconds }}"
+                continue_on_timeout: true
+
+              - variables:
+                  cancelled_during_grace: >-
+                    {{ wait.completed and (
+                         (not is_harness and wait.trigger.id == 'real_home')
+                         or (is_harness and wait.trigger.id == 'harness_return'
+                             and wait.trigger.event.data.cycle_id | default('', true) == cycle_id)
+                       ) }}
+
+              - if:
+                  - condition: template
+                    value_template: "{{ cancelled_during_grace }}"
+                then:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: idle
+                      cycle_id: "{{ cycle_id }}"
+                      session_id: ""
+                      source: "{{ dispatcher_source }}"
+                      presence_observed: home
+                      last_ack_status: cancelled_during_grace
+                      last_ack_request_id: ""
+                      last_error: ""
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: Saída cancelada durante a graça.
+
+              - condition: template
+                value_template: >-
+                  {{ is_harness or is_state('person.wmoura', 'not_home') }}
+
+              - action: script.casa_csmr_transicionar_v20_2c
+                data:
+                  action: reserve
+                  request_id: "{{ reserve_request_id }}"
+                  source: csmr_dispatcher_v20_2c
+                  reason: "i3a_departure_{{ dispatcher_source }}"
+                  test_mode: false
+                  simulate_failure: false
+                response_variable: reserve_response
+
+              - if:
+                  - condition: template
+                    value_template: "{{ reserve_response.status in ['reserved', 'duplicate'] }}"
+                then:
+                  - variables:
+                      session_id: "{{ reserve_response.session_id }}"
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ cycle_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ reserve_response.status | default('failed', true) }}"
+                      last_error: "reserve_{{ reserve_response.reason | default('unknown', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: Reserva do CSMR recusada.
+
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: reserved
+                  cycle_id: "{{ cycle_id }}"
+                  session_id: "{{ session_id }}"
+                  source: "{{ dispatcher_source }}"
+                  last_ack_status: "{{ reserve_response.status }}"
+                  last_ack_request_id: "{{ reserve_request_id }}"
+                  last_error: ""
+                  updated_at: "{{ now().isoformat() }}"
+
+              - action: script.casa_publicar_evento_timeline_v20
+                data:
+                  request_id: "{{ left_request_id }}"
+                  source: csmr_v20_2c
+                  session_id: "{{ session_id }}"
+                  event_code: wilson_left_home
+                  message: "📍 Wilson saiu de casa"
+                  schema_version: 1
+                  test_mode: true
+                response_variable: left_ack
+
+              - if:
+                  - condition: template
+                    value_template: "{{ left_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                then: []
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ cycle_id }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ left_ack.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ left_request_id }}"
+                      last_error: "left_{{ left_ack.reason | default('unknown', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: ACK de saída incompatível.
+
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: opening
+                  cycle_id: "{{ cycle_id }}"
+                  session_id: "{{ session_id }}"
+                  source: "{{ dispatcher_source }}"
+                  last_ack_status: "{{ left_ack.status }}"
+                  last_ack_request_id: "{{ left_request_id }}"
+                  last_error: ""
+                  updated_at: "{{ now().isoformat() }}"
+
+              - action: script.casa_csmr_transicionar_v20_2c
+                data:
+                  action: open
+                  request_id: "{{ open_request_id }}"
+                  source: csmr_dispatcher_v20_2c
+                  session_id: "{{ session_id }}"
+                  reason: "i3a_departure_{{ dispatcher_source }}"
+                  test_mode: false
+                  simulate_failure: false
+                response_variable: open_response
+
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ open_response.status in ['completed', 'duplicate']
+                         and is_state('sensor.casa_csmr_estado_v20_2c', 'active')
+                         and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') == session_id }}
+                then: []
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ cycle_id }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ open_response.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ open_request_id }}"
+                      last_error: "open_{{ open_response.reason | default('inconsistent_state', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: Abertura transacional incompatível.
+
+              - action: script.casa_publicar_evento_timeline_v20
+                data:
+                  request_id: "{{ started_request_id }}"
+                  source: csmr_v20_2c
+                  session_id: "{{ session_id }}"
+                  event_code: remote_monitoring_started
+                  message: "🛡️ Monitoramento remoto iniciado"
+                  schema_version: 1
+                  test_mode: true
+                response_variable: started_ack
+
+              - if:
+                  - condition: template
+                    value_template: "{{ started_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                then:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: active
+                      cycle_id: "{{ cycle_id }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      presence_observed: not_home
+                      last_ack_status: "{{ started_ack.status }}"
+                      last_ack_request_id: "{{ started_request_id }}"
+                      last_error: ""
+                      updated_at: "{{ now().isoformat() }}"
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ cycle_id }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ started_ack.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ started_request_id }}"
+                      last_error: "started_{{ started_ack.reason | default('unknown', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+
+          - conditions: "{{ command == 'return' }}"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                         and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+                then:
+                  - action: script.casa_csmr_transicionar_v20_2c
+                    data:
+                      action: cancel_reservation
+                      request_id: >-
+                        {% set h = md5(cycle_id ~ ':cancel_reservation') %}
+                        {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                      source: csmr_dispatcher_v20_2c
+                      session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') }}"
+                      reason: i3a_return_before_open
+                      test_mode: false
+                      simulate_failure: false
+                    response_variable: cancel_response
+
+              - condition: state
+                entity_id: sensor.casa_csmr_estado_v20_2c
+                state: active
+
+              - variables:
+                  session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') }}"
+                  return_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') | default(cycle_id, true) }}"
+                  arrived_hash: "{{ md5(return_cycle ~ ':wilson_arrived_home') }}"
+                  close_hash: "{{ md5(return_cycle ~ ':close') }}"
+                  ended_hash: "{{ md5(return_cycle ~ ':remote_monitoring_ended') }}"
+                  arrived_request_id: >-
+                    {{ arrived_hash[0:8] ~ '-' ~ arrived_hash[8:12] ~ '-4' ~ arrived_hash[13:16]
+                       ~ '-8' ~ arrived_hash[17:20] ~ '-' ~ arrived_hash[20:32] }}
+                  close_request_id: >-
+                    {{ close_hash[0:8] ~ '-' ~ close_hash[8:12] ~ '-4' ~ close_hash[13:16]
+                       ~ '-8' ~ close_hash[17:20] ~ '-' ~ close_hash[20:32] }}
+                  ended_request_id: >-
+                    {{ ended_hash[0:8] ~ '-' ~ ended_hash[8:12] ~ '-4' ~ ended_hash[13:16]
+                       ~ '-8' ~ ended_hash[17:20] ~ '-' ~ ended_hash[20:32] }}
+
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: returning
+                  cycle_id: "{{ return_cycle }}"
+                  session_id: "{{ session_id }}"
+                  source: "{{ dispatcher_source }}"
+                  presence_observed: home
+                  arrived_request_id: "{{ arrived_request_id }}"
+                  close_request_id: "{{ close_request_id }}"
+                  ended_request_id: "{{ ended_request_id }}"
+                  last_error: ""
+                  updated_at: "{{ now().isoformat() }}"
+
+              - action: script.casa_publicar_evento_timeline_v20
+                data:
+                  request_id: "{{ arrived_request_id }}"
+                  source: csmr_v20_2c
+                  session_id: "{{ session_id }}"
+                  event_code: wilson_arrived_home
+                  message: "📍 Wilson chegou em casa"
+                  schema_version: 1
+                  test_mode: true
+                response_variable: arrived_ack
+
+              - if:
+                  - condition: template
+                    value_template: "{{ arrived_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                then: []
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ return_cycle }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ arrived_ack.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ arrived_request_id }}"
+                      last_error: "arrived_{{ arrived_ack.reason | default('unknown', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: ACK de chegada incompatível.
+
+              - action: script.casa_csmr_transicionar_v20_2c
+                data:
+                  action: close
+                  request_id: "{{ close_request_id }}"
+                  source: csmr_dispatcher_v20_2c
+                  reason: "i3a_return_{{ dispatcher_source }}"
+                  test_mode: false
+                  simulate_failure: false
+                response_variable: close_response
+
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ close_response.status in ['completed', 'duplicate']
+                         and is_state('sensor.casa_csmr_estado_v20_2c', 'idle') }}
+                then: []
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ return_cycle }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ close_response.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ close_request_id }}"
+                      last_error: "close_{{ close_response.reason | default('inconsistent_state', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+                  - stop: Encerramento transacional incompatível.
+
+              - action: script.casa_publicar_evento_timeline_v20
+                data:
+                  request_id: "{{ ended_request_id }}"
+                  source: csmr_v20_2c
+                  session_id: "{{ session_id }}"
+                  event_code: remote_monitoring_ended
+                  message: "🛡️ Monitoramento remoto encerrado"
+                  schema_version: 1
+                  test_mode: true
+                response_variable: ended_ack
+
+              - if:
+                  - condition: template
+                    value_template: "{{ ended_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                then:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: idle
+                      cycle_id: "{{ return_cycle }}"
+                      session_id: ""
+                      source: "{{ dispatcher_source }}"
+                      presence_observed: home
+                      last_ack_status: "{{ ended_ack.status }}"
+                      last_ack_request_id: "{{ ended_request_id }}"
+                      last_error: ""
+                      updated_at: "{{ now().isoformat() }}"
+                else:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: failed
+                      cycle_id: "{{ return_cycle }}"
+                      session_id: "{{ session_id }}"
+                      source: "{{ dispatcher_source }}"
+                      last_ack_status: "{{ ended_ack.status | default('failed', true) }}"
+                      last_ack_request_id: "{{ ended_request_id }}"
+                      last_error: "ended_{{ ended_ack.reason | default('unknown', true) }}"
+                      updated_at: "{{ now().isoformat() }}"
+
+script:
+  casa_csmr_dispatcher_harness_v20_2c:
+    alias: Casa — CSMR — Harness Dispatcher V20.2C
+    description: Injeta presença lógica no dispatcher I3A sem alterar person.wmoura.
+    icon: mdi:test-tube
+    mode: parallel
+    max: 10
+    fields:
+      command:
+        name: Comando
+        required: true
+        selector:
+          select:
+            options:
+              - departure
+              - return
+      cycle_id:
+        name: Cycle ID
+        required: true
+        selector:
+          text:
+    sequence:
+      - condition: template
+        value_template: "{{ command in ['departure', 'return'] and cycle_id | default('', true) | trim != '' }}"
+      - event: casa_csmr_i3a_harness
+        event_data:
+          command: "{{ command }}"
+          cycle_id: "{{ cycle_id | trim }}"
