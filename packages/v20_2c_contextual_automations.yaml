@@ -105,49 +105,44 @@ automation:
   - id: v20_2c_saida_teste_desligar_luz_mesa
     alias: V20.2C — Monitoramento — Desligar Luz da Mesa após Saída
     description: >-
-      Desliga somente a luz da mesa após graça e revalidação da ausência de
-      Wilson, real ou simulada pelo harness.
+      Desliga somente a luz da mesa quando o dispatcher autoriza consumidores
+      de uma sessão CSMR operacionalmente elegível.
     mode: restart
 
     trigger:
-      - platform: state
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        from: "off"
-        to: "on"
+      - platform: event
+        event_type: casa_csmr_consumidores_autorizar_v20_2c
 
     condition:
       - condition: state
-        alias: Ausência de Wilson autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR canonicamente ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
+      - condition: state
+        alias: Nenhum retorno pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
+      - condition: template
+        alias: Sessão autorizada corresponde à sessão ativa
+        value_template: >-
+          {{ trigger.event.data.session_id | default('', true)
+             == state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
+             and trigger.event.data.session_id | default('', true)
+               == states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c')
+             and states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c') not in ['unknown', 'unavailable'] }}
       - condition: state
         entity_id: light.smart_lampada_wifi_1
         state: "on"
 
     action:
-      - service: logbook.log
-        data:
-          name: V20.2C — Monitoramento Remoto
-          message: >-
-            V20.2C — Wilson ausente. Tempo de graça iniciado.
-          entity_id: light.smart_lampada_wifi_1
-
-      - wait_for_trigger:
-          - platform: state
-            entity_id: binary_sensor.wilson_ausente_de_casa
-            to: "off"
-        timeout:
-          seconds: >-
-            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
-        continue_on_timeout: true
-
-      - condition: template
-        alias: Tempo de graça concluído sem cancelamento
-        value_template: "{{ not wait.completed }}"
       - condition: state
-        alias: Ausência de Wilson ainda autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR permanece ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
+      - condition: state
+        alias: Retorno continua não pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
       - condition: state
         entity_id: light.smart_lampada_wifi_1
         state: "on"
@@ -160,48 +155,61 @@ automation:
         data:
           name: V20.2C — Monitoramento Remoto
           message: >-
-            🧪 V20.2C — Luz da mesa desligada após tempo de graça.
+            V20.2C — Luz da mesa desligada após abertura canônica do CSMR.
           entity_id: light.smart_lampada_wifi_1
 
   - id: v20_2c_saida_teste_alertar_porta_aberta
     alias: V20.2C — Monitoramento — Alertar Porta Aberta após Saída
     description: >-
-      Alerta sobre a Porta da Sala aberta após a graça quando Wilson estiver
-      ausente, por fonte real ou simulada pelo harness.
+      Alerta quando a Porta da Sala for aberta durante sessão CSMR
+      operacionalmente elegível.
     mode: restart
 
     trigger:
       - platform: state
-        entity_id: binary_sensor.wilson_ausente_de_casa
+        entity_id: binary_sensor.sensor_porta_sala_contact
         from: "off"
         to: "on"
+        id: physical_door
+
+      - platform: event
+        event_type: casa_csmr_i4a_harness_porta
+        id: harness_door
 
     condition:
       - condition: state
-        alias: Ausência de Wilson autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR canonicamente ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
+      - condition: state
+        alias: Nenhum retorno pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
+      - condition: template
+        alias: Evento pertence à sessão e ocorreu depois da autorização
+        value_template: >-
+          {% set active_session = state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') | default('', true) %}
+          {% set authorized_session = states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') %}
+          {% set authorized_since = states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c') %}
+          {% set event_session = active_session if trigger.id == 'physical_door'
+             else trigger.event.data.session_id | default('', true) %}
+          {% set occurred_at = trigger.to_state.last_changed.isoformat() if trigger.id == 'physical_door'
+             else trigger.event.data.occurred_at | default('', true) %}
+          {{ active_session != ''
+             and event_session == active_session
+             and authorized_session == active_session
+             and as_timestamp(authorized_since, 0) > 0
+             and as_timestamp(occurred_at, 0) > as_timestamp(authorized_since, 0) }}
 
     action:
-      - wait_for_trigger:
-          - platform: state
-            entity_id: binary_sensor.wilson_ausente_de_casa
-            to: "off"
-        timeout:
-          seconds: >-
-            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
-        continue_on_timeout: true
-
-      - condition: template
-        alias: Tempo de graça concluído sem cancelamento
-        value_template: "{{ not wait.completed }}"
       - condition: state
-        alias: Ausência de Wilson ainda autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR permanece ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
       - condition: state
-        entity_id: binary_sensor.sensor_porta_sala_contact
-        state: "on"
+        alias: Retorno continua não pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
 
       - service: logbook.log
         data:
@@ -220,38 +228,40 @@ automation:
     alias: V20.2C — Garantia — Habilitar Push da Porta ao Sair
     description: >-
       Garante de forma idempotente que a automação homologada C1.2 esteja
-      habilitada após a graça e a revalidação da ausência de Wilson.
+      habilitada quando o dispatcher autoriza consumidores do CSMR.
     mode: restart
 
     trigger:
-      - platform: state
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        from: "off"
-        to: "on"
+      - platform: event
+        event_type: casa_csmr_consumidores_autorizar_v20_2c
 
     condition:
       - condition: state
-        alias: Ausência de Wilson autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR canonicamente ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
+      - condition: state
+        alias: Nenhum retorno pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
+      - condition: template
+        alias: Sessão autorizada corresponde à sessão ativa
+        value_template: >-
+          {{ trigger.event.data.session_id | default('', true)
+               == state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
+             and trigger.event.data.session_id | default('', true)
+               == states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c')
+             and states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c') not in ['unknown', 'unavailable'] }}
 
     action:
-      - wait_for_trigger:
-          - platform: state
-            entity_id: binary_sensor.wilson_ausente_de_casa
-            to: "off"
-        timeout:
-          seconds: >-
-            {{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}
-        continue_on_timeout: true
-
-      - condition: template
-        alias: Tempo de graça concluído sem cancelamento
-        value_template: "{{ not wait.completed }}"
       - condition: state
-        alias: Ausência de Wilson ainda autorizada
-        entity_id: binary_sensor.wilson_ausente_de_casa
-        state: "on"
+        alias: CSMR permanece ativo
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        state: active
+      - condition: state
+        alias: Retorno continua não pendente
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        state: "off"
       - condition: state
         alias: Push da Porta desabilitado
         entity_id: automation.v20_2c_teste_alertar_porta_aberta_apos_saida
@@ -265,5 +275,35 @@ automation:
         data:
           name: V20.2C — Monitoramento Remoto
           message: >-
-            V20.2C — Push da Porta reabilitado automaticamente após a saída de Wilson.
+            V20.2C — Push da Porta garantido após abertura canônica do CSMR.
           entity_id: automation.v20_2c_teste_alertar_porta_aberta_apos_saida
+
+script:
+  casa_csmr_consumidores_harness_porta_v20_2c:
+    alias: Casa — CSMR — Harness Porta C1.2 V20.2C
+    description: >-
+      Injeta uma abertura lógica da porta para validar a autorização CSMR sem
+      alterar o estado do sensor físico homologado.
+    icon: mdi:test-tube
+    mode: queued
+    max: 10
+    fields:
+      session_id:
+        name: Session ID
+        required: true
+        selector:
+          text:
+      occurred_at:
+        name: Instante lógico da abertura
+        required: true
+        selector:
+          text:
+    sequence:
+      - condition: template
+        value_template: >-
+          {{ session_id | default('', true) | string | trim != ''
+             and as_timestamp(occurred_at | default('', true), 0) > 0 }}
+      - event: casa_csmr_i4a_harness_porta
+        event_data:
+          session_id: "{{ session_id | trim }}"
+          occurred_at: "{{ occurred_at | trim }}"

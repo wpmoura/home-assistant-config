@@ -2,8 +2,24 @@
 # V20.2C-I3A — Dispatcher lógico do CSMR
 #
 # Integra presença, graça, I2A e I1 exclusivamente com publicações test_mode.
-# Não possui consumidores, serviços de dispositivos ou trigger de startup.
+# Autoriza consumidores C1.x somente fora de retorno pendente; sem startup.
 ###############################################################################
+
+input_boolean:
+  casa_csmr_retorno_pendente_v20_2c:
+    name: Casa CSMR — Retorno Pendente V20.2C
+    icon: mdi:account-arrow-left-outline
+
+input_datetime:
+  casa_csmr_consumidores_autorizados_desde_v20_2c:
+    name: Casa CSMR — Consumidores Autorizados Desde V20.2C
+    has_date: true
+    has_time: true
+
+input_text:
+  casa_csmr_consumidores_sessao_autorizada_v20_2c:
+    name: Casa CSMR — Sessão Autorizada dos Consumidores V20.2C
+    max: 64
 
 template:
   - trigger:
@@ -62,11 +78,80 @@ template:
           last_error: >-
             {{ trigger.event.data.last_error
                | default(this.attributes.last_error | default('', true), false) }}
+          consumer_authorized_since: >-
+            {{ trigger.event.data.consumer_authorized_since
+               | default(this.attributes.consumer_authorized_since | default('', true), false) }}
+          consumer_authorized_session_id: >-
+            {{ trigger.event.data.consumer_authorized_session_id
+               | default(this.attributes.consumer_authorized_session_id | default('', true), false) }}
           updated_at: "{{ trigger.event.data.updated_at | default(now().isoformat(), true) }}"
           publication_test_mode: true
-          consumers_connected: false
+          consumers_connected: true
+          return_pending: >-
+            {{ is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'on') }}
 
 automation:
+  - id: casa_csmr_marcar_retorno_pendente_v20_2c
+    alias: Casa — CSMR — Marcar Retorno Pendente V20.2C
+    description: >-
+      Registra o retorno antes que o dispatcher principal possa mantê-lo na
+      fila, bloqueando consumidores durante a passagem transitória do D1.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: person.wmoura
+        from: not_home
+        to: home
+
+      - platform: event
+        event_type: casa_csmr_i3a_harness
+        event_data:
+          command: return
+
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+
+  - id: casa_csmr_invalidar_autorizacao_consumidores_v20_2c
+    alias: Casa — CSMR — Invalidar Autorização dos Consumidores V20.2C
+    description: >-
+      Invalida a fronteira temporal sempre que o estado transacional deixa de
+      ser active, sem alterar a máquina de estados I2/I2A.
+    mode: restart
+
+    trigger:
+      - platform: state
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        to:
+          - idle
+          - starting
+          - ending
+          - failed
+
+      - platform: state
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+        to: "on"
+
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c
+        data:
+          datetime: "1970-01-01 00:00:00"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
+        data:
+          value: ""
+      - event: casa_csmr_dispatcher_checkpoint_v20_2c
+        event_data:
+          phase: "{{ states('sensor.casa_csmr_dispatcher_estado_v20_2c') }}"
+          consumer_authorized_since: ""
+          consumer_authorized_session_id: ""
+          updated_at: "{{ now().isoformat() }}"
+
   - id: casa_csmr_dispatcher_logico_v20_2c
     alias: Casa — CSMR — Dispatcher Lógico V20.2C
     description: >-
@@ -189,6 +274,9 @@ automation:
                       last_ack_request_id: ""
                       last_error: ""
                       updated_at: "{{ now().isoformat() }}"
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
                   - stop: Saída cancelada durante a graça.
 
               - condition: template
@@ -329,6 +417,44 @@ automation:
                       last_ack_request_id: "{{ started_request_id }}"
                       last_error: ""
                       updated_at: "{{ now().isoformat() }}"
+                  - if:
+                      - condition: state
+                        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+                        state: "off"
+                    then:
+                      - variables:
+                          consumer_authorized_since: "{{ now().isoformat() }}"
+                      - service: input_datetime.set_datetime
+                        target:
+                          entity_id: input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c
+                        data:
+                          datetime: "{{ consumer_authorized_since }}"
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
+                        data:
+                          value: "{{ session_id }}"
+                      - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                        event_data:
+                          phase: active
+                          cycle_id: "{{ cycle_id }}"
+                          session_id: "{{ session_id }}"
+                          source: "{{ dispatcher_source }}"
+                          consumer_authorized_since: "{{ consumer_authorized_since }}"
+                          consumer_authorized_session_id: "{{ session_id }}"
+                          updated_at: "{{ now().isoformat() }}"
+                      - wait_template: >-
+                          {{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'consumer_authorized_since')
+                               == consumer_authorized_since
+                             and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'consumer_authorized_session_id')
+                               == session_id }}
+                        timeout: "00:00:02"
+                        continue_on_timeout: false
+                      - event: casa_csmr_consumidores_autorizar_v20_2c
+                        event_data:
+                          session_id: "{{ session_id }}"
+                          cycle_id: "{{ cycle_id }}"
+                          consumer_authorized_since: "{{ consumer_authorized_since }}"
                 else:
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
@@ -361,6 +487,26 @@ automation:
                       test_mode: false
                       simulate_failure: false
                     response_variable: cancel_response
+
+                  - if:
+                      - condition: template
+                        value_template: "{{ cancel_response.status in ['cancelled', 'duplicate'] }}"
+                    then:
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+                      - stop: Reserva cancelada após retorno.
+
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                         and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+                then:
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+                  - stop: Retorno sem sessão ou reserva ativa.
 
               - condition: state
                 entity_id: sensor.casa_csmr_estado_v20_2c
@@ -478,6 +624,9 @@ automation:
                       last_ack_request_id: "{{ ended_request_id }}"
                       last_error: ""
                       updated_at: "{{ now().isoformat() }}"
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
                 else:
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
