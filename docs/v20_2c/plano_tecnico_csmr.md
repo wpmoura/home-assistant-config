@@ -688,3 +688,37 @@ Em `test_mode: true`, todas as validações e verificações de idempotência s�
 Homologação controlada em 2026-08-06: payload válido retornou `validated_test`; reenvio do request e nova requisição da mesma identidade retornaram `duplicate`; sessão diferente foi aceita; source/códigos antigos, mensagem ausente/vazia/incompatível e schema inválido foram rejeitados. Após reload parcial, o request persistido continuou duplicado. Dezessete entradas técnicas provaram limite, ordem e descarte do mais antigo no ledger de teste, mantendo `ledger_producao` vazio. Timeline, Event Feed e aliases não receberam nenhum dos quatro textos oficiais.
 
 Rollback: remover `packages/contrato_publicacao_timeline_v20.yaml` e os blocos identificados como `contrato_canonico_v20`/`request_ids_json` em `packages/motor_timeline_v20.yaml`, validar a configuração e recarregar templates e scripts. Não há restauração de banco, Timeline, Event Feed, V20.1Q ou C1.x.
+
+## 23. V20.2C-I2 — estado transacional isolado implementado
+
+O lote I2 implementa somente a fundação persistente do CSMR, sem presença, graça, publicação, dispatcher ou consumidores. A representação observável é `sensor.casa_csmr_estado_v20_2c`; o único writer autorizado é `script.casa_csmr_transicionar_v20_2c`, restrito ao Harness `test_mode: true` e às ações `open`, `close` e `recover`.
+
+### Modelo e equivalência
+
+| Estado I2 | Semântica | Equivalência futura no modelo detalhado D1 |
+| --- | --- | --- |
+| `idle` | nenhuma sessão | `idle` |
+| `starting` | abertura transacional em curso | fases `opening_*` posteriores à graça |
+| `active` | sessão lógica ativa | `active` |
+| `ending` | encerramento transacional em curso | fases `closing_*` |
+| `failed` | falha preservada | `error_opening` ou `error_closing`, distinguido por `transition_action` e `last_consistent_state` |
+
+O I2 não elimina nem redefine as fases detalhadas necessárias quando a publicação for conectada. Ele implementa a camada mínima autorizada e mantém nos atributos a etapa, o estado anterior e o último estado consistente.
+
+Transições válidas: `idle → starting → active`, `active → ending → idle`, `starting → failed`, `ending → failed` e `failed → idle` exclusivamente por `recover`. Qualquer outra combinação é rejeitada. Repetição do mesmo `request_id` recupera o resultado do ledger sem nova transição.
+
+### Identidade, persistência e concorrência
+
+O CSMR gera um UUID v4 de `session_id` uma única vez ao aceitar `open`; o ID permanece invariável em `starting`, `active`, `ending` e eventual `failed`, e é arquivado em `last_session_id` ao retornar a `idle`. Cada comando exige UUID distinto de `request_id`. O checkpoint registra timestamps, origem `harness_i2`, motivo, erro, estado anterior, estado consistente e até 16 conclusões técnicas.
+
+O sensor trigger-based com `unique_id` é restaurado pelo Home Assistant após reload/restart. Estados transitórios não disparam qualquer reconciliação automática: permanecem observáveis e bloqueiam novos comandos incompatíveis; `failed` exige recuperação explícita. Não há trigger de `person.wmoura`, `homeassistant.start` ou ausência, portanto `away + idle` não cria sessão.
+
+O script usa `mode: queued`; todas as requisições revalidam o checkpoint ao sair da fila. Duas aberturas concorrentes resultam deterministicamente em uma conclusão e uma rejeição `session_already_active`, preservando um único `session_id`.
+
+### Homologação I2
+
+Em 2026-08-06 foram comprovados: abertura `starting → active`; reenvio idempotente; rejeição de nova abertura ativa; encerramento `ending → idle`; encerramento repetido; rejeição em `idle`; preservação de sessão e ledger após reload de templates/scripts; serialização de duas aberturas simultâneas; falhas simuladas de abertura e encerramento; recuperação explícita; e bloqueio de `test_mode: false`.
+
+Timeline, Event Feed, contrato I1, presença, C1.1, C1.2, C1.3, Recovery 4G e modos de gravação do Protect permaneceram fora do package e inalterados. O teste de restart físico não foi necessário: persistência foi comprovada por reload e a restauração após restart permanece propriedade nativa documentada do trigger-based template sensor, a ser reobservada junto ao futuro lote de integração.
+
+Rollback I2: remover `packages/csmr_estado_transacional_v20_2c.yaml`, validar a configuração e recarregar templates/scripts. Como o lote não publicou nem acionou dispositivos, não há banco, histórico, consumidor ou estado físico a restaurar.

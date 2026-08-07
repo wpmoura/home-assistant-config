@@ -133,7 +133,7 @@ Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando muda
 
 ## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
 
-Status documental: CONTRATO I1 HOMOLOGADO; CSMR E COMPORTAMENTO DE SESSÃO PENDENTES
+Status documental: CONTRATO I1 E ESTADO TRANSACIONAL I2 HOMOLOGADOS; INTEGRAÇÃO REAL PENDENTE
 
 Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
 
@@ -156,6 +156,15 @@ Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitor
 - [x] Script canônico, ACK e ledger idempotente implementados e validados em `test_mode` pelo lote V20.2C-I1.
 
 ### Gate de comportamento
+
+Fundação transacional I2 homologada:
+
+- [x] Estados mínimos `idle`, `starting`, `active`, `ending` e `failed` observados no Harness isolado.
+- [x] `session_id` único preservado durante abertura, atividade, encerramento e falha.
+- [x] Reenvio por `request_id`, transições inválidas e abertura concorrente tratados deterministicamente.
+- [x] Falhas de abertura/encerramento e recuperação explícita comprovadas sem publicação ou consumidor.
+- [x] Checkpoint ativo e idempotência preservados após reload parcial.
+- [x] Ausência de trigger de presença/startup comprovada; `away + idle` não possui caminho para abertura no I2.
 
 - [ ] Cancelamento antes da graça comprovado sem abertura ou evento.
 - [ ] Abertura comprovada exatamente uma vez.

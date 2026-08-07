@@ -1,5 +1,18 @@
 # Changelog
 
+## [v20.2c-i2-estado-transacional-csmr] - 2026-08-06
+
+### Added
+
+- `sensor.casa_csmr_estado_v20_2c` como checkpoint persistente e observável do estado transacional isolado.
+- `script.casa_csmr_transicionar_v20_2c` como Harness serial, restrito a `test_mode`, com abertura, encerramento, falha simulada, recuperação explícita e resposta correlacionada.
+- Estados mínimos `idle`, `starting`, `active`, `ending` e `failed`, UUID próprio de sessão e ledger técnico das últimas 16 transições concluídas.
+
+### Notes
+
+- Homologados idempotência, concorrência, falhas, recuperação e persistência após reload.
+- Não há integração com presença, Timeline, Event Feed, contrato I1, C1.x, Recovery 4G, UniFi Protect ou dispositivos físicos.
+
 ## [v20.2c-i1-contrato-publicacao-canonico] - 2026-08-06
 
 ### Added
