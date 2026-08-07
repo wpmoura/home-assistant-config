@@ -1,0 +1,397 @@
+###############################################################################
+# V20.2C-I2 — Estado transacional isolado do CSMR
+#
+# Harness de estado sem presença, Timeline, Event Feed, consumidores ou efeitos
+# físicos. O único writer é o script serial abaixo; o sensor trigger-based é o
+# checkpoint persistente restaurado pelo Home Assistant após restart/reload.
+###############################################################################
+
+template:
+  - trigger:
+      - platform: event
+        event_type: casa_csmr_checkpoint_v20_2c
+
+    sensor:
+      - name: Casa CSMR Estado V20 2C
+        unique_id: casa_csmr_estado_v20_2c
+        icon: mdi:state-machine
+        state: >
+          {{ trigger.event.data.state | default('failed', true) }}
+        attributes:
+          schema_version: 1
+          session_id: "{{ trigger.event.data.session_id | default('', true) }}"
+          started_at: "{{ trigger.event.data.started_at | default('', true) }}"
+          ended_at: "{{ trigger.event.data.ended_at | default('', true) }}"
+          transition_started_at: "{{ trigger.event.data.transition_started_at | default('', true) }}"
+          last_transition_at: "{{ trigger.event.data.last_transition_at | default('', true) }}"
+          transition_request_id: "{{ trigger.event.data.transition_request_id | default('', true) }}"
+          transition_action: "{{ trigger.event.data.transition_action | default('', true) }}"
+          transition_reason: "{{ trigger.event.data.transition_reason | default('', true) }}"
+          transition_source: "{{ trigger.event.data.transition_source | default('harness_i2', true) }}"
+          previous_state: "{{ trigger.event.data.previous_state | default('', true) }}"
+          last_consistent_state: "{{ trigger.event.data.last_consistent_state | default('idle', true) }}"
+          last_error: "{{ trigger.event.data.last_error | default('', true) }}"
+          last_session_id: "{{ trigger.event.data.last_session_id | default('', true) }}"
+          test_mode: true
+          transition_ledger: >
+            {% set atual = this.attributes.transition_ledger | default([], true) %}
+            {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+            {% if trigger.event.data.append_ledger | default(false) %}
+              {% set entrada = {
+                'request_id': trigger.event.data.transition_request_id,
+                'action': trigger.event.data.transition_action,
+                'result': trigger.event.data.result,
+                'state': trigger.event.data.state,
+                'session_id': trigger.event.data.session_id | default(trigger.event.data.last_session_id, true),
+                'processed_at': trigger.event.data.last_transition_at
+              } %}
+              {{ ([entrada] + atual)[:16] }}
+            {% else %}
+              {{ atual[:16] }}
+            {% endif %}
+          contrato: >
+            {{ {
+              'lote': 'V20.2C-I2',
+              'states': ['idle', 'starting', 'active', 'ending', 'failed'],
+              'transition_identity': 'request_id',
+              'session_identity': 'session_id',
+              'source': 'harness_i2',
+              'test_mode_only': true
+            } }}
+
+script:
+  casa_csmr_transicionar_v20_2c:
+    alias: Casa — CSMR — Transição Controlada V20.2C
+    description: >-
+      Harness serial do estado transacional do CSMR. Não consulta presença,
+      não publica eventos operacionais e não aciona consumidores.
+    icon: mdi:state-machine
+    mode: queued
+    max: 10
+    fields:
+      action:
+        name: Ação
+        required: false
+        selector:
+          select:
+            options:
+              - open
+              - close
+              - recover
+      request_id:
+        name: Request ID
+        required: false
+        selector:
+          text:
+      reason:
+        name: Motivo técnico
+        required: false
+        selector:
+          text:
+      test_mode:
+        name: Test mode
+        required: false
+        selector:
+          boolean:
+      simulate_failure:
+        name: Simular falha
+        required: false
+        selector:
+          boolean:
+
+    sequence:
+      - variables:
+          action_norm: "{{ action | default('', true) | string | trim }}"
+          request_id_norm: "{{ request_id | default('', true) | string | trim }}"
+          reason_norm: "{{ reason | default('', true) | string | trim }}"
+          test_mode_raw: "{{ test_mode | default(none) }}"
+          simulate_failure_raw: "{{ simulate_failure | default(false) }}"
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          raw_state: "{{ states('sensor.casa_csmr_estado_v20_2c') }}"
+          current_state: >-
+            {{ raw_state if raw_state in ['idle', 'starting', 'active', 'ending', 'failed'] else 'idle' }}
+          current_session_id: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') | default('', true) }}
+          current_started_at: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'started_at') | default('', true) }}
+          current_ended_at: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'ended_at') | default('', true) }}
+          current_last_session_id: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'last_session_id') | default('', true) }}
+          ledger: >-
+            {% set itens = state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_ledger') | default([], true) %}
+            {{ itens if itens is iterable and itens is not string and itens is not mapping else [] }}
+          request_matches: >-
+            {{ ledger | selectattr('request_id', 'eq', request_id_norm) | list }}
+          original: "{{ request_matches[0] if request_matches | count > 0 else dict() }}"
+          validation_reason: >-
+            {% if action is not defined %}missing_action
+            {% elif action is not string %}invalid_action_type
+            {% elif action_norm not in ['open', 'close', 'recover'] %}invalid_action
+            {% elif request_id is not defined %}missing_request_id
+            {% elif request_id is not string %}invalid_request_id_type
+            {% elif request_id_norm == '' %}empty_request_id
+            {% elif not request_id_norm | regex_match(uuid_pattern) %}invalid_request_id_format
+            {% elif test_mode is not defined %}missing_test_mode
+            {% elif test_mode is not boolean %}invalid_test_mode_type
+            {% elif not test_mode_raw %}test_mode_required
+            {% elif simulate_failure is defined and simulate_failure is not boolean %}invalid_simulate_failure_type
+            {% else %}valid{% endif %}
+          generated_hex: "{{ md5(context.id ~ now().isoformat() ~ request_id_norm) }}"
+          generated_session_id: >-
+            {{ generated_hex[0:8] ~ '-' ~ generated_hex[8:12] ~ '-4' ~ generated_hex[13:16]
+               ~ '-8' ~ generated_hex[17:20] ~ '-' ~ generated_hex[20:32] }}
+          call_started_at: "{{ now().isoformat() }}"
+
+      - choose:
+          - conditions: "{{ validation_reason != 'valid' }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: "{{ action_norm }}"
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ current_session_id }}"
+                    reason: "{{ validation_reason }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Comando CSMR rejeitado por contrato.
+                response_variable: response
+
+          - conditions: "{{ request_matches | count > 0 }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: "{{ action_norm }}"
+                    status: duplicate
+                    state: "{{ current_state }}"
+                    session_id: "{{ original.session_id | default(current_session_id, true) }}"
+                    reason: same_request_id
+                    original_result: "{{ original.result | default('', true) }}"
+                    original_processed_at: "{{ original.processed_at | default('', true) }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Transição CSMR já processada.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'open' and current_state != 'idle' }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: open
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ current_session_id }}"
+                    reason: "{{ 'session_already_active' if current_state == 'active' else 'invalid_transition' }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Abertura incompatível com o estado atual.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'close' and current_state != 'active' }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: close
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ current_session_id }}"
+                    reason: "{{ 'no_active_session' if current_state == 'idle' else 'invalid_transition' }}"
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Encerramento incompatível com o estado atual.
+                response_variable: response
+
+          - conditions: "{{ action_norm == 'recover' and current_state != 'failed' }}"
+            sequence:
+              - variables:
+                  response:
+                    request_id: "{{ request_id_norm }}"
+                    action: recover
+                    status: rejected
+                    state: "{{ current_state }}"
+                    session_id: "{{ current_session_id }}"
+                    reason: recovery_requires_failed
+                    processed_at: "{{ now().isoformat() }}"
+              - stop: Recuperação exige estado failed.
+                response_variable: response
+
+        default:
+          - choose:
+              - conditions: "{{ action_norm == 'open' }}"
+                sequence:
+                  - event: casa_csmr_checkpoint_v20_2c
+                    event_data:
+                      state: starting
+                      session_id: "{{ generated_session_id }}"
+                      started_at: ""
+                      ended_at: ""
+                      transition_started_at: "{{ now().isoformat() }}"
+                      last_transition_at: "{{ now().isoformat() }}"
+                      transition_request_id: "{{ request_id_norm }}"
+                      transition_action: open
+                      transition_reason: "{{ reason_norm }}"
+                      transition_source: harness_i2
+                      previous_state: idle
+                      last_consistent_state: idle
+                      last_error: ""
+                      last_session_id: "{{ current_last_session_id }}"
+                      result: pending
+                      append_ledger: false
+                  - delay:
+                      milliseconds: 100
+                  - choose:
+                      - conditions: "{{ simulate_failure_raw }}"
+                        sequence:
+                          - event: casa_csmr_checkpoint_v20_2c
+                            event_data:
+                              state: failed
+                              session_id: "{{ generated_session_id }}"
+                              started_at: ""
+                              ended_at: ""
+                              transition_started_at: "{{ call_started_at }}"
+                              last_transition_at: "{{ now().isoformat() }}"
+                              transition_request_id: "{{ request_id_norm }}"
+                              transition_action: open
+                              transition_reason: "{{ reason_norm }}"
+                              transition_source: harness_i2
+                              previous_state: starting
+                              last_consistent_state: idle
+                              last_error: simulated_open_failure
+                              last_session_id: "{{ current_last_session_id }}"
+                              result: failed
+                              append_ledger: true
+                    default:
+                      - event: casa_csmr_checkpoint_v20_2c
+                        event_data:
+                          state: active
+                          session_id: "{{ generated_session_id }}"
+                          started_at: "{{ now().isoformat() }}"
+                          ended_at: ""
+                          transition_started_at: "{{ call_started_at }}"
+                          last_transition_at: "{{ now().isoformat() }}"
+                          transition_request_id: "{{ request_id_norm }}"
+                          transition_action: open
+                          transition_reason: "{{ reason_norm }}"
+                          transition_source: harness_i2
+                          previous_state: starting
+                          last_consistent_state: active
+                          last_error: ""
+                          last_session_id: "{{ current_last_session_id }}"
+                          result: completed
+                          append_ledger: true
+
+              - conditions: "{{ action_norm == 'close' }}"
+                sequence:
+                  - event: casa_csmr_checkpoint_v20_2c
+                    event_data:
+                      state: ending
+                      session_id: "{{ current_session_id }}"
+                      started_at: "{{ current_started_at }}"
+                      ended_at: ""
+                      transition_started_at: "{{ now().isoformat() }}"
+                      last_transition_at: "{{ now().isoformat() }}"
+                      transition_request_id: "{{ request_id_norm }}"
+                      transition_action: close
+                      transition_reason: "{{ reason_norm }}"
+                      transition_source: harness_i2
+                      previous_state: active
+                      last_consistent_state: active
+                      last_error: ""
+                      last_session_id: "{{ current_last_session_id }}"
+                      result: pending
+                      append_ledger: false
+                  - delay:
+                      milliseconds: 100
+                  - choose:
+                      - conditions: "{{ simulate_failure_raw }}"
+                        sequence:
+                          - event: casa_csmr_checkpoint_v20_2c
+                            event_data:
+                              state: failed
+                              session_id: "{{ current_session_id }}"
+                              started_at: "{{ current_started_at }}"
+                              ended_at: ""
+                              transition_started_at: "{{ call_started_at }}"
+                              last_transition_at: "{{ now().isoformat() }}"
+                              transition_request_id: "{{ request_id_norm }}"
+                              transition_action: close
+                              transition_reason: "{{ reason_norm }}"
+                              transition_source: harness_i2
+                              previous_state: ending
+                              last_consistent_state: active
+                              last_error: simulated_close_failure
+                              last_session_id: "{{ current_last_session_id }}"
+                              result: failed
+                              append_ledger: true
+                    default:
+                      - event: casa_csmr_checkpoint_v20_2c
+                        event_data:
+                          state: idle
+                          session_id: ""
+                          started_at: ""
+                          ended_at: "{{ now().isoformat() }}"
+                          transition_started_at: "{{ call_started_at }}"
+                          last_transition_at: "{{ now().isoformat() }}"
+                          transition_request_id: "{{ request_id_norm }}"
+                          transition_action: close
+                          transition_reason: "{{ reason_norm }}"
+                          transition_source: harness_i2
+                          previous_state: ending
+                          last_consistent_state: idle
+                          last_error: ""
+                          last_session_id: "{{ current_session_id }}"
+                          result: completed
+                          append_ledger: true
+
+              - conditions: "{{ action_norm == 'recover' }}"
+                sequence:
+                  - event: casa_csmr_checkpoint_v20_2c
+                    event_data:
+                      state: idle
+                      session_id: ""
+                      started_at: ""
+                      ended_at: "{{ current_ended_at }}"
+                      transition_started_at: "{{ now().isoformat() }}"
+                      last_transition_at: "{{ now().isoformat() }}"
+                      transition_request_id: "{{ request_id_norm }}"
+                      transition_action: recover
+                      transition_reason: "{{ reason_norm }}"
+                      transition_source: harness_i2
+                      previous_state: failed
+                      last_consistent_state: idle
+                      last_error: ""
+                      last_session_id: "{{ current_session_id | default(current_last_session_id, true) }}"
+                      result: recovered
+                      append_ledger: true
+
+          - wait_template: >-
+              {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_request_id') == request_id_norm
+                 and states('sensor.casa_csmr_estado_v20_2c') in ['idle', 'active', 'failed']
+                 and as_timestamp(state_attr('sensor.casa_csmr_estado_v20_2c', 'last_transition_at'), 0)
+                     >= as_timestamp(call_started_at, 0) }}
+            timeout: "00:00:05"
+            continue_on_timeout: true
+
+          - variables:
+              final_state: "{{ states('sensor.casa_csmr_estado_v20_2c') if wait.completed else 'failed' }}"
+              final_session_id: >-
+                {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
+                   | default(state_attr('sensor.casa_csmr_estado_v20_2c', 'last_session_id'), true) }}
+              response:
+                request_id: "{{ request_id_norm }}"
+                action: "{{ action_norm }}"
+                status: >-
+                  {% if not wait.completed %}failed
+                  {% elif final_state == 'failed' %}failed
+                  {% elif action_norm == 'recover' %}recovered
+                  {% else %}completed{% endif %}
+                state: "{{ final_state }}"
+                session_id: "{{ final_session_id }}"
+                reason: >-
+                  {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'last_error')
+                     if wait.completed else 'checkpoint_timeout' }}
+                processed_at: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'last_transition_at') | default(now().isoformat(), true) }}"
+          - stop: Transição CSMR processada pelo harness isolado.
+            response_variable: response
