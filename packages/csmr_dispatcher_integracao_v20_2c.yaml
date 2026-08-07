@@ -241,7 +241,7 @@ automation:
                   event_code: wilson_left_home
                   message: "📍 Wilson saiu de casa"
                   schema_version: 1
-                  test_mode: true
+                  test_mode: false
                 response_variable: left_ack
 
               - if:
@@ -311,7 +311,7 @@ automation:
                   event_code: remote_monitoring_started
                   message: "🛡️ Monitoramento remoto iniciado"
                   schema_version: 1
-                  test_mode: true
+                  test_mode: false
                 response_variable: started_ack
 
               - if:
@@ -403,7 +403,7 @@ automation:
                   event_code: wilson_arrived_home
                   message: "📍 Wilson chegou em casa"
                   schema_version: 1
-                  test_mode: true
+                  test_mode: false
                 response_variable: arrived_ack
 
               - if:
@@ -460,7 +460,7 @@ automation:
                   event_code: remote_monitoring_ended
                   message: "🛡️ Monitoramento remoto encerrado"
                   schema_version: 1
-                  test_mode: true
+                  test_mode: false
                 response_variable: ended_ack
 
               - if:
