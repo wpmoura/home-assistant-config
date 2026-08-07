@@ -18,7 +18,13 @@ O Gate V20.2C-I3B foi homologado em 2026-08-07, promovendo as quatro chamadas I1
 
 O Gate V20.2C-I4A foi homologado após a correção da corrida temporal entre eventos de consumidores e a transição para `active`, pelo commit funcional `b02e05d`. C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR. O `return_pending` persistente bloqueia a passagem D1; uma fronteira temporal persistente, vinculada ao `session_id`, somente autoriza consumidores quando `CSMR == active`, `return_pending == false` e `occurred_at > consumer_authorized_since`. C1.2 usa `trigger.to_state.last_changed`, e o Harness exige `occurred_at` explícito. Starting, Ending, Failed, D1 e reload foram homologados sem consumidor indevido; o estado final foi `idle`, `return_pending=off` e `consumer_authorized_since=1970-01-01 00:00:00`.
 
-Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, a integração UniFi Protect e os demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B.1**.
+Continuam pendentes a validação por ciclo real de saída/retorno e a evidência operacional do UniFi Protect. O próximo Gate autorizado é **V20.2C-I5B**.
+
+## Gate V20.2C-I5A — Integração controlada do UniFi Protect
+
+Homologado em 2026-08-07 por Harness, sem promoção operacional real. O package `packages/v20_2c_protect_csmr.yaml` separa a intenção automática `csmr_recording_requested` da intenção manual `manual_override`; a intenção efetiva é a disjunção das duas. `always` é aplicado aos selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2` quando qualquer intenção está ativa; com ambas inativas, o baseline é `detections`.
+
+Foram validados idle, sessão ativa autorizada, retorno pendente, ending, failed, override manual em casa, retorno com e sem override, reload, concorrência de intenção e idempotência. O retorno retira apenas a intenção CSMR; não desliga gravação manual. Não houve novos eventos de Timeline, nem alterações em CSMR, dispatcher, C1.x, Recovery, V20.1Q, Protect além dos selects durante o Harness ou dashboards. I5B permanece reservado à promoção operacional controlada.
 
 ## Governança A2 — Homologação Técnica e Evidência Operacional
 

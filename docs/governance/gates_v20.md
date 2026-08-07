@@ -309,6 +309,14 @@ Esta etapa valida exclusivamente pelo Harness homologado o runtime produtivo, di
 
 Esta etapa registrará o primeiro ciclo físico natural `home → not_home → home`, coletando traces, Timeline, Event Feed, ACKs, `session_id`, `request_id`, estados, consumidores, push e encerramento. Nenhuma correção será feita durante a coleta; comportamento inesperado exigirá Gate corretivo. I4B.2 não bloqueia I5, I6, consumidores futuros ou UniFi Protect após I4B.1 homologado.
 
+### Gate V20.2C-I5A — Integração controlada do UniFi Protect
+
+**STATUS: HOMOLOGADO (Harness)**
+
+O I5A homologou o modelo mínimo de intenção automática e manual para os modos de gravação das câmeras G4 Instant. `csmr_recording_requested` depende do contexto operacional autorizado do CSMR; `manual_override` é uma solicitação explícita independente. A intenção efetiva é `csmr_recording_requested OR manual_override`, mapeada exclusivamente para `always`; com ambas desligadas, o baseline é `detections`.
+
+Foram validados os dois selects Protect, retorno pendente, ending, failed, manualização em idle, retorno com override manual preservado, reload, falha parcial documentada e comandos idempotentes. Não houve novos `event_code`, publicação na Timeline/Event Feed, alteração de CSMR, dispatcher, I1/I2, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos. O próximo Gate é **V20.2C-I5B — Promoção operacional controlada**.
+
 ## Gates especificos - V20.1Q Recovery 4G
 
 ### Gate documental

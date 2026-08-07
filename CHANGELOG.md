@@ -450,3 +450,10 @@ Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepach
 - C1.1/C1.3 executaram uma vez; C1.2 executou uma vez após `occurred_at > consumer_authorized_since`; porta pós-retorno não gerou push.
 - Estado final reconciliado: CSMR/dispatcher `idle`, `return_pending=off`, fronteira inválida e IDs vazios. I4B.2 permanece pendente de evidência operacional física.
 - Nenhum código funcional foi alterado durante I4B.1; Protect, Recovery, I1, I2/I2A e pessoa permaneceram fora do escopo funcional.
+
+### V20.2C-I5A — Integração controlada do UniFi Protect (2026-08-07)
+
+- Homologado por Harness o package `packages/v20_2c_protect_csmr.yaml`, com intenção automática CSMR e override manual independentes.
+- Regra efetiva: `csmr_recording_requested OR manual_override`; `always` quando uma intenção está ativa e `detections` quando ambas estão inativas.
+- Validados os selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`, retorno pendente, failed, ending, reload, retorno com override manual preservado e idempotência.
+- Nenhum novo evento de Timeline/Event Feed e nenhuma alteração em CSMR, dispatcher, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos. Próximo Gate: V20.2C-I5B.

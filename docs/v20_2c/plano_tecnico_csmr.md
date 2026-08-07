@@ -836,3 +836,9 @@ I4B.1 libera a evolução do Roadmap após aprovação. I4B.2 fica `PENDENTE DE 
 ### Homologação I4B.1
 
 Em 2026-08-07, o Harness Dispatcher percorreu graça, abertura, publicação canônica, sessão `active`, autorização temporal e encerramento. O ciclo usou `session_id=739eb841-6033-48b0-8907-ba27c1459b43`; C1.1 e C1.3 executaram uma vez na autorização e C1.2 uma vez após `occurred_at` posterior à fronteira. O retorno invalidou a fronteira, terminou em `idle` e a porta pós-retorno não acionou C1.2. Reloads parciais retornaram HTTP 200 sem reabertura ou evento retroativo. Um `cycle_id` residual foi reconciliado por checkpoint `idle`, sem publicação ou alteração funcional. Estado final: CSMR/dispatcher `idle`, `return_pending=off`, fronteira inválida e IDs vazios. I4B.1 está HOMOLOGADO; I4B.2 permanece PENDENTE DE EVIDÊNCIA OPERACIONAL.
+
+## 28. V20.2C-I5A — Integração controlada do UniFi Protect
+
+O I5A foi homologado por Harness em 2026-08-07. O modelo separa `csmr_recording_requested`, `manual_override`, `effective_state` e o estado observado dos selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`. A função canônica é `effective = csmr_recording_requested OR manual_override`: qualquer intenção ativa aplica `always`; ambas inativas restauram o baseline `detections`.
+
+O Harness cobriu idle, active autorizado, retorno pendente, ending, failed, transições manuais, retorno com override preservado, reload, concorrência e idempotência. `return_pending` bloqueia somente a intenção automática do CSMR. Não foram criados eventos de Timeline nem alterados CSMR, dispatcher, consumidores C1.x, Recovery, V20.1Q ou dashboards. O I5B fica reservado à promoção operacional controlada; a evidência física permanece posterior e não altera este contrato.
