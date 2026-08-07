@@ -1,0 +1,347 @@
+###############################################################################
+# V20.1O — Contrato canônico de publicação da Timeline
+#
+# Entrada autorizada e versionada para o futuro CSMR V20.2C. Este package não
+# implementa sessão, coordenador ou consumidores. Em test_mode valida e mantém
+# ledger técnico sem publicar na Timeline, Event Feed ou aliases.
+###############################################################################
+
+template:
+  - trigger:
+      - platform: event
+        event_type: casa_timeline_contrato_ack_v20
+
+    sensor:
+      - name: Casa Timeline Publicação ACK V20
+        unique_id: casa_timeline_publicacao_ack_v20
+        icon: mdi:check-decagram-outline
+        state: >
+          {{ trigger.event.data.status | default('failed', true) }}
+        attributes:
+          schema_version: "{{ trigger.event.data.schema_version | default(1, true) | int(1) }}"
+          request_id: "{{ trigger.event.data.request_id | default('', true) }}"
+          source: "{{ trigger.event.data.source | default('', true) }}"
+          session_id: "{{ trigger.event.data.session_id | default('', true) }}"
+          event_code: "{{ trigger.event.data.event_code | default('', true) }}"
+          message: "{{ trigger.event.data.message | default('', true) }}"
+          status: "{{ trigger.event.data.status | default('failed', true) }}"
+          ack_at: "{{ trigger.event.data.ack_at | default(now().isoformat(), true) }}"
+          reason: "{{ trigger.event.data.reason | default('', true) }}"
+          test_mode: "{{ trigger.event.data.test_mode | default(false, true) }}"
+          original_request_id: "{{ trigger.event.data.original_request_id | default('', true) }}"
+          original_status: "{{ trigger.event.data.original_status | default('', true) }}"
+          original_processed_at: "{{ trigger.event.data.original_processed_at | default('', true) }}"
+          ledger_producao: >
+            {% set atual = this.attributes.ledger_producao | default([], true) %}
+            {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+            {% set ns = namespace(itens=[]) %}
+            {% set corte = as_timestamp(now()) - 604800 %}
+            {% for item in atual %}
+              {% set ts = as_timestamp(item.processed_at | default(0), 0) %}
+              {% if loop.index <= 16 or ts >= corte %}
+                {% set ns.itens = ns.itens + [item] %}
+              {% endif %}
+            {% endfor %}
+            {% if trigger.event.data.append_ledger | default(false) and not trigger.event.data.test_mode | default(false) %}
+              {% set entrada = {
+                'request_id': trigger.event.data.request_id,
+                'source': trigger.event.data.source,
+                'session_id': trigger.event.data.session_id,
+                'event_code': trigger.event.data.event_code,
+                'status': trigger.event.data.status,
+                'processed_at': trigger.event.data.ack_at,
+                'message': trigger.event.data.message,
+                'schema_version': trigger.event.data.schema_version,
+                'test_mode': false
+              } %}
+              {{ [entrada] + ns.itens }}
+            {% else %}
+              {{ ns.itens }}
+            {% endif %}
+          ledger_teste: >
+            {% set atual = this.attributes.ledger_teste | default([], true) %}
+            {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+            {% set ns = namespace(itens=[]) %}
+            {% set corte = as_timestamp(now()) - 86400 %}
+            {% for item in atual %}
+              {% set ts = as_timestamp(item.processed_at | default(0), 0) %}
+              {% if loop.index <= 16 and ts >= corte %}
+                {% set ns.itens = ns.itens + [item] %}
+              {% endif %}
+            {% endfor %}
+            {% if trigger.event.data.append_ledger | default(false) and trigger.event.data.test_mode | default(false) %}
+              {% set entrada = {
+                'request_id': trigger.event.data.request_id,
+                'source': trigger.event.data.source,
+                'session_id': trigger.event.data.session_id,
+                'event_code': trigger.event.data.event_code,
+                'status': trigger.event.data.status,
+                'processed_at': trigger.event.data.ack_at,
+                'message': trigger.event.data.message,
+                'schema_version': trigger.event.data.schema_version,
+                'test_mode': true
+              } %}
+              {{ ([entrada] + ns.itens)[:16] }}
+            {% else %}
+              {{ ns.itens[:16] }}
+            {% endif %}
+          contrato: >
+            {{ {
+              'source_autorizada': 'csmr_v20_2c',
+              'schema_version': 1,
+              'identidade_transacional': 'request_id',
+              'identidade_logica': 'source+session_id+event_code',
+              'retencao_producao': 'ultimos_16_ou_7_dias',
+              'retencao_teste': 'ultimos_16_por_24_horas'
+            } }}
+
+script:
+  casa_publicar_evento_timeline_v20:
+    alias: Casa — Publicar Evento na Timeline V20
+    description: >-
+      API canônica V20.1O para validação, idempotência, publicação e ACK de
+      eventos formalmente autorizados. Não implementa o CSMR.
+    icon: mdi:timeline-check-outline
+    mode: queued
+    max: 20
+    fields:
+      request_id:
+        name: Request ID
+        description: UUID persistente da requisição; deve ser reutilizado em retry.
+        required: false
+        selector:
+          text:
+      source:
+        name: Source
+        required: false
+        selector:
+          text:
+      session_id:
+        name: Session ID
+        description: UUID da sessão lógica.
+        required: false
+        selector:
+          text:
+      event_code:
+        name: Event code
+        required: false
+        selector:
+          text:
+      message:
+        name: Message
+        required: false
+        selector:
+          text:
+      schema_version:
+        name: Schema version
+        required: false
+        selector:
+          number:
+            min: 1
+            max: 1
+            mode: box
+      test_mode:
+        name: Test mode
+        required: false
+        selector:
+          boolean:
+
+    sequence:
+      - variables:
+          request_id_norm: "{{ request_id | default('', true) | string | trim }}"
+          source_norm: "{{ source | default('', true) | string | trim }}"
+          session_id_norm: "{{ session_id | default('', true) | string | trim }}"
+          event_code_norm: "{{ event_code | default('', true) | string | trim }}"
+          message_norm: "{{ message | default('', true) | string | trim }}"
+          schema_raw: "{{ schema_version | default(none) }}"
+          test_mode_raw: "{{ test_mode | default(none) }}"
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          mensagens:
+            wilson_left_home: "📍 Wilson saiu de casa"
+            remote_monitoring_started: "🛡️ Monitoramento remoto iniciado"
+            wilson_arrived_home: "📍 Wilson chegou em casa"
+            remote_monitoring_ended: "🛡️ Monitoramento remoto encerrado"
+          validacao_reason: >-
+            {% if request_id is not defined %}missing_request_id
+            {% elif request_id is not string %}invalid_request_id_type
+            {% elif request_id_norm == '' %}empty_request_id
+            {% elif not request_id_norm | regex_match(uuid_pattern) %}invalid_request_id_format
+            {% elif source is not defined %}missing_source
+            {% elif source is not string %}invalid_source_type
+            {% elif source_norm != 'csmr_v20_2c' %}unauthorized_source
+            {% elif session_id is not defined %}missing_session_id
+            {% elif session_id is not string %}invalid_session_id_type
+            {% elif session_id_norm == '' %}empty_session_id
+            {% elif not session_id_norm | regex_match(uuid_pattern) %}invalid_session_id_format
+            {% elif event_code is not defined %}missing_event_code
+            {% elif event_code is not string %}invalid_event_code_type
+            {% elif event_code_norm not in mensagens %}unknown_event_code
+            {% elif message is not defined %}missing_message
+            {% elif message is not string %}invalid_message_type
+            {% elif message_norm == '' %}empty_message
+            {% elif message_norm != mensagens[event_code_norm] %}message_event_code_mismatch
+            {% elif schema_version is not defined %}missing_schema_version
+            {% elif schema_version is boolean or schema_version is not number %}invalid_schema_version_type
+            {% elif schema_version | int(0) != 1 %}unsupported_schema_version
+            {% elif test_mode is not defined %}missing_test_mode
+            {% elif test_mode is not boolean %}invalid_test_mode_type
+            {% else %}valid{% endif %}
+          ledger: >-
+            {% set atributo = 'ledger_teste' if test_mode_raw is boolean and test_mode_raw else 'ledger_producao' %}
+            {% set itens = state_attr('sensor.casa_timeline_publicacao_ack_v20', atributo) | default([], true) %}
+            {{ itens if itens is iterable and itens is not string and itens is not mapping else [] }}
+          request_matches: >-
+            {{ ledger | selectattr('request_id', 'eq', request_id_norm) | list }}
+          logical_matches: >-
+            {{ ledger
+               | selectattr('source', 'eq', source_norm)
+               | selectattr('session_id', 'eq', session_id_norm)
+               | selectattr('event_code', 'eq', event_code_norm)
+               | list }}
+          duplicate_matches: >-
+            {{ request_matches if request_matches | count > 0 else logical_matches }}
+          decision: >-
+            {% if validacao_reason != 'valid' %}rejected
+            {% elif duplicate_matches | count > 0 %}duplicate
+            {% elif test_mode_raw %}validated_test
+            {% else %}publish{% endif %}
+          original: >-
+            {{ duplicate_matches[0] if duplicate_matches | count > 0 else dict() }}
+          call_started_at: "{{ now().isoformat() }}"
+
+      - choose:
+          - conditions: "{{ decision in ['rejected', 'duplicate', 'validated_test'] }}"
+            sequence:
+              - event: casa_timeline_contrato_ack_v20
+                event_data:
+                  schema_version: 1
+                  request_id: "{{ request_id_norm }}"
+                  source: "{{ source_norm }}"
+                  session_id: "{{ session_id_norm }}"
+                  event_code: "{{ event_code_norm }}"
+                  message: "{{ message_norm }}"
+                  status: "{{ decision }}"
+                  ack_at: "{{ now().isoformat() }}"
+                  reason: >-
+                    {% if decision == 'rejected' %}{{ validacao_reason }}
+                    {% elif decision == 'duplicate' and request_matches | count > 0 %}same_request_id
+                    {% elif decision == 'duplicate' %}logical_identity_exists
+                    {% else %}{% endif %}
+                  test_mode: "{{ test_mode_raw if test_mode_raw is boolean else false }}"
+                  append_ledger: "{{ decision == 'validated_test' }}"
+                  original_request_id: "{{ original.request_id | default('', true) }}"
+                  original_status: "{{ original.status | default('', true) }}"
+                  original_processed_at: "{{ original.processed_at | default('', true) }}"
+
+              - wait_template: >-
+                  {{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'request_id') == request_id_norm
+                     and as_timestamp(state_attr('sensor.casa_timeline_publicacao_ack_v20', 'ack_at'), 0)
+                         >= as_timestamp(call_started_at, 0) }}
+                timeout: "00:00:10"
+                continue_on_timeout: true
+
+              - variables:
+                  response:
+                    request_id: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'request_id') | default(request_id_norm, true) }}"
+                    source: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'source') | default(source_norm, true) }}"
+                    session_id: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'session_id') | default(session_id_norm, true) }}"
+                    event_code: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'event_code') | default(event_code_norm, true) }}"
+                    status: >-
+                      {{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'status')
+                         if wait.completed else 'failed' }}
+                    ack_at: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'ack_at') | default(now().isoformat(), true) }}"
+                    reason: >-
+                      {{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'reason')
+                         if wait.completed else 'ack_timeout' }}
+                    schema_version: 1
+                    original_request_id: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'original_request_id') | default('', true) }}"
+                    original_status: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'original_status') | default('', true) }}"
+                    original_processed_at: "{{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'original_processed_at') | default('', true) }}"
+
+              - stop: Contrato canônico processado sem publicação real.
+                response_variable: response
+
+        default:
+          - repeat:
+              count: 3
+              sequence:
+                - event: casa_timeline_publicar_canonico_v20
+                  event_data:
+                    schema_version: 1
+                    request_id: "{{ request_id_norm }}"
+                    source: "{{ source_norm }}"
+                    session_id: "{{ session_id_norm }}"
+                    event_code: "{{ event_code_norm }}"
+                    message: "{{ message_norm }}"
+
+                - wait_template: >-
+                    {% set ids = state_attr('sensor.casa_timeline_v20', 'request_ids_json') | default('[]', true) %}
+                    {% set ids = ids | from_json(default=[]) if ids is string else ids %}
+                    {{ request_id_norm in ids }}
+                  timeout: "00:00:10"
+                  continue_on_timeout: true
+
+                - if:
+                    - condition: template
+                      value_template: "{{ wait.completed }}"
+                  then:
+                    - event: casa_timeline_contrato_ack_v20
+                      event_data:
+                        schema_version: 1
+                        request_id: "{{ request_id_norm }}"
+                        source: "{{ source_norm }}"
+                        session_id: "{{ session_id_norm }}"
+                        event_code: "{{ event_code_norm }}"
+                        message: "{{ message_norm }}"
+                        status: published
+                        ack_at: "{{ now().isoformat() }}"
+                        reason: ""
+                        test_mode: false
+                        append_ledger: true
+                    - delay:
+                        milliseconds: 100
+                    - variables:
+                        response:
+                          request_id: "{{ request_id_norm }}"
+                          source: "{{ source_norm }}"
+                          session_id: "{{ session_id_norm }}"
+                          event_code: "{{ event_code_norm }}"
+                          status: published
+                          ack_at: "{{ now().isoformat() }}"
+                          reason: ""
+                          schema_version: 1
+                    - stop: Evento publicado pelo caminho canônico V20.1O.
+                      response_variable: response
+
+                - if:
+                    - condition: template
+                      value_template: "{{ repeat.index < 3 }}"
+                  then:
+                    - delay: "00:00:05"
+
+          - event: casa_timeline_contrato_ack_v20
+            event_data:
+              schema_version: 1
+              request_id: "{{ request_id_norm }}"
+              source: "{{ source_norm }}"
+              session_id: "{{ session_id_norm }}"
+              event_code: "{{ event_code_norm }}"
+              message: "{{ message_norm }}"
+              status: failed
+              ack_at: "{{ now().isoformat() }}"
+              reason: publication_timeout_after_retries
+              test_mode: false
+              append_ledger: false
+          - variables:
+              response:
+                request_id: "{{ request_id_norm }}"
+                source: "{{ source_norm }}"
+                session_id: "{{ session_id_norm }}"
+                event_code: "{{ event_code_norm }}"
+                status: failed
+                ack_at: "{{ now().isoformat() }}"
+                reason: publication_timeout_after_retries
+                schema_version: 1
+          - stop: Falha no caminho canônico após as tentativas autorizadas.
+            response_variable: response
