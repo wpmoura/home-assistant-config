@@ -195,10 +195,15 @@ input_boolean:
     icon: mdi:flask-outline
     initial: false
 
+  # Repouso = on: representa a tomada fisica normalmente ligada (mesmo repouso do
+  # switch real). O cenario nominal do Recovery e "tomada ligada + link caiu por
+  # outro motivo" — achado do T1 de 2026-08-09 (guard preexistente tomada_ja_desligada
+  # bloqueou a solicitacao porque o fixture nascia off). Sem relacao com a logica do
+  # Recovery, que se comportou corretamente diante do estado que encontrou.
   casa_recovery_4g_sim_tomada:
     name: Casa - Recovery 4G Tomada Simulada (Harness)
     icon: mdi:power-socket-outline
-    initial: false
+    initial: true
 
   casa_recovery_4g_sim_backup_operacional:
     name: Casa - Recovery 4G Backup Simulado (Harness)
@@ -348,6 +353,21 @@ input_select:
       - esgotado
       - cooldown
       - erro
+
+  # Barreira de sincronizacao exclusiva de teste (R2/R3), harness Recovery 4G.
+  # Escritores: harness/operador escreve *_armado (arme) e idle (liberacao);
+  # o orquestrador escreve *_pausado (anuncio) e idle (autolimpeza em timeout).
+  # Nunca lido/escrito fora das duas barreiras de sincronizacao do orquestrador
+  # nem influencia a decisao de nenhum checkpoint. Repouso = idle.
+  casa_recovery_4g_harness_checkpoint:
+    name: Casa - Recovery 4G Checkpoint de Sincronizacao (Harness)
+    icon: mdi:pause-circle-outline
+    options:
+      - idle
+      - r2_armado
+      - r2_pausado
+      - r3_armado
+      - r3_pausado
 
 input_text:
   casa_recovery_4g_request_id:
