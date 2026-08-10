@@ -2196,6 +2196,12 @@
       tempo_desligado_tomada_seg: 3
       espera_estabilizacao_min: 1
       max_tentativas: 1
+      # Harness (isolamento): aponta o gate ja existente no blueprint para um helper
+      # dedicado, gerido pelo harness — em vez do helper orfao input_boolean.energia_falta
+      # (nao alterado, preservado). initial: true replica o bloqueio que hoje resulta
+      # do helper orfao estar 'unavailable' — nenhuma regressao do comportamento
+      # produtivo atual. Nao altera a logica do blueprint.
+      helper_falta_energia: input_boolean.casa_recovery_4g_bloqueio_legado_harness
 - id: '1777074586799'
   alias: Corredor - Gestão Luz Segurança versus portas
   description: ''

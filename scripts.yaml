@@ -28,6 +28,18 @@ casa_recovery_4g_executar_tentativa:
           max: 100
           step: 1
           mode: box
+    modo_execucao:
+      name: Modo de execucao (Harness)
+      description: >
+        "teste" ou "producao", capturado pelo orquestrador no nascimento do ciclo.
+        Ausente/omitido -> tratado como "producao" (nao regressivo em relacao ao
+        comportamento atual).
+      required: false
+      selector:
+        select:
+          options:
+            - producao
+            - teste
 
   variables:
     request_id_recebido: "{{ solicitacao_id | default('', true) | string | trim }}"
@@ -35,6 +47,12 @@ casa_recovery_4g_executar_tentativa:
     token_tentativa: "{{ (request_id_recebido | string | trim) ~ ':' ~ (tentativa_numero | string) }}"
     tempo_off_segundos: >
       {{ states('input_number.casa_recovery_4g_tempo_off_segundos') | int(5) }}
+    # Harness: capturado uma unica vez no nascimento desta execucao (variavel de
+    # script, nunca relida do helper global). Autoridade exclusiva de decisao fisica.
+    modo_execucao_capturado: "{{ modo_execucao | default('producao', true) }}"
+    alvo_tomada: >
+      {{ 'input_boolean.casa_recovery_4g_sim_tomada' if modo_execucao_capturado == 'teste'
+         else 'switch.0xa4c1381045aeb344' }}
     motivo_bloqueio: >
       {% set request_atual = states('input_text.casa_recovery_4g_request_id') | string | trim %}
       {% set ultima = states('input_text.casa_recovery_4g_ultima_tentativa_processada') | string | trim %}
@@ -52,7 +70,7 @@ casa_recovery_4g_executar_tentativa:
         tentativa_nao_autorizada
       {% elif not is_state('binary_sensor.energia_concessionaria', 'on') %}
         energia_ausente_ou_inconclusiva
-      {% elif states('switch.0xa4c1381045aeb344') in ['unknown', 'unavailable'] %}
+      {% elif states(alvo_tomada) in ['unknown', 'unavailable'] %}
         tomada_indisponivel
       {% else %}
         permitido
@@ -89,12 +107,23 @@ casa_recovery_4g_executar_tentativa:
         tentativa: "{{ tentativa_numero }}"
         fato: power_cycle_iniciado
 
-    - service: switch.turn_off
-      target:
-        entity_id: switch.0xa4c1381045aeb344
-      continue_on_error: true
+    # Harness: escreve na tomada simulada ou real conforme modo_execucao_capturado
+    # (variavel de script congelada no nascimento desta execucao).
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ modo_execucao_capturado == 'teste' }}"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.casa_recovery_4g_sim_tomada
+      default:
+        - service: switch.turn_off
+          target:
+            entity_id: switch.0xa4c1381045aeb344
+          continue_on_error: true
 
-    - wait_template: "{{ is_state('switch.0xa4c1381045aeb344', 'off') }}"
+    - wait_template: "{{ is_state(alvo_tomada, 'off') }}"
       timeout:
         seconds: "{{ states('input_number.casa_recovery_4g_timeout_confirmacao_tomada_segundos') | int(5) }}"
       continue_on_timeout: true
@@ -115,21 +144,39 @@ casa_recovery_4g_executar_tentativa:
                 tentativa: "{{ tentativa_numero }}"
                 fato: erro
                 motivo: falha_ao_desligar_tomada
-            - service: switch.turn_on
-              target:
-                entity_id: switch.0xa4c1381045aeb344
-              continue_on_error: true
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ modo_execucao_capturado == 'teste' }}"
+                  sequence:
+                    - service: input_boolean.turn_on
+                      target:
+                        entity_id: input_boolean.casa_recovery_4g_sim_tomada
+              default:
+                - service: switch.turn_on
+                  target:
+                    entity_id: switch.0xa4c1381045aeb344
+                  continue_on_error: true
             - stop: A tomada nao confirmou o desligamento.
 
     - delay:
         seconds: "{{ tempo_off_segundos | int }}"
 
-    - service: switch.turn_on
-      target:
-        entity_id: switch.0xa4c1381045aeb344
-      continue_on_error: true
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ modo_execucao_capturado == 'teste' }}"
+          sequence:
+            - service: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.casa_recovery_4g_sim_tomada
+      default:
+        - service: switch.turn_on
+          target:
+            entity_id: switch.0xa4c1381045aeb344
+          continue_on_error: true
 
-    - wait_template: "{{ is_state('switch.0xa4c1381045aeb344', 'on') }}"
+    - wait_template: "{{ is_state(alvo_tomada, 'on') }}"
       timeout:
         seconds: "{{ states('input_number.casa_recovery_4g_timeout_confirmacao_tomada_segundos') | int(5) }}"
       continue_on_timeout: true

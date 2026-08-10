@@ -268,6 +268,23 @@ template:
         state: >
           {{ is_state('binary_sensor.internet_wan2_4g_ok', 'on') }}
 
+      # Fonte de entrada exclusiva da maquina do Recovery 4G (harness). O sensor
+      # binary_sensor.backup_4g_operacional acima continua representando SEMPRE o
+      # estado tecnico real da casa, para Radar/Timeline/demais consumidores.
+      # Producao -> espelha a fonte real. Teste -> usa o backup simulado do harness.
+      # nome sem parenteses de proposito: HA deriva o entity_id inicial do slug do
+      # name (nao do unique_id) — "(Recovery)" produziria backup_..._efetivo_recovery.
+      - name: Backup 4G Operacional Efetivo
+        unique_id: backup_4g_operacional_efetivo
+        icon: mdi:cellphone-wireless
+        device_class: connectivity
+        state: >
+          {% if is_state('input_boolean.casa_recovery_4g_modo_teste', 'on') %}
+            {{ states('input_boolean.casa_recovery_4g_sim_backup_operacional') }}
+          {% else %}
+            {{ states('binary_sensor.backup_4g_operacional') }}
+          {% endif %}
+
   - sensor:
 
       - name: Backup Google Status
@@ -640,18 +657,25 @@ script:
       request_id_novo: "{{ 'r4g-' ~ now().strftime('%Y%m%d%H%M%S%f') }}"
       max_tentativas_ciclo: >
         {{ states('input_number.casa_recovery_4g_max_tentativas') | int(1) }}
+      # Harness: capturado uma unica vez no nascimento do ciclo. Autoridade exclusiva
+      # de decisao fisica desta execucao — nunca relido do helper global depois disto.
+      modo_execucao_capturado: >
+        {{ 'teste' if is_state('input_boolean.casa_recovery_4g_modo_teste', 'on') else 'producao' }}
+      alvo_tomada: >
+        {{ 'input_boolean.casa_recovery_4g_sim_tomada' if modo_execucao_capturado == 'teste'
+           else 'switch.0xa4c1381045aeb344' }}
       motivo_bloqueio: >
         {% set ultima = states('input_datetime.casa_recovery_4g_ultima_execucao') %}
         {% set cooldown = states('input_number.casa_recovery_4g_cooldown_minutos') | int(10) * 60 %}
         {% if not is_state('input_boolean.casa_recovery_4g_automatico', 'on') %}
           recovery_desabilitado
-        {% elif not is_state('binary_sensor.backup_4g_operacional', 'off') %}
+        {% elif not is_state('binary_sensor.backup_4g_operacional_efetivo', 'off') %}
           incidente_nao_confirmado
         {% elif not is_state('binary_sensor.energia_concessionaria', 'on') %}
           energia_ausente_ou_inconclusiva
-        {% elif states('switch.0xa4c1381045aeb344') in ['unknown', 'unavailable'] %}
+        {% elif states(alvo_tomada) in ['unknown', 'unavailable'] %}
           tomada_indisponivel
-        {% elif is_state('switch.0xa4c1381045aeb344', 'off') %}
+        {% elif is_state(alvo_tomada, 'off') %}
           tomada_ja_desligada
         {% elif is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on') %}
           ciclo_concorrente
@@ -707,6 +731,15 @@ script:
         data:
           option: solicitado
 
+      # Harness: grava o contexto imutavel do ciclo ANTES de ligar ciclo_em_andamento,
+      # para que qualquer reconciliacao/automacao de seguranca disparada a partir daqui
+      # ja encontre o modo correto. Escritor unico. Limpo apenas no encerramento legitimo.
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+        data:
+          value: "{{ modo_execucao_capturado }}"
+
       - service: input_boolean.turn_on
         target:
           entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
@@ -751,6 +784,7 @@ script:
               data:
                 solicitacao_id: "{{ request_id_novo }}"
                 tentativa: "{{ repeat.index }}"
+                modo_execucao: "{{ modo_execucao_capturado }}"
 
             - choose:
                 - conditions:
@@ -771,7 +805,7 @@ script:
                         option: aguardando_validacao
 
                     - wait_template: >
-                        {{ is_state('binary_sensor.backup_4g_operacional', 'on') }}
+                        {{ is_state('binary_sensor.backup_4g_operacional_efetivo', 'on') }}
                       timeout:
                         seconds: >
                           {{ states('input_number.casa_recovery_4g_timeout_validacao_segundos') | int(120) }}
@@ -797,7 +831,7 @@ script:
                                     - choose:
                                         - conditions:
                                             - condition: state
-                                              entity_id: binary_sensor.backup_4g_operacional
+                                              entity_id: binary_sensor.backup_4g_operacional_efetivo
                                               state: "on"
                                             - condition: state
                                               entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
@@ -820,17 +854,17 @@ script:
                                             request_id: "{{ request_id_novo }}"
                                             fato: retorno_instavel
                                             tentativa: "{{ repeat.index }}"
-                                            estado: "{{ states('binary_sensor.backup_4g_operacional') }}"
+                                            estado: "{{ states('binary_sensor.backup_4g_operacional_efetivo') }}"
                               default:
                                 - wait_for_trigger:
                                     - platform: state
-                                      entity_id: binary_sensor.backup_4g_operacional
+                                      entity_id: binary_sensor.backup_4g_operacional_efetivo
                                       to: "off"
                                     - platform: state
-                                      entity_id: binary_sensor.backup_4g_operacional
+                                      entity_id: binary_sensor.backup_4g_operacional_efetivo
                                       to: unknown
                                     - platform: state
-                                      entity_id: binary_sensor.backup_4g_operacional
+                                      entity_id: binary_sensor.backup_4g_operacional_efetivo
                                       to: unavailable
                                   timeout:
                                     minutes: >
@@ -842,7 +876,7 @@ script:
                                         - condition: template
                                           value_template: >
                                             {{ not wait.completed
-                                               and is_state('binary_sensor.backup_4g_operacional', 'on')
+                                               and is_state('binary_sensor.backup_4g_operacional_efetivo', 'on')
                                                and is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on')
                                                and is_state('input_boolean.casa_recovery_4g_automatico', 'on')
                                                and is_state('binary_sensor.energia_concessionaria', 'on') }}
@@ -858,7 +892,7 @@ script:
                                         request_id: "{{ request_id_novo }}"
                                         fato: retorno_instavel
                                         tentativa: "{{ repeat.index }}"
-                                        estado: "{{ states('binary_sensor.backup_4g_operacional') }}"
+                                        estado: "{{ states('binary_sensor.backup_4g_operacional_efetivo') }}"
                       default:
                         - event: casa_recovery_4g_central
                           event_data:
@@ -874,13 +908,22 @@ script:
                     tentativa: "{{ repeat.index }}"
                     motivo: "{{ states('input_select.casa_recovery_4g_estado_executor') }}"
 
-                - service: switch.turn_on
-                  target:
-                    entity_id: switch.0xa4c1381045aeb344
-                  continue_on_error: true
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ modo_execucao_capturado == 'teste' }}"
+                      sequence:
+                        - service: input_boolean.turn_on
+                          target:
+                            entity_id: input_boolean.casa_recovery_4g_sim_tomada
+                  default:
+                    - service: switch.turn_on
+                      target:
+                        entity_id: switch.0xa4c1381045aeb344
+                      continue_on_error: true
 
                 - wait_template: >
-                    {{ is_state('switch.0xa4c1381045aeb344', 'on') }}
+                    {{ is_state(alvo_tomada, 'on') }}
                   timeout:
                     seconds: >
                       {{ states('input_number.casa_recovery_4g_timeout_confirmacao_tomada_segundos') | int(5) }}
@@ -904,6 +947,11 @@ script:
                             entity_id: input_select.casa_recovery_4g_estado_executor
                           data:
                             option: erro
+                        - service: input_text.set_value
+                          target:
+                            entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+                          data:
+                            value: ""
                         - event: casa_recovery_4g_central
                           event_data:
                             request_id: "{{ request_id_novo }}"
@@ -933,6 +981,11 @@ script:
                   entity_id: input_select.casa_recovery_4g_estado_executor
                 data:
                   option: ocioso
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+                data:
+                  value: ""
               - event: casa_recovery_4g_central
                 event_data:
                   request_id: "{{ request_id_novo }}"
@@ -946,11 +999,20 @@ script:
                   {{ is_state('input_boolean.casa_recovery_4g_ciclo_em_andamento', 'on')
                      and states('input_number.casa_recovery_4g_tentativa_atual') | int(0) >= max_tentativas_ciclo | int(1) }}
             sequence:
-              - service: switch.turn_on
-                target:
-                  entity_id: switch.0xa4c1381045aeb344
-                continue_on_error: true
-              - wait_template: "{{ is_state('switch.0xa4c1381045aeb344', 'on') }}"
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ modo_execucao_capturado == 'teste' }}"
+                    sequence:
+                      - service: input_boolean.turn_on
+                        target:
+                          entity_id: input_boolean.casa_recovery_4g_sim_tomada
+                default:
+                  - service: switch.turn_on
+                    target:
+                      entity_id: switch.0xa4c1381045aeb344
+                    continue_on_error: true
+              - wait_template: "{{ is_state(alvo_tomada, 'on') }}"
                 timeout:
                   seconds: >
                     {{ states('input_number.casa_recovery_4g_timeout_confirmacao_tomada_segundos') | int(5) }}
@@ -973,6 +1035,11 @@ script:
                           entity_id: input_select.casa_recovery_4g_estado_executor
                         data:
                           option: cooldown
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+                        data:
+                          value: ""
                       - event: casa_recovery_4g_central
                         event_data:
                           request_id: "{{ request_id_novo }}"
@@ -988,6 +1055,11 @@ script:
                       entity_id: input_select.casa_recovery_4g_estado_executor
                     data:
                       option: erro
+                  - service: input_text.set_value
+                    target:
+                      entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+                    data:
+                      value: ""
                   - event: casa_recovery_4g_central
                     event_data:
                       request_id: "{{ request_id_novo }}"
@@ -1074,7 +1146,7 @@ automation:
 
     trigger:
       - platform: state
-        entity_id: binary_sensor.backup_4g_operacional
+        entity_id: binary_sensor.backup_4g_operacional_efetivo
         to: "off"
         for:
           minutes: >
@@ -1102,7 +1174,7 @@ automation:
                 id: recovery_habilitado
               - condition: template
                 value_template: >
-                  {{ not is_state('binary_sensor.backup_4g_operacional', 'off') }}
+                  {{ not is_state('binary_sensor.backup_4g_operacional_efetivo', 'off') }}
             sequence:
               - service: input_select.select_option
                 target:
@@ -1116,7 +1188,7 @@ automation:
                 id: recovery_habilitado
             sequence:
               - wait_template: >
-                  {% set detector = states.binary_sensor.backup_4g_operacional %}
+                  {% set detector = states.binary_sensor.backup_4g_operacional_efetivo %}
                   {{ detector is not none
                      and detector.state == 'off'
                      and (as_timestamp(now()) - as_timestamp(detector.last_changed, 0))
@@ -1128,7 +1200,7 @@ automation:
 
       - condition: template
         value_template: >
-          {% set detector = states.binary_sensor.backup_4g_operacional %}
+          {% set detector = states.binary_sensor.backup_4g_operacional_efetivo %}
           {{ detector is not none
              and detector.state == 'off'
              and (as_timestamp(now()) - as_timestamp(detector.last_changed, 0))
@@ -1169,15 +1241,54 @@ automation:
       - condition: state
         entity_id: switch.0xa4c1381045aeb344
         state: "off"
-      - service: switch.turn_on
-        target:
-          entity_id: switch.0xa4c1381045aeb344
-        continue_on_error: true
-      - event: casa_recovery_4g_central
-        event_data:
-          request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
-          tentativa: "{{ tentativa_seguranca }}"
-          fato: religamento_seguranca_solicitado
+      # Harness: reavaliado AGORA, depois do delay, no ultimo instante antes da acao
+      # fisica — nao em cache de antes do delay. Le o contexto persistido do ciclo
+      # ativo (input_text.casa_recovery_4g_modo_execucao_ciclo), nao o toggle global.
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'teste' }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.casa_recovery_4g_sim_tomada
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+                  tentativa: "{{ tentativa_seguranca }}"
+                  fato: religamento_seguranca_solicitado
+                  modo: teste
+          - conditions:
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'producao' }}
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.0xa4c1381045aeb344
+                continue_on_error: true
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+                  tentativa: "{{ tentativa_seguranca }}"
+                  fato: religamento_seguranca_solicitado
+                  modo: producao
+        default:
+          - event: casa_recovery_4g_central
+            event_data:
+              request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
+              tentativa: "{{ tentativa_seguranca }}"
+              fato: reconciliacao_bloqueada_estado_ambiguo
+              origem: religamento_seguranca
+              modo_observado: "{{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}"
+          - service: persistent_notification.create
+            data:
+              title: "Recovery 4G — estado ambíguo (isolamento harness)"
+              message: >
+                Religamento de segurança bloqueado: modo_execucao_ciclo não é 'teste' nem
+                'producao' ({{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}).
+                Nenhuma ação física executada.
 
   ##########################################################
   # RECOVERY 4G - RECONCILIACAO APOS RESTART
@@ -1205,16 +1316,55 @@ automation:
           request_restart: "{{ states('input_text.casa_recovery_4g_request_id') }}"
           tentativa_restart: >
             {{ states('input_number.casa_recovery_4g_tentativa_atual') | int(0) }}
+      # Harness: reavaliado agora, no momento da reconciliacao pos-restart. Le o
+      # contexto persistido do ciclo (sobrevive a restart via RestoreEntity), nunca
+      # o toggle global. Estado ausente/ambiguo -> nao atua fisicamente (fail closed).
       - choose:
           - conditions:
               - condition: state
                 entity_id: switch.0xa4c1381045aeb344
                 state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'producao' }}
             sequence:
               - service: switch.turn_on
                 target:
                   entity_id: switch.0xa4c1381045aeb344
                 continue_on_error: true
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.casa_recovery_4g_sim_tomada
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'teste' }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.casa_recovery_4g_sim_tomada
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') not in ['producao', 'teste'] }}
+            sequence:
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_restart }}"
+                  tentativa: "{{ tentativa_restart }}"
+                  fato: reconciliacao_bloqueada_estado_ambiguo
+                  origem: reconciliar_restart
+                  modo_observado: "{{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}"
+              - service: persistent_notification.create
+                data:
+                  title: "Recovery 4G — estado ambíguo (isolamento harness)"
+                  message: >
+                    Reconciliação de restart bloqueada: modo_execucao_ciclo não é 'teste' nem
+                    'producao' ({{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}).
+                    Nenhuma ação física executada.
       - service: input_text.set_value
         target:
           entity_id: input_text.casa_recovery_4g_veredito_central
@@ -1240,6 +1390,18 @@ automation:
         data:
           option: >
             {{ 'ocioso' if is_state('binary_sensor.energia_concessionaria', 'on') else 'bloqueado' }}
+      # Harness: limpa qualquer residuo de ciclo de teste interrompido pelo restart.
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+        data:
+          value: ""
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.casa_recovery_4g_sim_tomada
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.casa_recovery_4g_sim_backup_operacional
       - event: casa_recovery_4g_central
         event_data:
           request_id: "{{ request_restart }}"
@@ -1284,16 +1446,55 @@ automation:
       - service: script.turn_off
         target:
           entity_id: script.central_orquestrar_recovery_4g
+      # Harness: reavaliado agora, no ultimo instante antes da acao fisica. Estado
+      # ausente/ambiguo -> nao atua fisicamente (fail closed).
       - choose:
           - conditions:
               - condition: state
                 entity_id: switch.0xa4c1381045aeb344
                 state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'producao' }}
             sequence:
               - service: switch.turn_on
                 target:
                   entity_id: switch.0xa4c1381045aeb344
                 continue_on_error: true
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.casa_recovery_4g_sim_tomada
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'teste' }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.casa_recovery_4g_sim_tomada
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') not in ['producao', 'teste'] }}
+            sequence:
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_energia }}"
+                  tentativa: "{{ tentativa_energia }}"
+                  fato: reconciliacao_bloqueada_estado_ambiguo
+                  origem: interromper_sem_energia
+                  modo_observado: "{{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}"
+              - service: persistent_notification.create
+                data:
+                  title: "Recovery 4G — estado ambíguo (isolamento harness)"
+                  message: >
+                    Interrupção por falta de energia bloqueada: modo_execucao_ciclo não é
+                    'teste' nem 'producao'
+                    ({{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}).
+                    Nenhuma ação física executada.
       - service: input_boolean.turn_off
         target:
           entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
@@ -1307,6 +1508,11 @@ automation:
           entity_id: input_select.casa_recovery_4g_estado_executor
         data:
           option: bloqueado
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+        data:
+          value: ""
       - event: casa_recovery_4g_central
         event_data:
           request_id: "{{ request_energia }}"
@@ -1350,16 +1556,55 @@ automation:
       - service: script.turn_off
         target:
           entity_id: script.central_orquestrar_recovery_4g
+      # Harness: reavaliado agora, no ultimo instante antes da acao fisica. Estado
+      # ausente/ambiguo -> nao atua fisicamente (fail closed).
       - choose:
           - conditions:
               - condition: state
                 entity_id: switch.0xa4c1381045aeb344
                 state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'producao' }}
             sequence:
               - service: switch.turn_on
                 target:
                   entity_id: switch.0xa4c1381045aeb344
                 continue_on_error: true
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.casa_recovery_4g_sim_tomada
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') == 'teste' }}
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.casa_recovery_4g_sim_tomada
+          - conditions:
+              - condition: state
+                entity_id: switch.0xa4c1381045aeb344
+                state: "off"
+              - condition: template
+                value_template: >
+                  {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') not in ['producao', 'teste'] }}
+            sequence:
+              - event: casa_recovery_4g_central
+                event_data:
+                  request_id: "{{ request_cancelamento }}"
+                  tentativa: "{{ tentativa_cancelamento }}"
+                  fato: reconciliacao_bloqueada_estado_ambiguo
+                  origem: cancelar_desabilitado
+                  modo_observado: "{{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}"
+              - service: persistent_notification.create
+                data:
+                  title: "Recovery 4G — estado ambíguo (isolamento harness)"
+                  message: >
+                    Cancelamento por desabilitação bloqueado: modo_execucao_ciclo não é
+                    'teste' nem 'producao'
+                    ({{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}).
+                    Nenhuma ação física executada.
       - service: input_boolean.turn_off
         target:
           entity_id: input_boolean.casa_recovery_4g_ciclo_em_andamento
@@ -1373,6 +1618,11 @@ automation:
           entity_id: input_select.casa_recovery_4g_estado_executor
         data:
           option: bloqueado
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_recovery_4g_modo_execucao_ciclo
+        data:
+          value: ""
       - event: casa_recovery_4g_central
         event_data:
           request_id: "{{ request_cancelamento }}"
@@ -1450,6 +1700,88 @@ automation:
         event_data:
           request_id: "{{ states('input_text.casa_recovery_4g_request_id') }}"
           fato: cooldown_encerrado
+
+  ##########################################################
+  # RECOVERY 4G - HARNESS - TRIPWIRE DE ISOLAMENTO
+  ##########################################################
+  # Deteccao, nao barreira primaria. Se a tomada real mudar de estado enquanto o
+  # modo teste do harness estiver ligado, registra violacao e alerta — nunca tenta
+  # corrigir o estado fisico automaticamente.
+
+  - id: central_recovery_4g_harness_tripwire_isolamento
+
+    alias: Central - Recovery 4G - Harness - Tripwire de isolamento
+    description: >
+      Deteccao de segunda linha. Nao e a barreira primaria de isolamento do harness
+      (essa e o contexto imutavel capturado no nascimento de cada execucao).
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: switch.0xa4c1381045aeb344
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_modo_teste
+        state: "on"
+
+    action:
+      - event: casa_recovery_4g_central
+        event_data:
+          fato: violacao_isolamento_harness
+          timestamp: "{{ now().isoformat() }}"
+          entidade: switch.0xa4c1381045aeb344
+          estado_anterior: "{{ trigger.from_state.state if trigger.from_state else none }}"
+          estado_novo: "{{ trigger.to_state.state if trigger.to_state else none }}"
+          modo_execucao_ciclo: "{{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}"
+      - service: persistent_notification.create
+        data:
+          title: "VIOLAÇÃO DE ISOLAMENTO DO HARNESS"
+          message: >
+            A tomada real (switch.0xa4c1381045aeb344) mudou de estado
+            ({{ trigger.from_state.state if trigger.from_state else 'desconhecido' }} →
+            {{ trigger.to_state.state if trigger.to_state else 'desconhecido' }})
+            enquanto o modo teste do Recovery 4G estava ligado.
+            Timestamp: {{ now().isoformat() }}.
+            modo_execucao_ciclo observado: {{ states('input_text.casa_recovery_4g_modo_execucao_ciclo') }}.
+            Nenhuma correção automática foi tentada — verificação manual necessária.
+
+  ##########################################################
+  # RECOVERY 4G - HARNESS - BLOQUEIO CONDICIONADO DO LEGADO
+  ##########################################################
+  # Garante automation.gestao_modem_4g bloqueada durante qualquer periodo de modo
+  # teste, mesmo que o bloqueio (input_boolean.casa_recovery_4g_bloqueio_legado_harness)
+  # tenha sido desativado manualmente por algum motivo fora do escopo do harness.
+  # Bloqueio condicionado ao harness, nao permanente: fora de modo teste, o helper
+  # permanece no valor que um operador humano decidir (initial: true preserva o
+  # comportamento produtivo atual). Nao altera a logica do legado.
+
+  - id: central_recovery_4g_harness_bloquear_legado
+
+    alias: Central - Recovery 4G - Harness - Bloquear legado durante teste
+    description: >
+      Reforca por nivel, nao so por borda: reage tanto a modo_teste ligar quanto a
+      uma tentativa de desligar o bloqueio enquanto modo_teste segue ligado, para
+      que o helper de bloqueio nao fique em estado inseguro com o harness ativo.
+    mode: single
+
+    trigger:
+      - platform: state
+        entity_id: input_boolean.casa_recovery_4g_modo_teste
+        to: "on"
+      - platform: state
+        entity_id: input_boolean.casa_recovery_4g_bloqueio_legado_harness
+        to: "off"
+
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_recovery_4g_modo_teste
+        state: "on"
+
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.casa_recovery_4g_bloqueio_legado_harness
 
   ##########################################################
   # BACKUP 4G INDISPONÍVEL

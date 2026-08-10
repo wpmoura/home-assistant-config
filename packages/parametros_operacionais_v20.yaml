@@ -189,6 +189,30 @@ input_boolean:
     name: Casa - Recovery 4G Ciclo em Andamento
     icon: mdi:progress-wrench
 
+  # Harness de homologação — infraestrutura de isolamento (nao executa cenarios T1-T10 por si so).
+  casa_recovery_4g_modo_teste:
+    name: Casa - Recovery 4G Modo Teste (Harness)
+    icon: mdi:flask-outline
+    initial: false
+
+  casa_recovery_4g_sim_tomada:
+    name: Casa - Recovery 4G Tomada Simulada (Harness)
+    icon: mdi:power-socket-outline
+    initial: false
+
+  casa_recovery_4g_sim_backup_operacional:
+    name: Casa - Recovery 4G Backup Simulado (Harness)
+    icon: mdi:cellphone-wireless
+    initial: false
+
+  # Bloqueio do recovery legado (Gestão modem 4G), gerido pelo harness. Preserva o
+  # comportamento produtivo atual (initial: true replica o bloqueio hoje resultante
+  # do helper orfao input_boolean.energia_falta). Nao decommission do legado.
+  casa_recovery_4g_bloqueio_legado_harness:
+    name: Casa - Recovery 4G Bloqueio do Legado (Harness)
+    icon: mdi:shield-lock-outline
+    initial: true
+
   casa_comunicacao_modo_manutencao:
     name: Manutenção da Comunicação
     icon: mdi:router-wireless-off
@@ -340,6 +364,16 @@ input_text:
     name: Casa - Recovery 4G Veredito da Central
     max: 255
     icon: mdi:gavel
+
+  # Contexto persistido do ciclo ativo, para reconciliacao/observabilidade (harness).
+  # Escritor unico: script.central_orquestrar_recovery_4g, no nascimento do ciclo.
+  # Valores validos: "" | producao | teste. Nunca convertido de teste para producao.
+  # NAO e a autoridade de uma execucao em curso (essa e modo_execucao_capturado,
+  # variavel de script, congelada no nascimento de cada execucao).
+  casa_recovery_4g_modo_execucao_ciclo:
+    name: Casa - Recovery 4G Modo de Execucao do Ciclo (Harness)
+    max: 20
+    icon: mdi:flask-outline
 
 input_datetime:
   # Timestamp do ultimo esgotamento completo que iniciou cooldown.
