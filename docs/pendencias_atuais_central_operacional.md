@@ -25,6 +25,8 @@ Status:
 - correção estática adicional do consumidor canônico aprovada em revisão independente para commit e push;
 - homologação runtime não executada.
 
+Bloqueadores observados na primeira implantação: o Core 2026.7.1 recusou o filtro Jinja `hash`, desabilitando as automações de início e término, e os sete novos `input_text` nasceram `unknown`. A correção localizada substitui o filtro por `md5`, função já usada pelo CSMR e comprovada no ambiente, preservando UUIDs distintos e persistidos. A primeira materialização recebe bootstrap administrativo manual e idempotente, protegido por `input_boolean.carro_checkpoints_inicializados`: somente helpers existentes, carro fora de uso e valores vazios/`unknown` são admissíveis; `unavailable`, texto inválido, checkpoint ou rejeição real bloqueiam sem limpeza. Revisão estática independente é obrigatória antes de novo `check_config`, reload ou homologação runtime.
+
 As correções de checkpoints, controles de push, guard administrativo e consumidor canônico foram aprovadas estaticamente; implantação e homologação runtime permanecem pendentes:
 
 1. **Persistência do `request_id` do término:** `input_text.carro_termino_request_id` guarda o UUID antes da primeira publicação; UUID novo é criado somente quando o checkpoint está vazio. Valor inválido não vazio, sessão/request inicial parciais ou metadados de rejeição são preservados e bloqueiam efeitos do término e publicação. O reconciliador reutiliza os IDs após timeout, ACK `failed`, interrupção ou restart. Revisão estática aprovada; implantação e homologação permanecem pendentes.

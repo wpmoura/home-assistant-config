@@ -11,6 +11,10 @@ input_boolean:
     name: Push ao finalizar o uso do carro
     icon: mdi:car-arrow-left
 
+  carro_checkpoints_inicializados:
+    name: Checkpoints do carro inicializados
+    icon: mdi:database-check-outline
+
 input_text:
   carro_session_id:
     name: Sessão ativa de uso do carro
@@ -93,6 +97,68 @@ template:
           {% endif %}
 
 script:
+  carro_inicializar_checkpoints_primeira_criacao:
+    alias: Carro — Inicializar checkpoints na primeira criação
+    description: >-
+      Bootstrap administrativo único dos checkpoints recém-criados. Somente
+      converte vazio/unknown em vazio quando todas as entidades existem, não há
+      ciclo ativo nem evidência persistida; não publica nem inicia ciclo.
+    icon: mdi:database-arrow-up-outline
+    mode: single
+    sequence:
+      - variables:
+          session_id: "{{ states('input_text.carro_session_id') | string | trim }}"
+          inicio_request_id: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
+          termino_request_id: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          rejeicao_estado: "{{ states('input_text.carro_rejeicao_estado') | string | trim }}"
+          rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
+          rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
+          rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          helpers_existentes: >-
+            {{ state_attr('input_text.carro_session_id', 'friendly_name') is string
+               and state_attr('input_text.carro_inicio_request_id', 'friendly_name') is string
+               and state_attr('input_text.carro_termino_request_id', 'friendly_name') is string
+               and state_attr('input_text.carro_rejeicao_estado', 'friendly_name') is string
+               and state_attr('input_text.carro_rejeicao_event_code', 'friendly_name') is string
+               and state_attr('input_text.carro_rejeicao_request_id', 'friendly_name') is string
+               and state_attr('input_text.carro_rejeicao_reason', 'friendly_name') is string }}
+          estados_iniciais_admissiveis: >-
+            {{ session_id in ['', 'unknown']
+               and inicio_request_id in ['', 'unknown']
+               and termino_request_id in ['', 'unknown']
+               and rejeicao_estado in ['', 'unknown']
+               and rejeicao_event_code in ['', 'unknown']
+               and rejeicao_request_id in ['', 'unknown']
+               and rejeicao_reason in ['', 'unknown'] }}
+          bootstrap_autorizado: >-
+            {{ is_state('input_boolean.carro_checkpoints_inicializados', 'off')
+               and is_state('input_boolean.carro_em_uso', 'off')
+               and helpers_existentes
+               and estados_iniciais_admissiveis }}
+
+      - if:
+          - condition: template
+            value_template: "{{ not bootstrap_autorizado }}"
+        then:
+          - stop: Bootstrap recusado; entidades ausentes, ciclo ativo ou evidência persistida presente.
+
+      - service: input_text.set_value
+        target:
+          entity_id:
+            - input_text.carro_session_id
+            - input_text.carro_inicio_request_id
+            - input_text.carro_termino_request_id
+            - input_text.carro_rejeicao_estado
+            - input_text.carro_rejeicao_event_code
+            - input_text.carro_rejeicao_request_id
+            - input_text.carro_rejeicao_reason
+        data:
+          value: ""
+
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.carro_checkpoints_inicializados
+
   carro_liberar_bloqueio_rejected:
     alias: Carro — Liberar bloqueio rejected
     description: >-
@@ -130,6 +196,7 @@ script:
           reason_bloqueado: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
           inicio_request_id: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
           termino_request_id: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          bootstrap_pronto: "{{ is_state('input_boolean.carro_checkpoints_inicializados', 'on') }}"
           metadados_presentes: >-
             {{ estado_bloqueado != '' or evento_bloqueado != ''
                or request_bloqueado != '' or reason_bloqueado != '' }}
@@ -160,6 +227,7 @@ script:
                and automacao_inicio_current == 0 and reconciliador_current == 0 }}
           bloqueio_coerente: >-
             {{ metadados_presentes
+               and bootstrap_pronto
                and session_id | regex_match(uuid_pattern)
                and event_code_informado in ['car_use_started', 'car_use_ended']
                and request_id_informado | regex_match(uuid_pattern)
@@ -218,11 +286,13 @@ script:
           rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
           rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
           rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          bootstrap_pronto: "{{ is_state('input_boolean.carro_checkpoints_inicializados', 'on') }}"
           bloqueio_rejected_presente: >-
             {{ rejeicao_estado != '' or rejeicao_event_code != ''
                or rejeicao_request_id != '' or rejeicao_reason != '' }}
           checkpoints_coerentes: >-
-            {{ session_id | regex_match(uuid_pattern)
+            {{ bootstrap_pronto
+               and session_id | regex_match(uuid_pattern)
                and inicio_request_id | regex_match(uuid_pattern)
                and termino_request_id | regex_match(uuid_pattern)
                and is_state('input_boolean.carro_em_uso', 'off') }}
@@ -367,6 +437,7 @@ automation:
           rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
           rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
           rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          bootstrap_pronto: "{{ is_state('input_boolean.carro_checkpoints_inicializados', 'on') }}"
           checkpoint_pendente: >-
             {{ session_atual != '' or inicio_request_atual != '' or termino_request_atual != ''
                or rejeicao_estado != '' or rejeicao_event_code != ''
@@ -374,14 +445,20 @@ automation:
           ciclo_pendente: >-
             {{ session_atual | regex_match(uuid_pattern)
                and inicio_request_atual | regex_match(uuid_pattern) }}
-          session_hash: "{{ (context.id ~ ':carro:session') | hash('sha256') }}"
-          inicio_hash: "{{ (context.id ~ ':carro:start') | hash('sha256') }}"
+          session_hash: "{{ md5(context.id ~ ':carro:session') }}"
+          inicio_hash: "{{ md5(context.id ~ ':carro:start') }}"
           session_id: >-
             {{ session_hash[0:8] ~ '-' ~ session_hash[8:12] ~ '-4' ~ session_hash[13:16]
                ~ '-8' ~ session_hash[17:20] ~ '-' ~ session_hash[20:32] }}
           inicio_request_id: >-
             {{ inicio_hash[0:8] ~ '-' ~ inicio_hash[8:12] ~ '-4' ~ inicio_hash[13:16]
                ~ '-8' ~ inicio_hash[17:20] ~ '-' ~ inicio_hash[20:32] }}
+
+      - if:
+          - condition: template
+            value_template: "{{ not bootstrap_pronto }}"
+        then:
+          - stop: Novo ciclo bloqueado; bootstrap dos checkpoints não concluído.
 
       - if:
           - condition: template
@@ -495,8 +572,10 @@ automation:
           rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
           rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
           rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          bootstrap_pronto: "{{ is_state('input_boolean.carro_checkpoints_inicializados', 'on') }}"
           ciclo_coerente: >-
-            {{ session_id | regex_match(uuid_pattern)
+            {{ bootstrap_pronto
+               and session_id | regex_match(uuid_pattern)
                and inicio_request_id | regex_match(uuid_pattern)
                and rejeicao_estado == '' and rejeicao_event_code == ''
                and rejeicao_request_id == '' and rejeicao_reason == '' }}
@@ -504,7 +583,7 @@ automation:
           termino_valido: "{{ termino_request_atual | regex_match(uuid_pattern) }}"
           termino_invalido: >-
             {{ termino_request_atual != '' and not termino_request_atual | regex_match(uuid_pattern) }}
-          termino_hash: "{{ (context.id ~ ':carro:end') | hash('sha256') }}"
+          termino_hash: "{{ md5(context.id ~ ':carro:end') }}"
           termino_request_id: >-
             {% if termino_valido %}
               {{ termino_request_atual }}

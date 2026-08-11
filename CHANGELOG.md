@@ -30,6 +30,8 @@
 - Bloqueador adicional identificado antes da implantação: o consumidor canônico ainda restringia eventos aos quatro códigos CSMR e podia registrar `request_id` sem mensagem visível. A correção estática adiciona `car_use_started`/`car_use_ended` às combinações autorizadas e condiciona `request_ids_json` à materialização efetiva no histórico, preservando integralmente o CSMR. A revisão estática independente aprovou a correção para commit e push; implantação e homologação runtime permanecem pendentes.
 - Ajuste final do consumidor usa exclusivamente o snapshot `trigger.to_state` para correlacionar evento, request e atributos; `publicar_timeline` passou a exigir booleano nativo exatamente `true`, em modo fail-closed e sem fallback permissivo. A mesma decisão material governa histórico visível e ledger de requests.
 - A homologação runtime deverá observar eventos consecutivos com a mesma mensagem: o segundo deve ser deduplicado visualmente, seu `request_id` não deve entrar no ledger e não pode receber ACK `published` falso.
+- Primeira implantação da V20.2E interrompida porque o Core 2026.7.1 não oferece o filtro Jinja `hash` e materializou os sete novos checkpoints `input_text` como `unknown`; nenhuma publicação ou push de teste foi executado.
+- Correção estática localizada substitui `hash` por `md5`, já suportado e usado pelo CSMR, e adiciona bootstrap administrativo único, persistente e fail-closed para converter somente a primeira criação vazia/`unknown` em vazio. Evidência inválida, parcial, `unavailable` ou rejeitada permanece bloqueada. Revisão independente e nova implantação continuam pendentes.
 
 ## [v20.2c-i3b-promocao-operacional] - 2026-08-07
 
