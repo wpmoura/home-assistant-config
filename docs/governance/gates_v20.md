@@ -327,7 +327,7 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 
 ## Gate V20.2E — Integração do Uso do Carro à Timeline
 
-**Status: APROVADA ESTATICAMENTE PARA COMMIT; HOMOLOGAÇÃO RUNTIME PENDENTE**
+**Status: CORREÇÃO DO CONSUMIDOR APROVADA ESTATICAMENTE PARA COMMIT E PUSH; HOMOLOGAÇÃO RUNTIME PENDENTE**
 
 ### Escopo e arquitetura
 
@@ -355,6 +355,8 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 - [ ] Recuperação administrativa de metadados `rejected` parciais, validação contra o ciclo e trava contra escritor ativo verificadas estaticamente; confirmação runtime permanece pendente.
 - [ ] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente; teste de concorrência runtime permanece pendente.
 - [x] Compatibilidade do guard fail-closed com `has_value`/`state_attr` aprovada na revisão estática final independente: `none` preservado, validação numérica estrita, booleanos e negativos recusados, ausência de fallback zero, stops separados antes da limpeza e lógica administrativa preservada. Classificação: **A. APROVADA ESTATICAMENTE PARA ATUALIZAÇÃO DO GATE E COMMIT.**
+- [x] Inclusão de `car_use_started`/`car_use_ended` no consumidor canônico, correlação atômica por `trigger.to_state`, autorização fail-closed de `publicar_timeline` e vínculo entre materialização visível, `request_ids_json` e ACK aprovados em revisão estática independente para commit e push.
+- [ ] Eventos consecutivos com a mesma mensagem validados no runtime: segundo evento deduplicado visualmente, sem inclusão de seu `request_id` no ledger e sem ACK `published` falso; resultado efetivo do publicador registrado.
 - [ ] Validação no ambiente real do atributo `current`, testes funcionais e de concorrência, implantação e homologação operacional permanecem pendentes.
 - [x] Parser YAML disponível e parser JSON Storage aprovados; `check_config` nativo permanece pendente por indisponibilidade do Home Assistant neste ambiente.
 - [x] `git diff --check`, referências, IDs e ausência de escrita direta aprovados.

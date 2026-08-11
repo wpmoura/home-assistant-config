@@ -406,8 +406,25 @@ template:
           {% set recovery_tentativa = recovery.tentativa | default(0, true) | int(0) %}
           {% set canonico = trigger.event.data if tid == 'contrato_canonico_v20' and trigger.event is defined else dict() %}
           {% set canonico_request_id = canonico.request_id | default('', true) | string | trim %}
+          {% set canonico_source = canonico.source | default('', true) | string | trim %}
           {% set canonico_event_code = canonico.event_code | default('', true) | string | trim %}
           {% set canonico_message = canonico.message | default('', true) | string | trim %}
+          {% set canonico_eventos_por_source = {
+            'csmr_v20_2c': ['wilson_left_home', 'remote_monitoring_started', 'wilson_arrived_home', 'remote_monitoring_ended'],
+            'carro_presenca': ['car_use_started', 'car_use_ended']
+          } %}
+          {% set canonico_mensagens = {
+            'wilson_left_home': '📍 Wilson saiu de casa',
+            'remote_monitoring_started': '🛡️ Monitoramento remoto iniciado',
+            'wilson_arrived_home': '📍 Wilson chegou em casa',
+            'remote_monitoring_ended': '🛡️ Monitoramento remoto encerrado',
+            'car_use_started': '🚗 Uso do carro iniciado',
+            'car_use_ended': '🏠 Uso do carro finalizado'
+          } %}
+          {% set canonico_reconhecido = canonico_source in canonico_eventos_por_source
+            and canonico_event_code in canonico_eventos_por_source[canonico_source]
+            and canonico_event_code in canonico_mensagens
+            and canonico_message == canonico_mensagens[canonico_event_code] %}
           {% set request_ids_raw = state_attr('sensor.casa_timeline_v20', 'request_ids_json') | default('[]', true) %}
           {% set request_ids = request_ids_raw | from_json(default=[]) if request_ids_raw is string else request_ids_raw %}
           {% set timeout_min = states('input_number.casa_timeout_porta_aberta_minutos') | int(5) %}
@@ -437,7 +454,7 @@ template:
           {% if tid == 'contrato_canonico_v20'
                 and canonico_request_id != ''
                 and canonico_request_id not in request_ids
-                and canonico_event_code in ['wilson_left_home', 'remote_monitoring_started', 'wilson_arrived_home', 'remote_monitoring_ended'] %}
+                and canonico_reconhecido %}
             {% set evento = now().strftime('%H:%M') ~ ' ' ~ canonico_message %}
           {% elif publica_recovery and tid == 'recovery_4g' and recovery_fato == 'tentativa_autorizada' and recovery_tentativa > 0 %}
             {% set evento = now().strftime('%H:%M') ~ ' 🔄 Recovery 4G iniciado — tentativa ' ~ recovery_tentativa %}
@@ -991,8 +1008,11 @@ template:
         state: >
           {% set eid = trigger.entity_id if trigger is defined else '' %}
           {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
           {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
           {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
           {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
@@ -1010,8 +1030,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1025,11 +1048,20 @@ template:
           request_ids_json: >
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 16] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
-            {% set request_id = state_attr('sensor.casa_evento_publicavel_v20', 'request_id') | default('', true) | string | trim
-                 if eid == 'sensor.casa_evento_publicavel_v20' else '' %}
+            {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set request_id = atributos_evento.get('request_id', '') | string | trim %}
             {% set raw = this.attributes.request_ids_json | default('[]', true) %}
             {% set ids = raw | from_json(default=[]) if raw is string else raw %}
-            {% if request_id != '' and request_id not in ids %}
+            {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
+            {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
+            {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
+            {% set evento_materializado = publicar_timeline
+              and evento not in ['', 'unknown', 'unavailable', 'sem_evento']
+              and evento_base != anterior_base %}
+            {% if evento_materializado and request_id != '' and request_id not in ids %}
               {{ ([request_id] + ids)[:limite] | to_json }}
             {% else %}
               {{ ids[:limite] | to_json }}
@@ -1038,8 +1070,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1051,8 +1086,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1064,8 +1102,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1077,8 +1118,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1090,8 +1134,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}
@@ -1103,8 +1150,11 @@ template:
             {% set limite = [states('input_number.casa_timeline_max_eventos') | int(3), 3] | max %}
             {% set eid = trigger.entity_id if trigger is defined else '' %}
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
-            {% set publicar_timeline = (state_attr('sensor.casa_evento_publicavel_v20', 'publicar_timeline') | default(true, true) | string | lower | trim) != 'false' %}
-            {% set permitir_agregacao = (state_attr('sensor.casa_evento_publicavel_v20', 'permitir_agregacao') | default(true, true) | string | lower | trim) != 'false' %}
+            {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
+            {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
+            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
+            {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
             {% set historico = raw_historico | from_json if raw_historico is string else raw_historico %}
             {% set anterior = historico[0] | default('', true) | string | trim %}

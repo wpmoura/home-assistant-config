@@ -27,6 +27,9 @@
 - Guard de concorrência corrigido para fail-closed: existência, disponibilidade, presença e validade numérica de `current` são verificadas nos dois executores, sem conversão ou default zero; somente ambos exatamente em zero permitem a liberação administrativa.
 - Compatibilidade do guard corrigida com a remoção de `states.get`: `has_value` valida existência/disponibilidade e `state_attr` preserva atributo ausente como `none`; validação numérica estrita continua anterior a qualquer comparação e sem fallback zero.
 - Revisão estática final independente aprovou a compatibilidade do guard e a consolidação da V20.2E para atualização do Gate e commit; implantação e homologação runtime permanecem não autorizadas e pendentes, e a candidata V20.2F continua fechada.
+- Bloqueador adicional identificado antes da implantação: o consumidor canônico ainda restringia eventos aos quatro códigos CSMR e podia registrar `request_id` sem mensagem visível. A correção estática adiciona `car_use_started`/`car_use_ended` às combinações autorizadas e condiciona `request_ids_json` à materialização efetiva no histórico, preservando integralmente o CSMR. A revisão estática independente aprovou a correção para commit e push; implantação e homologação runtime permanecem pendentes.
+- Ajuste final do consumidor usa exclusivamente o snapshot `trigger.to_state` para correlacionar evento, request e atributos; `publicar_timeline` passou a exigir booleano nativo exatamente `true`, em modo fail-closed e sem fallback permissivo. A mesma decisão material governa histórico visível e ledger de requests.
+- A homologação runtime deverá observar eventos consecutivos com a mesma mensagem: o segundo deve ser deduplicado visualmente, seu `request_id` não deve entrar no ledger e não pode receber ACK `published` falso.
 
 ## [v20.2c-i3b-promocao-operacional] - 2026-08-07
 
