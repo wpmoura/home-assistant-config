@@ -17,6 +17,36 @@ Este relatório não altera código, packages, dashboards, sensores ou automaç�
 
 ## 1. Pendências Abertas por Versão/Fase
 
+### V20.2E — Integração do Uso do Carro à Timeline
+
+Status:
+
+- implementação estática concluída;
+- revisão estática final independente aprovada para consolidação documental e commit;
+- homologação runtime não executada.
+
+Correção estática final aplicada e revisão independente aprovada; implantação e homologação runtime permanecem pendentes:
+
+1. **Persistência do `request_id` do término:** `input_text.carro_termino_request_id` guarda o UUID antes da primeira publicação; UUID novo é criado somente quando o checkpoint está vazio. Valor inválido não vazio, sessão/request inicial parciais ou metadados de rejeição são preservados e bloqueiam efeitos do término e publicação. O reconciliador reutiliza os IDs após timeout, ACK `failed`, interrupção ou restart. Revisão estática aprovada; implantação e homologação permanecem pendentes.
+2. **Estado inicial dos controles de push:** `initial: true` foi removido de `input_boolean.carro_push_inicio_uso` e `input_boolean.carro_push_fim_uso`. A primeira criação permanece `off`; uma futura implantação controlada deverá ativá-los manualmente uma única vez caso a decisão operacional continue sendo iniciar com pushes habilitados. Restarts posteriores restauram a escolha persistida do usuário. Declarações e referências foram validadas estaticamente; implantação permanece pendente.
+
+Controle adicional de rejeição: ACK `rejected` de início ou término persiste estado, evento, request e motivo. O bloqueio completo ou parcial sobrevive a restart e impede reconciliação ou novo ciclo. A liberação administrativa exige `event_code` e `request_id`, valida ambos contra a sessão e o checkpoint correspondente, recusa qualquer metadado preenchido divergente ou inválido e admite `reason` vazio somente na recuperação parcial. Seu guard fail-closed removeu o uso incompatível de `states.get`: `has_value` exige as duas entidades existentes e disponíveis, enquanto `state_attr` obtém `current` ou preserva ausência como `none`. Somente valores numéricos nativos, não booleanos, não negativos e ambos exatamente zero permitem avançar; ausência, indisponibilidade, valor inválido ou escritor ativo interrompem sem default zero. A liberação remove somente os quatro metadados, sem publicar nem limpar o ciclo; a reconciliação permanece ação posterior separada. A revisão estática final independente aprovou a compatibilidade do guard exclusivamente para atualização do Gate e commit. Implantação não está autorizada, a homologação runtime não foi executada e a V20.2E ainda não está homologada operacionalmente.
+
+Sequência posterior aos dois bloqueadores:
+
+1. revisar os trechos finais da implementação V20.2E;
+2. executar novamente as validações estáticas aplicáveis;
+3. resolver ou registrar a preservação do card da página `Parâmetros`, considerando que o dashboard Storage não está versionado;
+4. solicitar autorização para commit;
+5. preparar o procedimento de implantação;
+6. solicitar autorização para reload ou restart;
+7. executar a homologação runtime;
+8. registrar as evidências;
+9. encerrar formalmente a V20.2E;
+10. somente depois avaliar a abertura formal da candidata V20.2F.
+
+Critérios normativos de encerramento permanecem no Gate V20.2E em `docs/governance/gates_v20.md`.
+
 ### V20.0 - Baseline Congelada
 
 Status: concluída e congelada.

@@ -1,8 +1,8 @@
 ###############################################################################
 # V20.1O — Contrato canônico de publicação da Timeline
 #
-# Entrada autorizada e versionada para o futuro CSMR V20.2C. Este package não
-# implementa sessão, coordenador ou consumidores. Em test_mode valida e mantém
+# Entrada autorizada e versionada para produtores formalmente promovidos. Este
+# package não implementa ciclos ou consumidores. Em test_mode valida e mantém
 # ledger técnico sem publicar na Timeline, Event Feed ou aliases.
 ###############################################################################
 
@@ -88,6 +88,7 @@ template:
           contrato: >
             {{ {
               'source_autorizada': 'csmr_v20_2c',
+              'sources_autorizadas': ['csmr_v20_2c', 'carro_presenca'],
               'schema_version': 1,
               'identidade_transacional': 'request_id',
               'identidade_logica': 'source+session_id+event_code',
@@ -162,6 +163,17 @@ script:
             remote_monitoring_started: "🛡️ Monitoramento remoto iniciado"
             wilson_arrived_home: "📍 Wilson chegou em casa"
             remote_monitoring_ended: "🛡️ Monitoramento remoto encerrado"
+            car_use_started: "🚗 Uso do carro iniciado"
+            car_use_ended: "🏠 Uso do carro finalizado"
+          eventos_por_source:
+            csmr_v20_2c:
+              - wilson_left_home
+              - remote_monitoring_started
+              - wilson_arrived_home
+              - remote_monitoring_ended
+            carro_presenca:
+              - car_use_started
+              - car_use_ended
           validacao_reason: >-
             {% if request_id is not defined %}missing_request_id
             {% elif request_id is not string %}invalid_request_id_type
@@ -169,14 +181,14 @@ script:
             {% elif not request_id_norm | regex_match(uuid_pattern) %}invalid_request_id_format
             {% elif source is not defined %}missing_source
             {% elif source is not string %}invalid_source_type
-            {% elif source_norm != 'csmr_v20_2c' %}unauthorized_source
+            {% elif source_norm not in eventos_por_source %}unauthorized_source
             {% elif session_id is not defined %}missing_session_id
             {% elif session_id is not string %}invalid_session_id_type
             {% elif session_id_norm == '' %}empty_session_id
             {% elif not session_id_norm | regex_match(uuid_pattern) %}invalid_session_id_format
             {% elif event_code is not defined %}missing_event_code
             {% elif event_code is not string %}invalid_event_code_type
-            {% elif event_code_norm not in mensagens %}unknown_event_code
+            {% elif event_code_norm not in eventos_por_source[source_norm] %}unknown_event_code
             {% elif message is not defined %}missing_message
             {% elif message is not string %}invalid_message_type
             {% elif message_norm == '' %}empty_message

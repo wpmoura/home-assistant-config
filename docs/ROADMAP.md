@@ -17,7 +17,9 @@
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação bloqueada pelo Gate específico
+- V20.2E = integração aditiva do uso do carro à Timeline implementada estaticamente; homologação runtime pendente
 - V20.2 geral/V20.3/V21 = planejamento futuro; exceção V20.2C-A1 registrada separadamente
+- A autorização V20.2E é restrita ao produtor `carro_presenca` e não promove o restante da V20.2
 
 Estado operacional consolidado:
 
@@ -83,6 +85,28 @@ Fluxo oficial de processamento:
 - Energy Brain
 - House Exposure Engine
 - IA contextual opcional
+
+### Candidata V20.2F — Registro de entrada e saída das zonas cadastradas
+
+Status: backlog futuro — não aberta.
+
+Finalidade funcional preliminar: registrar na Timeline a entrada e a saída de Wilson das zonas cadastradas no Home Assistant.
+
+Premissa preliminar: a zona Casa permanece sob responsabilidade do CSMR, evitando duplicidade semântica com os eventos homologados de saída e retorno de casa.
+
+Este registro não constitui lote aberto, fase ativa ou Gate próprio; não autoriza desenho técnico, alteração de contrato ou implementação e não integra o escopo da V20.2E.
+
+Decisões pendentes de análise formal:
+
+- contrato e campos necessários para identificar a zona;
+- identidade lógica e idempotência;
+- tratamento de `not_home`, `unknown` e `unavailable`;
+- oscilações do GPS nas fronteiras;
+- troca direta entre zonas;
+- zonas sobrepostas;
+- criação, renomeação e remoção de zonas;
+- necessidade ou não de pushes;
+- critérios de abertura e Gate próprio.
 
 ## V20.0 - Baseline Finalizada
 

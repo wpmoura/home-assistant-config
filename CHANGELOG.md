@@ -1,5 +1,33 @@
 # Changelog
 
+## [v20.2e-pendencias-v20.2f-backlog] - 2026-08-10
+
+- Pendências remanescentes e sequência de continuidade da V20.2E consolidadas em `docs/pendencias_atuais_central_operacional.md`.
+- Critérios ainda não atendidos refletidos no Gate V20.2E sem alterar seu estado de homologação.
+- Candidata V20.2F registrada exclusivamente no Roadmap como backlog futuro não aberto.
+- Nenhuma alteração funcional, contratual ou de runtime realizada nesta organização documental.
+
+## [v20.2e-carro-timeline] - 2026-08-10
+
+- Lote V20.2E aberto para autorizar, de forma estritamente aditiva, `source: carro_presenca` e os códigos `car_use_started`/`car_use_ended` no publicador canônico V20.1O.
+- Integração implementada estaticamente sobre as automações existentes de `packages/carro_presenca.yaml`, preservando detecção, textos e destinatário dos pushes.
+- Ciclo correlacionado por `input_text.carro_session_id`; pushes de início e término parametrizados independentemente da Timeline.
+- `input_text.carro_inicio_request_id` preserva o retry idempotente do início; o término somente publica após ACK canônico de sucesso e limpa os checkpoints após ACK seguro do fim.
+- Dashboard Storage `Parâmetros` recebeu card `Uso do carro` com os dois controles de push; após a correção dos bloqueadores, ambos nascem `off` na primeira criação e exigem ativação manual única na futura implantação caso os pushes devam iniciar habilitados.
+- Validação estática aprovada por parser YAML/JSON, referências, unicidade de IDs e `git diff --check`; `check_config`/homologação runtime permanecem pendentes porque o Home Assistant não está disponível no ambiente de edição.
+- Contratos e quatro eventos homologados do CSMR permanecem inalterados; homologação runtime da V20.2E permanece pendente.
+- Correção estática dos bloqueadores: `input_text.carro_termino_request_id` persiste o UUID de `car_use_ended`; `script.carro_reconciliar_termino_pendente` reutiliza os três checkpoints de forma serializada e controlada, inclusive após restart, sem retry automático de `rejected`.
+- Novo ciclo é bloqueado enquanto qualquer checkpoint anterior existir, evitando sobrescrita ou mistura semântica; checkpoints são limpos somente após ACK terminal de sucesso do término.
+- `initial: true` removido dos dois controles de push para permitir restauração nativa da escolha do usuário; ativação inicial única permanece procedimento da futura implantação, não executado nesta etapa.
+- Checkpoint de término endurecido: UUID novo é criado somente quando vazio; valor inválido não vazio e combinações parciais são preservados e interrompem o fluxo antes de estado, timestamp, push ou publicação.
+- Bloqueio persistente de `rejected` adicionado para `car_use_started` e `car_use_ended`, associado a `event_code`, `request_id` e `reason`; qualquer metadado parcial bloqueia reconciliação e novo ciclo.
+- `script.carro_liberar_bloqueio_rejected` exige correspondência com o request bloqueado e limpa somente os metadados da rejeição, sem alterar o ciclo ou publicar; reconciliação posterior permanece separada. Nova revisão estática e homologação runtime continuam pendentes.
+- Recuperação administrativa ampliada para bloqueios `rejected` completos ou parcialmente gravados: operador informa evento e request, ambos são validados contra sessão e checkpoint, valores persistidos divergentes ou inválidos são recusados e `reason` vazio é aceito somente no caso parcial.
+- A liberação recusa execução concorrente com os escritores de `rejected`, limpa exclusivamente os quatro metadados e mantém reconciliação como ação posterior separada; nova revisão estática e homologação runtime permanecem pendentes.
+- Guard de concorrência corrigido para fail-closed: existência, disponibilidade, presença e validade numérica de `current` são verificadas nos dois executores, sem conversão ou default zero; somente ambos exatamente em zero permitem a liberação administrativa.
+- Compatibilidade do guard corrigida com a remoção de `states.get`: `has_value` valida existência/disponibilidade e `state_attr` preserva atributo ausente como `none`; validação numérica estrita continua anterior a qualquer comparação e sem fallback zero.
+- Revisão estática final independente aprovou a compatibilidade do guard e a consolidação da V20.2E para atualização do Gate e commit; implantação e homologação runtime permanecem não autorizadas e pendentes, e a candidata V20.2F continua fechada.
+
 ## [v20.2c-i3b-promocao-operacional] - 2026-08-07
 
 ### Changed

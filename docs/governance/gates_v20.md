@@ -325,6 +325,45 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 
 **STATUS: V20.2C FUNCIONALMENTE CONCLUÍDA**
 
+## Gate V20.2E — Integração do Uso do Carro à Timeline
+
+**Status: APROVADA ESTATICAMENTE PARA COMMIT; HOMOLOGAÇÃO RUNTIME PENDENTE**
+
+### Escopo e arquitetura
+
+- [x] Lote formal V20.2E autorizado como ampliação estritamente aditiva da V20.1O.
+- [x] Produtor limitado a `source: carro_presenca` e códigos `car_use_started`/`car_use_ended`.
+- [x] Quatro eventos, source e semântica do CSMR preservados integralmente.
+- [x] Escrita direta em Timeline, Event Feed e aliases finais proibida.
+- [x] Detecção existente do carro e destinatário `notify.mobile_app_iphonewm` preservados.
+
+### Contrato e comportamento
+
+- [x] Publicador canônico ampliado sem ledger, retry ou idempotência paralelos.
+- [x] Um `session_id` persistente correlaciona início e término; cada publicação usa `request_id` próprio.
+- [x] ACK `published`, `duplicate` ou `validated_test` permite conclusão segura; `rejected`, `failed` e timeout preservam o checkpoint.
+- [x] Término sem sessão válida não publica evento órfão nem bloqueia o comportamento funcional legado.
+- [x] Push de início e término parametrizados independentemente; Timeline não depende desses parâmetros.
+- [x] Reinício com ciclo ativo preserva a correlação por helpers restauráveis.
+
+### Validação e homologação
+
+- [x] Persistência e reconciliação controlada do `request_id` de `car_use_ended` implementadas e verificadas estaticamente contra o contrato canônico; homologação runtime permanece pendente.
+- [x] Ausência de `initial` nos dois controles de push verificada estaticamente, permitindo primeira criação nativa em `off` e restauração posterior da escolha do usuário; ativação inicial controlada permanece pendente de implantação.
+- [ ] Tratamento de checkpoint de término vazio/válido/inválido e bloqueio de estados parciais verificados estaticamente; confirmação runtime permanece pendente.
+- [ ] Persistência de `rejected` para início/término, bloqueio da reconciliação e liberação governada verificados estaticamente; confirmação runtime permanece pendente.
+- [ ] Recuperação administrativa de metadados `rejected` parciais, validação contra o ciclo e trava contra escritor ativo verificadas estaticamente; confirmação runtime permanece pendente.
+- [ ] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente; teste de concorrência runtime permanece pendente.
+- [x] Compatibilidade do guard fail-closed com `has_value`/`state_attr` aprovada na revisão estática final independente: `none` preservado, validação numérica estrita, booleanos e negativos recusados, ausência de fallback zero, stops separados antes da limpeza e lógica administrativa preservada. Classificação: **A. APROVADA ESTATICAMENTE PARA ATUALIZAÇÃO DO GATE E COMMIT.**
+- [ ] Validação no ambiente real do atributo `current`, testes funcionais e de concorrência, implantação e homologação operacional permanecem pendentes.
+- [x] Parser YAML disponível e parser JSON Storage aprovados; `check_config` nativo permanece pendente por indisponibilidade do Home Assistant neste ambiente.
+- [x] `git diff --check`, referências, IDs e ausência de escrita direta aprovados.
+- [x] Cenários de pushes ligados/desligados preparados.
+- [x] Duplicidade, falha/timeout, término sem sessão e reinício com ciclo ativo preparados.
+- [x] Nenhum reload, restart, push real ou publicação produtiva executado sem autorização específica.
+
+A sequência operacional e os bloqueios detalhados permanecem consolidados na seção V20.2E de `docs/pendencias_atuais_central_operacional.md`.
+
 I4B.2 permanece exclusivamente como evidência operacional futura e não bloqueante. O catálogo de contratos, mapa arquitetural, auditoria estática e próximas evoluções elegíveis estão consolidados em `docs/v20_2c/baseline_v20_2d.md`.
 
 ## Gates especificos - V20.1Q Recovery 4G

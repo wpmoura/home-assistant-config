@@ -18,6 +18,7 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - V20.2A = concluída; dashboard legado `teste-4` removido pela UI
 - V20.2B = auditoria executada; nenhuma ação operacional realizada
 - V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação bloqueada pelo Gate específico
+- V20.2E = implementação estática concluída para integração aditiva do uso do carro à Timeline; homologação runtime pendente
 - V20.2/V20.3/V21 = planejamento futuro
 - V21+ = planejamento futuro
 
@@ -28,6 +29,7 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - Dashboards produtivos não consomem `_v20_2`
 - V20.2 permanece isolada em shadow mode, exceto pelo CSMR da V20.2C, cuja promoção limitada é exclusivamente arquitetural e continua sem autorização de implementação até aprovação do Gate específico
 - A exceção do CSMR não autoriza outros componentes V20.2 a publicar na Timeline, alterar produção ou abandonar shadow mode
+- V20.2E autoriza exclusivamente `carro_presenca` com `car_use_started` e `car_use_ended` pelo publicador canônico; não promove outros componentes V20.2
 - O CSMR poderá futuramente solicitar publicação apenas pelo caminho canônico V20.1O; escrita direta em aliases finais, Timeline ou Event Feed permanece proibida
 - IA é opcional; IA desligada mantém o sistema funcional
 - Não substituir automações legadas sem auditoria V20.1C

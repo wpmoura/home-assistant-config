@@ -23,6 +23,7 @@ Princípios principais:
 - V20.2 opera em shadow mode e não deve alterar dashboards produtivos. A única exceção arquitetural formal é a promoção limitada do Coordenador da Sessão de Monitoramento Remoto (CSMR) da V20.2C, ainda sem implementação autorizada até aprovação de seu Gate específico.
 - O CSMR é classificado como motor oficial de coordenação operacional, com escopo restrito à saída e ao retorno de Wilson; essa classificação não promove o restante da V20.2.
 - V20.1O permanece como motor oficial da Timeline, do Event Feed e da política de publicação. O CSMR não mantém histórico, não deduplica em paralelo e não escreve diretamente nos aliases finais.
+- V20.2E amplia de forma estritamente aditiva o publicador canônico para `source: carro_presenca` e eventos `car_use_started`/`car_use_ended`; os contratos e quatro eventos do CSMR permanecem inalterados.
 - IA é opcional; quando desligada, o sistema deve permanecer 100% funcional.
 - `sensor.status_casa` não deve ser alterado por implementações experimentais.
 - Aliases finais só podem ser alterados com validação formal.

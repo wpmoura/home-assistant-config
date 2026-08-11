@@ -31,6 +31,7 @@ Estado oficial:
 - V20.2B = auditoria executada, sem ação operacional
 - V20.2/V20.3/V21 = planejamento futuro
 - V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação e publicação em runtime bloqueadas pelo Gate específico
+- V20.2E = integração aditiva do uso do carro à Timeline autorizada; implementação estática e homologação seguem Gate próprio
 
 Arquitetura oficial:
 
@@ -399,3 +400,17 @@ V20.1O permanece autoridade sobre política de publicação, armazenamento, hist
 ### Rollback arquitetural
 
 O rollback deve retirar somente a promoção funcional da sessão e seus consumidores subordinados. V20.1O, Timeline, Event Feed, aliases, Context Engine shadow e demais componentes V20.2 permanecem inalterados. Nenhuma sessão, execução pendente ou estado inseguro do Harness pode sobreviver ao rollback.
+
+## V20.2E — Integração do Uso do Carro à Timeline
+
+V20.2E autoriza uma ampliação estritamente aditiva do contrato protegido da V20.1O. O produtor `carro_presenca` pode solicitar publicação exclusivamente pelo `script.casa_publicar_evento_timeline_v20`, com os códigos `car_use_started` ("🚗 Uso do carro iniciado") e `car_use_ended` ("🏠 Uso do carro finalizado"). Os sources, códigos, mensagens e comportamentos homologados do CSMR permanecem inalterados.
+
+`input_boolean.carro_em_uso` continua representando somente o estado funcional. `input_text.carro_session_id` persiste o UUID do ciclo entre início, término e reinícios do Home Assistant; `input_text.carro_inicio_request_id` preserva a identidade da publicação inicial; e `input_text.carro_termino_request_id` preserva o UUID de `car_use_ended` antes da primeira chamada e em toda reconciliação. O UUID de término só pode ser criado quando esse checkpoint está realmente vazio; valor não vazio inválido ou qualquer checkpoint parcial é preservado e bloqueia publicação. Início e término compartilham o `session_id` e usam `request_id` distintos.
+
+No término, o produtor persiste o request de `car_use_ended` e aciona `script.carro_reconciliar_termino_pendente`, serializado em `mode: single`. O reconciliador reapresenta primeiro `car_use_started` com o `request_id` persistido; o ledger canônico responde `duplicate` quando o início já existe ou tenta novamente quando a publicação anterior falhou. `car_use_ended` somente é solicitado após ACK de sucesso do início e sempre reutiliza o request persistido. Após restart, a mesma rotina permanece disponível para acionamento controlado.
+
+ACK `rejected` de `car_use_started` ou `car_use_ended` persiste estado, `event_code`, `request_id` e `reason` nos helpers `input_text.carro_rejeicao_*`. Qualquer metadado de rejeição, inclusive parcial, bloqueia o reconciliador e novos ciclos. `script.carro_liberar_bloqueio_rejected` trata bloqueios completos ou parciais e exige que o operador informe `event_code` e `request_id`; valida sessão UUID, associação exata do request ao checkpoint do evento e cada metadado persistido que estiver preenchido. Estado diferente de `rejected`, evento divergente e request divergente ou inválido são recusados; `reason` pode estar vazio apenas na recuperação parcial. O guard de concorrência é fail-closed e usa exclusivamente as APIs documentadas `has_value` e `state_attr`, substituindo a tentativa incompatível anterior com `states.get`. `has_value` exige existência e disponibilidade da automação inicial e do reconciliador; `state_attr` obtém `current` com segurança e retorna `none` quando a entidade ou o atributo não existe. Somente valores numéricos nativos, não booleanos, não negativos e ambos exatamente em zero permitem avançar; ausência, `unknown`, `unavailable`, atributo ausente, valor inválido ou escritor ativo resultam em `stop`, sem default zero. Depois das validações, a liberação limpa somente os quatro metadados de rejeição; não altera os checkpoints do ciclo, não cria UUID e não publica. A reconciliação posterior é uma ação separada e controlada. `failed`, timeout, interrupção e restart não removem o bloqueio. Após sucesso completo (`published`, `duplicate` ou `validated_test`), os checkpoints do ciclo e eventuais metadados de rejeição são limpos em conjunto. Revisão estática final e homologação runtime permanecem pendentes.
+
+Os helpers `input_boolean.carro_push_inicio_uso` e `input_boolean.carro_push_fim_uso` controlam exclusivamente os pushes existentes para `notify.mobile_app_iphonewm`. Eles não definem `initial`: na primeira criação nascem `off` pelo comportamento nativo e, após configuração manual única na implantação, restauram a escolha persistida do usuário nos restarts seguintes. A publicação na Timeline é independente desses helpers. O produtor não mantém ledger, retry, deduplicação, Timeline ou Event Feed próprios e não escreve diretamente em sensores finais.
+
+Rollback do lote: remover as chamadas e helpers V20.2E do package do carro, retirar os controles visuais correspondentes e remover apenas a autorização aditiva do contrato, preservando integralmente V20.1O, CSMR, aliases finais e a detecção preexistente do carro.

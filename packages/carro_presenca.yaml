@@ -3,6 +3,50 @@ input_boolean:
     name: Carro em uso
     icon: mdi:car
 
+  carro_push_inicio_uso:
+    name: Push ao iniciar o uso do carro
+    icon: mdi:car-arrow-right
+
+  carro_push_fim_uso:
+    name: Push ao finalizar o uso do carro
+    icon: mdi:car-arrow-left
+
+input_text:
+  carro_session_id:
+    name: Sessão ativa de uso do carro
+    max: 36
+    icon: mdi:identifier
+
+  carro_inicio_request_id:
+    name: Requisição de início do uso do carro
+    max: 36
+    icon: mdi:identifier
+
+  carro_termino_request_id:
+    name: Requisição de término do uso do carro
+    max: 36
+    icon: mdi:identifier
+
+  carro_rejeicao_estado:
+    name: Estado de rejeição do uso do carro
+    max: 16
+    icon: mdi:block-helper
+
+  carro_rejeicao_event_code:
+    name: Evento rejeitado do uso do carro
+    max: 32
+    icon: mdi:code-tags
+
+  carro_rejeicao_request_id:
+    name: Requisição rejeitada do uso do carro
+    max: 36
+    icon: mdi:identifier
+
+  carro_rejeicao_reason:
+    name: Motivo da rejeição do uso do carro
+    max: 255
+    icon: mdi:alert-circle-outline
+
 input_datetime:
   ultima_saida_carro:
     name: Última saída com carro
@@ -48,6 +92,254 @@ template:
             mdi:car-off
           {% endif %}
 
+script:
+  carro_liberar_bloqueio_rejected:
+    alias: Carro — Liberar bloqueio rejected
+    description: >-
+      Libera somente metadados completos ou parciais de uma rejeição já
+      analisada. Exige evento e request associados ao ciclo e não publica nem
+      altera os checkpoints funcionais.
+    icon: mdi:lock-open-check-outline
+    mode: single
+    fields:
+      event_code:
+        name: Evento bloqueado
+        description: Evento rejeitado analisado pelo operador.
+        required: true
+        selector:
+          select:
+            options:
+              - car_use_started
+              - car_use_ended
+      request_id:
+        name: Request ID bloqueado
+        description: UUID do checkpoint correspondente ao evento informado.
+        required: true
+        selector:
+          text:
+    sequence:
+      - variables:
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          event_code_informado: "{{ event_code | default('', true) | string | trim }}"
+          request_id_informado: "{{ request_id | default('', true) | string | trim }}"
+          session_id: "{{ states('input_text.carro_session_id') | string | trim }}"
+          estado_bloqueado: "{{ states('input_text.carro_rejeicao_estado') | string | trim }}"
+          evento_bloqueado: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
+          request_bloqueado: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
+          reason_bloqueado: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          inicio_request_id: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
+          termino_request_id: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          metadados_presentes: >-
+            {{ estado_bloqueado != '' or evento_bloqueado != ''
+               or request_bloqueado != '' or reason_bloqueado != '' }}
+          automacao_inicio_disponivel: >-
+            {{ has_value('automation.carro_iniciar_uso_ao_sair_de_casa') }}
+          reconciliador_disponivel: >-
+            {{ has_value('script.carro_reconciliar_termino_pendente') }}
+          automacao_inicio_current: >-
+            {{ state_attr('automation.carro_iniciar_uso_ao_sair_de_casa', 'current') }}
+          reconciliador_current: >-
+            {{ state_attr('script.carro_reconciliar_termino_pendente', 'current') }}
+          automacao_inicio_current_valido: >-
+            {{ automacao_inicio_current is number
+               and automacao_inicio_current is not boolean
+               and automacao_inicio_current >= 0 }}
+          reconciliador_current_valido: >-
+            {{ reconciliador_current is number
+               and reconciliador_current is not boolean
+               and reconciliador_current >= 0 }}
+          guard_observavel: >-
+            {{ automacao_inicio_disponivel and reconciliador_disponivel
+               and automacao_inicio_current_valido and reconciliador_current_valido }}
+          escritor_rejected_ativo: >-
+            {{ guard_observavel
+               and (automacao_inicio_current > 0 or reconciliador_current > 0) }}
+          escritores_inativos: >-
+            {{ guard_observavel
+               and automacao_inicio_current == 0 and reconciliador_current == 0 }}
+          bloqueio_coerente: >-
+            {{ metadados_presentes
+               and session_id | regex_match(uuid_pattern)
+               and event_code_informado in ['car_use_started', 'car_use_ended']
+               and request_id_informado | regex_match(uuid_pattern)
+               and ((event_code_informado == 'car_use_started' and request_id_informado == inicio_request_id)
+                    or (event_code_informado == 'car_use_ended' and request_id_informado == termino_request_id))
+               and estado_bloqueado in ['', 'rejected']
+               and evento_bloqueado in ['', event_code_informado]
+               and (request_bloqueado == ''
+                    or (request_bloqueado | regex_match(uuid_pattern)
+                        and request_bloqueado == request_id_informado)) }}
+
+      - if:
+          - condition: template
+            value_template: "{{ not guard_observavel }}"
+        then:
+          - stop: Liberação recusada; observação dos executores indisponível ou inválida.
+
+      - if:
+          - condition: template
+            value_template: "{{ escritor_rejected_ativo or not escritores_inativos }}"
+        then:
+          - stop: Liberação recusada; escritor de rejected ainda está em execução.
+
+      - if:
+          - condition: template
+            value_template: "{{ not bloqueio_coerente }}"
+        then:
+          - stop: Liberação recusada; parâmetros, ciclo ou metadados de rejeição divergentes.
+
+      - service: input_text.set_value
+        target:
+          entity_id:
+            - input_text.carro_rejeicao_estado
+            - input_text.carro_rejeicao_event_code
+            - input_text.carro_rejeicao_request_id
+            - input_text.carro_rejeicao_reason
+        data:
+          value: ""
+
+  carro_reconciliar_termino_pendente:
+    alias: Carro — Reconciliar término pendente
+    description: >-
+      Reutiliza os checkpoints persistentes do ciclo para concluir o término
+      pelo publicador canônico. Pode ser acionado de forma controlada após
+      timeout, failed, interrupção ou restart; rejected não gera loop automático.
+    icon: mdi:car-clock
+    mode: single
+    sequence:
+      - variables:
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          session_id: "{{ states('input_text.carro_session_id') | string | trim }}"
+          inicio_request_id: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
+          termino_request_id: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          rejeicao_estado: "{{ states('input_text.carro_rejeicao_estado') | string | trim }}"
+          rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
+          rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
+          rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          bloqueio_rejected_presente: >-
+            {{ rejeicao_estado != '' or rejeicao_event_code != ''
+               or rejeicao_request_id != '' or rejeicao_reason != '' }}
+          checkpoints_coerentes: >-
+            {{ session_id | regex_match(uuid_pattern)
+               and inicio_request_id | regex_match(uuid_pattern)
+               and termino_request_id | regex_match(uuid_pattern)
+               and is_state('input_boolean.carro_em_uso', 'off') }}
+
+      - if:
+          - condition: template
+            value_template: "{{ bloqueio_rejected_presente }}"
+        then:
+          - stop: Reconciliação bloqueada por rejeição persistente ou metadados parciais.
+
+      - if:
+          - condition: template
+            value_template: "{{ not checkpoints_coerentes }}"
+        then:
+          - stop: Checkpoints ausentes ou incoerentes; reconciliação bloqueada.
+
+      - action: script.casa_publicar_evento_timeline_v20
+        data:
+          request_id: "{{ inicio_request_id }}"
+          source: carro_presenca
+          session_id: "{{ session_id }}"
+          event_code: car_use_started
+          message: "🚗 Uso do carro iniciado"
+          schema_version: 1
+          test_mode: false
+        response_variable: inicio_ack
+
+      - if:
+          - condition: template
+            value_template: "{{ inicio_ack.status == 'rejected' }}"
+        then:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_event_code
+            data:
+              value: car_use_started
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_request_id
+            data:
+              value: "{{ inicio_request_id }}"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_reason
+            data:
+              value: "{{ inicio_ack.reason | default('unknown_rejection', true) | string | truncate(255, true, '') }}"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_estado
+            data:
+              value: rejected
+          - stop: ACK rejected no início; bloqueio persistido e checkpoints preservados.
+
+      - if:
+          - condition: template
+            value_template: >-
+              {{ inicio_ack.status not in ['published', 'duplicate', 'validated_test'] }}
+        then:
+          - stop: ACK do início não terminal; checkpoints preservados.
+
+      - action: script.casa_publicar_evento_timeline_v20
+        data:
+          request_id: "{{ termino_request_id }}"
+          source: carro_presenca
+          session_id: "{{ session_id }}"
+          event_code: car_use_ended
+          message: "🏠 Uso do carro finalizado"
+          schema_version: 1
+          test_mode: false
+        response_variable: termino_ack
+
+      - if:
+          - condition: template
+            value_template: "{{ termino_ack.status == 'rejected' }}"
+        then:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_event_code
+            data:
+              value: car_use_ended
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_request_id
+            data:
+              value: "{{ termino_request_id }}"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_reason
+            data:
+              value: "{{ termino_ack.reason | default('unknown_rejection', true) | string | truncate(255, true, '') }}"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_rejeicao_estado
+            data:
+              value: rejected
+          - stop: ACK rejected no término; bloqueio persistido e checkpoints preservados.
+
+      - if:
+          - condition: template
+            value_template: >-
+              {{ termino_ack.status in ['published', 'duplicate', 'validated_test'] }}
+        then:
+          - service: input_text.set_value
+            target:
+              entity_id:
+                - input_text.carro_session_id
+                - input_text.carro_inicio_request_id
+                - input_text.carro_termino_request_id
+                - input_text.carro_rejeicao_estado
+                - input_text.carro_rejeicao_event_code
+                - input_text.carro_rejeicao_request_id
+                - input_text.carro_rejeicao_reason
+            data:
+              value: ""
+        else:
+          - stop: ACK do término não terminal; checkpoints preservados para recuperação controlada.
+
 automation:
   - alias: "Carro - Iniciar uso ao sair de casa"
     id: carro_iniciar_uso_ao_sair_de_casa
@@ -65,6 +357,38 @@ automation:
         state: "off"
 
     action:
+      - variables:
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          session_atual: "{{ states('input_text.carro_session_id') | string | trim }}"
+          inicio_request_atual: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
+          termino_request_atual: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          rejeicao_estado: "{{ states('input_text.carro_rejeicao_estado') | string | trim }}"
+          rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
+          rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
+          rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          checkpoint_pendente: >-
+            {{ session_atual != '' or inicio_request_atual != '' or termino_request_atual != ''
+               or rejeicao_estado != '' or rejeicao_event_code != ''
+               or rejeicao_request_id != '' or rejeicao_reason != '' }}
+          ciclo_pendente: >-
+            {{ session_atual | regex_match(uuid_pattern)
+               and inicio_request_atual | regex_match(uuid_pattern) }}
+          session_hash: "{{ (context.id ~ ':carro:session') | hash('sha256') }}"
+          inicio_hash: "{{ (context.id ~ ':carro:start') | hash('sha256') }}"
+          session_id: >-
+            {{ session_hash[0:8] ~ '-' ~ session_hash[8:12] ~ '-4' ~ session_hash[13:16]
+               ~ '-8' ~ session_hash[17:20] ~ '-' ~ session_hash[20:32] }}
+          inicio_request_id: >-
+            {{ inicio_hash[0:8] ~ '-' ~ inicio_hash[8:12] ~ '-4' ~ inicio_hash[13:16]
+               ~ '-8' ~ inicio_hash[17:20] ~ '-' ~ inicio_hash[20:32] }}
+
+      - if:
+          - condition: template
+            value_template: "{{ checkpoint_pendente }}"
+        then:
+          - stop: Novo ciclo bloqueado por checkpoints anteriores pendentes.
+
       - service: input_boolean.turn_on
         target:
           entity_id: input_boolean.carro_em_uso
@@ -79,10 +403,72 @@ automation:
         target:
           entity_id: counter.carro_viagens
 
-      - service: notify.mobile_app_iphonewm
-        data:
-          title: "Carro"
-          message: "🚗 Uso do carro iniciado"
+      - if:
+          - condition: template
+            value_template: "{{ not ciclo_pendente }}"
+        then:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_session_id
+            data:
+              value: "{{ session_id }}"
+
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_inicio_request_id
+            data:
+              value: "{{ inicio_request_id }}"
+
+      - if:
+          - condition: state
+            entity_id: input_boolean.carro_push_inicio_uso
+            state: "on"
+        then:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "Carro"
+              message: "🚗 Uso do carro iniciado"
+
+      - if:
+          - condition: template
+            value_template: "{{ not ciclo_pendente }}"
+        then:
+          - action: script.casa_publicar_evento_timeline_v20
+            data:
+              request_id: "{{ inicio_request_id }}"
+              source: carro_presenca
+              session_id: "{{ session_id }}"
+              event_code: car_use_started
+              message: "🚗 Uso do carro iniciado"
+              schema_version: 1
+              test_mode: false
+            response_variable: inicio_ack
+
+          - if:
+              - condition: template
+                value_template: "{{ inicio_ack.status == 'rejected' }}"
+            then:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.carro_rejeicao_event_code
+                data:
+                  value: car_use_started
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.carro_rejeicao_request_id
+                data:
+                  value: "{{ inicio_request_id }}"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.carro_rejeicao_reason
+                data:
+                  value: "{{ inicio_ack.reason | default('unknown_rejection', true) | string | truncate(255, true, '') }}"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.carro_rejeicao_estado
+                data:
+                  value: rejected
+              - stop: ACK rejected no início; bloqueio persistido e ciclo preservado.
 
     mode: single
 
@@ -99,6 +485,42 @@ automation:
         state: "on"
 
     action:
+      - variables:
+          uuid_pattern: >-
+            ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$
+          session_id: "{{ states('input_text.carro_session_id') | string | trim }}"
+          inicio_request_id: "{{ states('input_text.carro_inicio_request_id') | string | trim }}"
+          termino_request_atual: "{{ states('input_text.carro_termino_request_id') | string | trim }}"
+          rejeicao_estado: "{{ states('input_text.carro_rejeicao_estado') | string | trim }}"
+          rejeicao_event_code: "{{ states('input_text.carro_rejeicao_event_code') | string | trim }}"
+          rejeicao_request_id: "{{ states('input_text.carro_rejeicao_request_id') | string | trim }}"
+          rejeicao_reason: "{{ states('input_text.carro_rejeicao_reason') | string | trim }}"
+          ciclo_coerente: >-
+            {{ session_id | regex_match(uuid_pattern)
+               and inicio_request_id | regex_match(uuid_pattern)
+               and rejeicao_estado == '' and rejeicao_event_code == ''
+               and rejeicao_request_id == '' and rejeicao_reason == '' }}
+          termino_vazio: "{{ termino_request_atual == '' }}"
+          termino_valido: "{{ termino_request_atual | regex_match(uuid_pattern) }}"
+          termino_invalido: >-
+            {{ termino_request_atual != '' and not termino_request_atual | regex_match(uuid_pattern) }}
+          termino_hash: "{{ (context.id ~ ':carro:end') | hash('sha256') }}"
+          termino_request_id: >-
+            {% if termino_valido %}
+              {{ termino_request_atual }}
+            {% elif termino_vazio %}
+              {{ termino_hash[0:8] ~ '-' ~ termino_hash[8:12] ~ '-4' ~ termino_hash[13:16]
+                 ~ '-8' ~ termino_hash[17:20] ~ '-' ~ termino_hash[20:32] }}
+            {% else %}
+              {{ termino_request_atual }}
+            {% endif %}
+
+      - if:
+          - condition: template
+            value_template: "{{ not ciclo_coerente or termino_invalido }}"
+        then:
+          - stop: Checkpoints parciais, inválidos ou bloqueados; término preservado sem publicação.
+
       - service: input_boolean.turn_off
         target:
           entity_id: input_boolean.carro_em_uso
@@ -109,10 +531,32 @@ automation:
         data:
           datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
 
-      - service: notify.mobile_app_iphonewm
-        data:
-          title: "Carro"
-          message: "🏠 Uso do carro finalizado"
+      - if:
+          - condition: state
+            entity_id: input_boolean.carro_push_fim_uso
+            state: "on"
+        then:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "Carro"
+              message: "🏠 Uso do carro finalizado"
+
+      - if:
+          - condition: template
+            value_template: >-
+              {{ ciclo_coerente and termino_vazio }}
+        then:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.carro_termino_request_id
+            data:
+              value: "{{ termino_request_id }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ ciclo_coerente and (termino_vazio or termino_valido) }}"
+        then:
+          - action: script.carro_reconciliar_termino_pendente
 
     mode: single
 
