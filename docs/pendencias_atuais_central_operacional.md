@@ -21,33 +21,30 @@ Este relatório não altera código, packages, dashboards, sensores ou automaç�
 
 Status:
 
-- implementação estática concluída;
-- correção estática adicional do consumidor canônico aprovada em revisão independente para commit e push;
-- homologação runtime não executada.
+- implementação e correções estáticas concluídas;
+- contrato `publicar_timeline` homologado em runtime;
+- ciclo real do carro reconciliado com os identificadores originais;
+- ocorrência funcional de 11/08/2026 encerrada tecnicamente.
 
-Bloqueadores observados na primeira implantação: o Core 2026.7.1 recusou o filtro Jinja `hash`, desabilitando as automações de início e término, e os sete novos `input_text` nasceram `unknown`. A correção localizada substitui o filtro por `md5`, função já usada pelo CSMR e comprovada no ambiente, preservando UUIDs distintos e persistidos. A primeira materialização recebe bootstrap administrativo manual e idempotente, protegido por `input_boolean.carro_checkpoints_inicializados`: somente helpers existentes, carro fora de uso e valores vazios/`unknown` são admissíveis; `unavailable`, texto inválido, checkpoint ou rejeição real bloqueiam sem limpeza. Revisão estática independente é obrigatória antes de novo `check_config`, reload ou homologação runtime.
+Bloqueadores da primeira implantação resolvidos: o filtro Jinja `hash` incompatível foi substituído por `md5`, as automações foram carregadas e o bootstrap administrativo manual inicializou os sete `input_text` em modo fail-closed. O marcador `input_boolean.carro_checkpoints_inicializados` foi gravado por último; não houve sessão, request, rejeição, publicação ou push espontâneo.
 
-As correções de checkpoints, controles de push, guard administrativo e consumidor canônico foram aprovadas estaticamente; implantação e homologação runtime permanecem pendentes:
+As correções de checkpoints, controles de push, guard administrativo e consumidor canônico foram aprovadas estaticamente. Permanecem como cobertura runtime separada os cenários artificiais do guard, concorrência e matriz completa dos controles de push:
 
-1. **Persistência do `request_id` do término:** `input_text.carro_termino_request_id` guarda o UUID antes da primeira publicação; UUID novo é criado somente quando o checkpoint está vazio. Valor inválido não vazio, sessão/request inicial parciais ou metadados de rejeição são preservados e bloqueiam efeitos do término e publicação. O reconciliador reutiliza os IDs após timeout, ACK `failed`, interrupção ou restart. Revisão estática aprovada; implantação e homologação permanecem pendentes.
-2. **Estado inicial dos controles de push:** `initial: true` foi removido de `input_boolean.carro_push_inicio_uso` e `input_boolean.carro_push_fim_uso`. A primeira criação permanece `off`; uma futura implantação controlada deverá ativá-los manualmente uma única vez caso a decisão operacional continue sendo iniciar com pushes habilitados. Restarts posteriores restauram a escolha persistida do usuário. Declarações e referências foram validadas estaticamente; implantação permanece pendente.
+1. **Persistência do `request_id` do término:** comprovada no ciclo real. O reconciliador reutilizou a sessão e os requests originais, publicou início e término uma vez cada e limpou os checkpoints somente depois do ACK `published` do término.
+2. **Controles de push:** permanecem independentes da Timeline e restauram a escolha persistida. A matriz runtime completa ligado/desligado continua pendente; isso não reabre o incidente de publicação.
 
-Controle adicional de rejeição: ACK `rejected` de início ou término persiste estado, evento, request e motivo. O bloqueio completo ou parcial sobrevive a restart e impede reconciliação ou novo ciclo. A liberação administrativa exige `event_code` e `request_id`, valida ambos contra a sessão e o checkpoint correspondente, recusa qualquer metadado preenchido divergente ou inválido e admite `reason` vazio somente na recuperação parcial. Seu guard fail-closed removeu o uso incompatível de `states.get`: `has_value` exige as duas entidades existentes e disponíveis, enquanto `state_attr` obtém `current` ou preserva ausência como `none`. Somente valores numéricos nativos, não booleanos, não negativos e ambos exatamente zero permitem avançar; ausência, indisponibilidade, valor inválido ou escritor ativo interrompem sem default zero. A liberação remove somente os quatro metadados, sem publicar nem limpar o ciclo; a reconciliação permanece ação posterior separada. A revisão estática final independente aprovou a compatibilidade do guard exclusivamente para atualização do Gate e commit. Implantação não está autorizada, a homologação runtime não foi executada e a V20.2E ainda não está homologada operacionalmente.
+Controle adicional de rejeição: ACK `rejected` de início ou término persiste estado, evento, request e motivo. O bloqueio completo ou parcial sobrevive a restart e impede reconciliação ou novo ciclo. A liberação administrativa exige `event_code` e `request_id`, valida ambos contra a sessão e o checkpoint correspondente, recusa qualquer metadado preenchido divergente ou inválido e admite `reason` vazio somente na recuperação parcial. Seu guard fail-closed usa `has_value` e `state_attr`; somente dois `current` numéricos nativos, não booleanos, não negativos e exatamente zero permitem avançar. A compatibilidade estática foi aprovada; testes runtime artificiais de indisponibilidade, tipo inválido e escritor ativo permanecem pendentes.
 
-Bloqueador pré-implantação do consumidor canônico: embora o contrato aceitasse os dois eventos do carro, o motor intermediário reconhecia somente os quatro códigos CSMR e `request_ids_json` podia registrar um request sem comprovar a incorporação da mensagem no histórico. A correção mínima inclui `car_use_started` e `car_use_ended` nas combinações canônicas de source/evento/mensagem, lê evento e atributos correlacionados do mesmo `trigger.to_state`, exige `publicar_timeline` booleano nativo e exatamente `true` e condiciona o ledger de requests à mesma decisão que materializa o evento visível. Ausência, `null`, texto ou qualquer valor incompatível bloqueia a publicação. Os quatro eventos CSMR foram preservados. A correção foi aprovada em revisão estática independente para commit e push. Na homologação runtime, eventos consecutivos com a mesma mensagem devem comprovar que o segundo é deduplicado visualmente, seu `request_id` não entra no ledger e não recebe ACK `published` falso; o resultado do publicador deverá ser registrado. Implantação, reload, restart e homologação runtime continuam suspensos.
+Incidente do consumidor canônico encerrado: `publicar_timeline` foi observado como string `"true"` no Core 2026.7.1. A normalização restritiva aceita somente `true` nativo ou string exatamente `true` após `trim`/normalização de caixa; os demais valores permanecem fail-closed. `check_config`, `template.reload` e runtime comprovaram Timeline, `eventos_json`, `request_ids_json`, ledger, ACK e ausência de falso `published`.
 
-Sequência posterior aos dois bloqueadores:
+A sessão CSMR real de 11/08/2026 foi auditada. `wilson_left_home` foi solicitado três vezes e falhou antes de `open`; o monitoramento nunca chegou a `active`. No retorno houve apenas `cancel_reservation`; `remote_monitoring_started`, `wilson_arrived_home` e `remote_monitoring_ended` não ocorreram e não devem ser retropublicados. O request real de `wilson_left_home` também não será reapresentado: a Timeline atual não possui `occurred_at`, forma `HH:MM` com `now()` e faz prepend sem ordenação histórica. A evolução temporal permanece separada e não bloqueia a correção homologada.
 
-1. revisar os trechos finais da implementação V20.2E;
-2. executar novamente as validações estáticas aplicáveis;
-3. resolver ou registrar a preservação do card da página `Parâmetros`, considerando que o dashboard Storage não está versionado;
-4. solicitar autorização para commit;
-5. preparar o procedimento de implantação;
-6. solicitar autorização para reload ou restart;
-7. executar a homologação runtime;
-8. registrar as evidências;
-9. encerrar formalmente a V20.2E;
-10. somente depois avaliar a abertura formal da candidata V20.2F.
+Próximas ações válidas:
+
+1. consolidar este diff documental e funcional homologado em commit autorizado separadamente;
+2. manter como cobertura futura os testes artificiais do guard, concorrência e matriz completa de push;
+3. tratar temporalidade histórica somente em lote arquitetural próprio, sem retropublicar a ocorrência de 11/08/2026;
+4. manter a candidata V20.2F fechada até autorização formal.
 
 Critérios normativos de encerramento permanecem no Gate V20.2E em `docs/governance/gates_v20.md`.
 

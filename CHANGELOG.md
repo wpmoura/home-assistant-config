@@ -1,5 +1,14 @@
 # Changelog
 
+## [v20.2e-publicar-timeline-type] - 2026-08-11
+
+- Diagnóstico da saída real confirmou que snapshots do Core 2026.7.1 podem materializar `publicar_timeline` como string `"true"`, bloqueando o consumidor que exigia booleano nativo e preservando corretamente ledger, ACK e checkpoints diante do timeout.
+- Consumidor da Timeline normaliza de forma restritiva apenas `true` nativo ou string exatamente `true` após `trim` e normalização de caixa; valores falsos, ausentes, ambíguos ou incompatíveis permanecem fail-closed em estado, histórico, ledger e linhas visíveis.
+- `check_config`, `template.reload` e homologação runtime aprovaram `"true"` textual, Timeline, `eventos_json`, `request_ids_json`, ledger, ACK `published`, Harness `validated_test` e ausência de falso `published`.
+- O ciclo real do carro foi reconciliado em ordem com a sessão e os dois requests originais; cada evento foi publicado uma vez e os checkpoints foram limpos automaticamente somente após o ACK `published` do término.
+- A sessão CSMR real de 11/08/2026 foi auditada: apenas `wilson_left_home` ocorreu e falhou na publicação; o monitoramento nunca chegou a `active`, e chegada/encerramento não foram criados. Nenhum desses eventos será retropublicado.
+- A Timeline V20 não possui `occurred_at`, usa `now()` no prefixo visual e faz prepend sem ordenação temporal. A ocorrência permanece documentada; temporalidade histórica é evolução separada.
+
 ## [v20.2e-pendencias-v20.2f-backlog] - 2026-08-10
 
 - Pendências remanescentes e sequência de continuidade da V20.2E consolidadas em `docs/pendencias_atuais_central_operacional.md`.

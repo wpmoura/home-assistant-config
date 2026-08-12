@@ -348,7 +348,7 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 
 ### Validação e homologação
 
-- [x] Persistência e reconciliação controlada do `request_id` de `car_use_ended` implementadas e verificadas estaticamente contra o contrato canônico; homologação runtime permanece pendente.
+- [x] Persistência e reconciliação controlada do `request_id` de `car_use_ended` implementadas e verificadas; ciclo real reconciliado em ordem com sessão e requests originais, dois ACKs `published` e limpeza somente após o término.
 - [x] Ausência de `initial` nos dois controles de push verificada estaticamente, permitindo primeira criação nativa em `off` e restauração posterior da escolha do usuário; ativação inicial controlada permanece pendente de implantação.
 - [ ] Tratamento de checkpoint de término vazio/válido/inválido e bloqueio de estados parciais verificados estaticamente; confirmação runtime permanece pendente.
 - [ ] Persistência de `rejected` para início/término, bloqueio da reconciliação e liberação governada verificados estaticamente; confirmação runtime permanece pendente.
@@ -356,14 +356,18 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 - [ ] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente; teste de concorrência runtime permanece pendente.
 - [x] Compatibilidade do guard fail-closed com `has_value`/`state_attr` aprovada na revisão estática final independente: `none` preservado, validação numérica estrita, booleanos e negativos recusados, ausência de fallback zero, stops separados antes da limpeza e lógica administrativa preservada. Classificação: **A. APROVADA ESTATICAMENTE PARA ATUALIZAÇÃO DO GATE E COMMIT.**
 - [x] Inclusão de `car_use_started`/`car_use_ended` no consumidor canônico, correlação atômica por `trigger.to_state`, autorização fail-closed de `publicar_timeline` e vínculo entre materialização visível, `request_ids_json` e ACK aprovados em revisão estática independente para commit e push.
+- [x] Normalização restritiva de `publicar_timeline` aprovada estaticamente e em runtime: aceita somente `true` nativo ou string legítima exatamente `true` após `trim`/normalização de caixa; valores falsos, ausentes, ambíguos ou incompatíveis permanecem fail-closed.
 - [ ] Eventos consecutivos com a mesma mensagem validados no runtime: segundo evento deduplicado visualmente, sem inclusão de seu `request_id` no ledger e sem ACK `published` falso; resultado efetivo do publicador registrado.
-- [ ] Correção runtime do produtor (`hash` incompatível substituído por `md5`) e bootstrap fail-closed da primeira materialização dos checkpoints implementados estaticamente; revisão independente pendente antes de novo `check_config`, reload ou homologação.
+- [x] Correção runtime do produtor (`hash` incompatível substituído por `md5`) e bootstrap fail-closed aprovados; `check_config`, carregamento das automações e primeira materialização dos checkpoints concluídos sem efeitos funcionais espontâneos.
 - [ ] Validação no ambiente real do atributo `current`, testes funcionais e de concorrência, implantação e homologação operacional permanecem pendentes.
-- [x] Parser YAML disponível e parser JSON Storage aprovados; `check_config` nativo permanece pendente por indisponibilidade do Home Assistant neste ambiente.
+- [x] Parser YAML, parser JSON Storage e `check_config` nativo aprovados.
 - [x] `git diff --check`, referências, IDs e ausência de escrita direta aprovados.
 - [x] Cenários de pushes ligados/desligados preparados.
 - [x] Duplicidade, falha/timeout, término sem sessão e reinício com ciclo ativo preparados.
 - [x] Nenhum reload, restart, push real ou publicação produtiva executado sem autorização específica.
+- [x] Gate runtime do contrato `publicar_timeline` aprovado com `template.reload`: `"true"` textual incorporado coerentemente em Timeline, `eventos_json`, `request_ids_json`, ledger e ACK, sem falso `published`.
+- [x] Sessão CSMR real de 11/08/2026 auditada: `wilson_left_home` falhou antes de `open`; monitoramento não chegou a `active`; retorno apenas cancelou a reserva; os outros três eventos não ocorreram e não serão retropublicados.
+- [x] Decisão temporal concluída: a Timeline atual não suporta `occurred_at` nem ordenação histórica; o request real de `wilson_left_home` não será reapresentado. Evolução temporal permanece futura e não bloqueante.
 
 A sequência operacional e os bloqueios detalhados permanecem consolidados na seção V20.2E de `docs/pendencias_atuais_central_operacional.md`.
 

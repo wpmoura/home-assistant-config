@@ -1010,7 +1010,8 @@ template:
           {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
           {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
@@ -1032,7 +1033,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1051,7 +1053,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set request_id = atributos_evento.get('request_id', '') | string | trim %}
             {% set raw = this.attributes.request_ids_json | default('[]', true) %}
             {% set ids = raw | from_json(default=[]) if raw is string else raw %}
@@ -1072,7 +1075,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1088,7 +1092,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1104,7 +1109,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1120,7 +1126,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1136,7 +1143,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
@@ -1152,7 +1160,8 @@ template:
             {% set evento = trigger.to_state.state if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else '' %}
             {% set atributos_evento = trigger.to_state.attributes if eid == 'sensor.casa_evento_publicavel_v20' and trigger.to_state is not none else dict() %}
             {% set publicar_timeline_raw = atributos_evento.get('publicar_timeline', none) %}
-            {% set publicar_timeline = publicar_timeline_raw is boolean and publicar_timeline_raw is sameas true %}
+            {% set publicar_timeline_texto = (publicar_timeline_raw | trim | lower) if publicar_timeline_raw is string else '' %}
+            {% set publicar_timeline = publicar_timeline_raw is sameas true or publicar_timeline_texto == 'true' %}
             {% set permitir_agregacao_raw = atributos_evento.get('permitir_agregacao', none) %}
             {% set permitir_agregacao = permitir_agregacao_raw is boolean and permitir_agregacao_raw is sameas true %}
             {% set raw_historico = this.attributes.eventos_json | default('[]', true) %}
