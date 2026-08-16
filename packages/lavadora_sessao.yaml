@@ -1,0 +1,505 @@
+###############################################################################
+# Lavadora - Sessao (M1)
+#
+# Infraestrutura persistente para a futura FSM de sessao da lavadora, frente
+# independente da V20.2C/CSMR. Gates anteriores (fora deste repositorio,
+# registrados nas transcricoes de governanca):
+#   - diagnostico do spam da Timeline concluido
+#   - calibracao historica concluida (5 ciclos fisicos completos)
+#   - desenho tecnico da FSM concluido (GO com ressalvas)
+#   - contrato Timeline governado: source = lavadora (GO — M1 a M3 autorizados)
+#
+# Este pacote NAO implementa logica de decisao da FSM, NAO publica na Timeline,
+# NAO chama script.casa_publicar_evento_timeline_v20 e NAO altera o
+# classificador bruto atual (sensor.casa_atividade_operacional_v20) nem
+# input_boolean.atividade_maquina_lavar_habilitada.
+#
+# Namespace isolado do legado: nada aqui escreve em
+# input_select.maquina_lavar_estado nem em input_boolean.maquina_lavar_ciclo_ativo
+# (helper orfao, unavailable, nao declarado em nenhum YAML atual — nao
+# recriado por este pacote).
+#
+# Escopo do M1: somente helpers de memoria/estado e parametros ajustaveis
+# aprovados pelo desenho. A logica de transicao de estados (M2), a validacao
+# via Harness em test_mode (M3), a promocao do contrato canonico (M4) e o
+# cutover do classificador bruto (M5) pertencem a lotes futuros e nao existem
+# neste arquivo.
+###############################################################################
+
+input_select:
+  lavadora_sessao_estado_fsm:
+    name: Lavadora - Estado da sessão (FSM)
+    options:
+      - idle
+      - confirming_start
+      - active
+      - confirming_end
+    initial: idle
+    icon: mdi:state-machine
+
+  # Harness (M3): qualidade do dado simulado, consumida apenas quando
+  # lavadora_sessao_harness_ativo = on. `input_select` nao suporta a chave
+  # de config `restore:` (nao existe nesse schema - confirmado por erro real
+  # de check_config/reload nesta sessao); a garantia de nao herdar um valor
+  # de teste apos restart vem do trigger `startup` da automacao abaixo, que
+  # forca este helper de volta a "valid" a cada `homeassistant.start`.
+  lavadora_sessao_harness_qualidade_dado:
+    name: "Lavadora - Harness - Qualidade do dado simulado"
+    options:
+      - valid
+      - unknown
+      - unavailable
+    initial: valid
+    icon: mdi:flask-outline
+
+input_text:
+  lavadora_sessao_id:
+    name: Lavadora - Identificador da sessão ativa
+    max: 36
+    icon: mdi:identifier
+
+  # ISO 8601 (string), nao input_datetime: sem `initial:`, input_datetime
+  # materializa com a data corrente a 00:00:00 em vez de um estado neutro/
+  # ausente — incompativel com a exigencia de nao atribuir horario artificial
+  # na criacao. input_text materializa vazio ("unknown"), que e o estado
+  # neutro correto para "sem sessao"/"sem candidato de fim".
+  lavadora_sessao_ultima_atividade:
+    name: Lavadora - Última atividade elétrica relevante da sessão (ISO 8601)
+    max: 32
+    mode: text
+    icon: mdi:clock-outline
+
+  lavadora_sessao_fim_candidato_desde:
+    name: Lavadora - Início da confirmação de fim de sessão (ISO 8601)
+    max: 32
+    mode: text
+    icon: mdi:clock-alert-outline
+
+input_boolean:
+  lavadora_sessao_centrifugacao_detectada:
+    name: Lavadora - Centrifugação detectada na sessão atual
+    icon: mdi:fan
+
+  # Harness (M3): kill-switch de teste. Default off. `input_boolean` nao
+  # suporta a chave de config `restore:` (nao existe nesse schema); a
+  # garantia de NUNCA religar sozinho apos restart vem do trigger `startup`
+  # da automacao abaixo (`platform: homeassistant, event: start`), que forca
+  # este helper para off a cada boot antes de qualquer outra avaliacao -
+  # defesa em profundidade contra a chance de confundir dado simulado com
+  # sensor fisico em producao apos uma queda/restart do HA.
+  lavadora_sessao_harness_ativo:
+    name: "Lavadora - Harness - Modo de teste ativo"
+    icon: mdi:test-tube
+    initial: false
+
+input_number:
+  lavadora_sessao_potencia_inicio:
+    name: "Lavadora - Potência mínima para iniciar sessão (P_start)"
+    min: 0
+    max: 50
+    step: 1
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:flash
+    initial: 5
+
+  lavadora_sessao_tempo_confirmacao_inicio:
+    name: "Lavadora - Tempo mínimo de potência sustentada para confirmar início (T_start)"
+    min: 5
+    max: 120
+    step: 5
+    mode: box
+    unit_of_measurement: "s"
+    icon: mdi:timer-outline
+    initial: 20
+
+  lavadora_sessao_potencia_silencio:
+    name: "Lavadora - Potência abaixo da qual a sessão é considerada silenciosa (P_silence)"
+    min: 0
+    max: 50
+    step: 1
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:flash-off
+    initial: 5
+
+  lavadora_sessao_tempo_confirmacao_fim:
+    name: "Lavadora - Silêncio mínimo para confirmar fim de sessão (Tfim)"
+    min: 5
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: "min"
+    icon: mdi:timer-sand
+    initial: 10
+
+  lavadora_sessao_potencia_centrifugacao:
+    name: "Lavadora - Potência mínima para reconhecer centrifugação (P_centrifugacao)"
+    min: 300
+    max: 800
+    step: 5
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:fan-alert
+    initial: 480
+
+  # Harness (M3): potencia simulada, consumida apenas quando
+  # lavadora_sessao_harness_ativo = on e a qualidade do dado for "valid".
+  # Faixa cobre desde 0 ate acima do teto de P_centrifugacao (800W).
+  # Resetada para 0 a cada `homeassistant.start` pela mesma automacao
+  # (`input_number` tambem nao suporta `restore:`).
+  lavadora_sessao_harness_potencia_simulada:
+    name: "Lavadora - Harness - Potência simulada"
+    min: 0
+    max: 900
+    step: 1
+    mode: box
+    unit_of_measurement: "W"
+    icon: mdi:flask
+    initial: 0
+
+###############################################################################
+# Lavadora - FSM de sessao em shadow mode (M2)
+#
+# Consome sensor.maq_de_lavar_potencia (sinal primario de potencia) e os
+# parametros/memoria criados em M1 para manter o proprio estado da sessao da
+# lavadora. NAO publica nada na Timeline, NAO chama
+# script.casa_publicar_evento_timeline_v20 nem qualquer outro publicador, e
+# NAO altera sensor.casa_atividade_operacional_v20,
+# input_boolean.atividade_maquina_lavar_habilitada ou qualquer helper do
+# namespace legado maquina_lavar_*. Escreve exclusivamente em helpers
+# lavadora_sessao_* ja materializados em M1 (nenhum helper novo criado).
+#
+# Maquina de estados (exclusivamente estes 4 estados formais):
+#   idle -> confirming_start -> active <-> confirming_end -> idle
+#
+# session_id: gerado por md5(context.id ~ ':lavadora:session') formatado como
+# UUIDv4-like, mesma convencao ja usada/governada em carro_presenca.yaml e
+# contrato_publicacao_timeline_v20.yaml (compativel com o uuid_pattern
+# governado da Timeline; sem conflito).
+#
+# Decisoes de engenharia documentadas (sem resolucao explicita no desenho
+# aprovado fora deste repositorio; adotada a opcao mais conservadora - nunca
+# inicia, nunca confirma, nunca conta indisponibilidade como sessao):
+#
+#   EH-1 (secao 13, CONFIRMING_START): unknown/unavailable do sensor de
+#     potencia durante a janela de confirmacao de inicio CANCELA a
+#     confirmacao (volta para idle) em vez de congelar o relogio. T_start e
+#     medido pelo proprio tempo de permanencia do input_select em
+#     'confirming_start' (trigger for:), que e naturalmente cancelado por
+#     esse reset - nunca confirma um inicio com base em dado ausente. Como
+#     consequencia, esse tempo tambem reinicia apos um restart do HA em
+#     confirming_start (nao listado como cenario obrigatorio na secao 15;
+#     comportamento conservador, nunca produz um inicio espurio).
+#
+#   EH-2 (secao 13, CONFIRMING_END): unknown/unavailable do sensor de
+#     potencia durante a janela de confirmacao de fim RESETA a confirmacao
+#     (volta para active, preservando session_id e centrifugacao_detectada,
+#     sem tocar ultima_atividade) em vez de pausar o relogio - pausar
+#     exigiria persistir a duracao da janela de indisponibilidade, o que
+#     demandaria um helper novo fora do escopo aprovado em M1. Nunca conta
+#     indisponibilidade como silencio confirmado e nunca finaliza a sessao
+#     nesse caso.
+#
+#   EH-3 (secao 11): ao confirmar o fim (confirming_end -> idle), session_id,
+#     lavadora_sessao_ultima_atividade, lavadora_sessao_fim_candidato_desde e
+#     lavadora_sessao_centrifugacao_detectada NAO sao limpos - permanecem
+#     como evidencia diagnostica congelada da ultima sessao encerrada
+#     enquanto idle, ate que uma nova sessao seja de fato confirmada
+#     (confirming_start -> active), momento em que sao substituidos/limpos
+#     exatamente uma vez, por desenho explicito da secao 6.
+#
+# Estas 3 hipoteses (EH-1/EH-2/EH-3) sao a unica ressalva deste Gate e devem
+# ser confirmadas ou revistas antes de M3 usar este comportamento como
+# referencia de validacao.
+###############################################################################
+
+###############################################################################
+# Lavadora - Harness de teste (M3)
+#
+# Nao duplica a FSM: adiciona um canal de entrada isolado
+# (lavadora_sessao_harness_*) que substitui apenas a ORIGEM de pot_raw
+# dentro da mesma automacao acima, quando lavadora_sessao_harness_ativo=on.
+# Toda a logica decisoria (choose por estado, EH-1/EH-2/EH-3, centrifugacao)
+# permanece identica e inalterada entre producao e teste.
+#
+# Isolamento:
+#   - default off; forcado de volta a off/valid/0 a cada
+#     `homeassistant.start` (trigger `startup` abaixo) - nunca liga sozinho
+#     apos restart, mesmo que tenha sido deixado "on" antes de uma queda;
+#   - nunca escreve em sensor.maq_de_lavar_potencia/corrente (fisicos, Tuya,
+#     intocados);
+#   - nunca chama script.casa_publicar_evento_timeline_v20 nem qualquer
+#     publicador (mesma garantia do M2);
+#   - ao desligar (harness_ativo -> off), pot_raw volta deterministicamente
+#     a ler sensor.maq_de_lavar_potencia no proximo ciclo de avaliacao.
+###############################################################################
+
+automation:
+  - alias: "Lavadora - Sessão - FSM (shadow, M2)"
+    id: lavadora_sessao_fsm_transicoes
+    description: >-
+      Shadow mode M2: observa sensor.maq_de_lavar_potencia e mantem o estado
+      proprio da sessao da lavadora em input_select.lavadora_sessao_estado_fsm
+      e demais helpers lavadora_sessao_*. Nao publica na Timeline e nao
+      interfere no classificador produtivo atual.
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: sensor.maq_de_lavar_potencia
+        id: sensor_change
+      - platform: time_pattern
+        minutes: "/1"
+        id: tick
+      - platform: state
+        entity_id: input_select.lavadora_sessao_estado_fsm
+        to: "confirming_start"
+        id: start_confirmed
+        for: "{{ states('input_number.lavadora_sessao_tempo_confirmacao_inicio') | float(20) }}"
+      # Harness (M3): triggers do canal de teste isolado - so produzem
+      # efeito quando lavadora_sessao_harness_ativo=on (ver pot_raw abaixo).
+      - platform: state
+        entity_id: input_boolean.lavadora_sessao_harness_ativo
+        id: harness_toggle
+      - platform: state
+        entity_id:
+          - input_select.lavadora_sessao_harness_qualidade_dado
+          - input_number.lavadora_sessao_harness_potencia_simulada
+        id: harness_change
+      # Harness (M3): forca o kill-switch para off a cada boot do HA - unica
+      # garantia possivel de "nunca liga sozinho apos restart", ja que
+      # input_boolean/input_select/input_number nao suportam `restore:` no
+      # YAML (RestoreEntity e sempre automatico e nao configuravel para
+      # esses domains).
+      - platform: homeassistant
+        event: start
+        id: startup
+    action:
+      - if:
+          - condition: template
+            value_template: "{{ trigger.id == 'startup' }}"
+        then:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.lavadora_sessao_harness_ativo
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.lavadora_sessao_harness_qualidade_dado
+            data:
+              option: valid
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.lavadora_sessao_harness_potencia_simulada
+            data:
+              value: 0
+
+      - variables:
+          harness_ativo: "{{ is_state('input_boolean.lavadora_sessao_harness_ativo', 'on') }}"
+          pot_raw: >-
+            {{ (
+                 states('input_select.lavadora_sessao_harness_qualidade_dado')
+                 if states('input_select.lavadora_sessao_harness_qualidade_dado') in ['unknown', 'unavailable']
+                 else states('input_number.lavadora_sessao_harness_potencia_simulada')
+               ) if harness_ativo else states('sensor.maq_de_lavar_potencia') }}
+          pot_valida: "{{ is_number(pot_raw) }}"
+          pot: "{{ pot_raw | float(0) if is_number(pot_raw) else 0 }}"
+          p_start: "{{ states('input_number.lavadora_sessao_potencia_inicio') | float(5) }}"
+          p_silence: "{{ states('input_number.lavadora_sessao_potencia_silencio') | float(5) }}"
+          p_centrifugacao: "{{ states('input_number.lavadora_sessao_potencia_centrifugacao') | float(480) }}"
+          t_fim_min: "{{ states('input_number.lavadora_sessao_tempo_confirmacao_fim') | float(10) }}"
+          estado_fsm: "{{ states('input_select.lavadora_sessao_estado_fsm') }}"
+          fim_raw: "{{ states('input_text.lavadora_sessao_fim_candidato_desde') }}"
+          # M3: achado do Harness (nunca exercitado em M2 porque
+          # fim_candidato_desde so continha timestamp real durante este
+          # Gate) - um datetime nativo nao pode ser reutilizado com
+          # seguranca entre chaves de `variables:` (o render intermediario
+          # pode virar string, quebrando `now() - fim_dt` com
+          # "unsupported operand type(s) for -: 'datetime.datetime' and
+          # 'str'"). Corrigido recalculando as_datetime(fim_raw) dentro da
+          # MESMA expressao que faz a subtracao, nunca passando o datetime
+          # cru entre variaveis.
+          fim_valido: >-
+            {{ fim_raw not in ['', 'unknown', 'unavailable', none]
+               and as_datetime(fim_raw) is not none }}
+          fim_elapsed_min: >-
+            {{ ((now() - as_datetime(fim_raw)).total_seconds() / 60) if fim_valido else -1 }}
+          centrifugacao_ativa: "{{ is_state('input_boolean.lavadora_sessao_centrifugacao_detectada', 'on') }}"
+
+      # Centrifugacao: reconhecida somente dentro de sessao confirmada
+      # (active ou confirming_end); primeiro cruzamento valido marca
+      # detectada=true uma unica vez por sessao; cruzamentos seguintes sao
+      # no-op (turn_on em estado ja "on" nao gera novo evento); nunca
+      # depende de `for:` nem rearma/alterna de volta para false aqui - so o
+      # inicio de uma nova sessao confirmada (acima) reseta esse helper.
+      - if:
+          - condition: template
+            value_template: >-
+              {{ estado_fsm in ['active', 'confirming_end']
+                 and pot_valida and pot >= p_centrifugacao
+                 and not centrifugacao_ativa }}
+        then:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.lavadora_sessao_centrifugacao_detectada
+
+      - choose:
+          # ---------------------------------------------------------------
+          # IDLE -> CONFIRMING_START
+          # Nao publica nada; nao gera session_id; unknown/unavailable nao
+          # inicia nada (so entra no `if` quando pot_valida e verdadeiro).
+          # ---------------------------------------------------------------
+          - conditions: "{{ estado_fsm == 'idle' }}"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: "{{ pot_valida and pot > p_start }}"
+                then:
+                  - service: input_select.select_option
+                    target:
+                      entity_id: input_select.lavadora_sessao_estado_fsm
+                    data:
+                      option: confirming_start
+
+          # ---------------------------------------------------------------
+          # CONFIRMING_START -> ACTIVE | IDLE
+          # A confirmacao (T_start) e medida pelo trigger `start_confirmed`
+          # (tempo continuo em confirming_start); pulso breve ou dado
+          # ausente (EH-1) volta para idle antes que o trigger dispare.
+          # ---------------------------------------------------------------
+          - conditions: "{{ estado_fsm == 'confirming_start' }}"
+            sequence:
+              - choose:
+                  - conditions: >-
+                      {{ trigger.id == 'start_confirmed'
+                         and pot_valida and pot > p_start }}
+                    sequence:
+                      - variables:
+                          session_hash: "{{ md5(context.id ~ ':lavadora:session') }}"
+                          session_id_novo: >-
+                            {{ session_hash[0:8] ~ '-' ~ session_hash[8:12] ~ '-4' ~ session_hash[13:16]
+                               ~ '-8' ~ session_hash[17:20] ~ '-' ~ session_hash[20:32] }}
+                      # Nova sessao nasce exatamente uma vez: gera
+                      # identidade, persiste referencia temporal e limpa
+                      # todo estado residual da sessao anterior antes de
+                      # marcar active.
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_id
+                        data:
+                          value: "{{ session_id_novo }}"
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_ultima_atividade
+                        data:
+                          value: "{{ now().isoformat() }}"
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_fim_candidato_desde
+                        data:
+                          value: ""
+                      - service: input_boolean.turn_off
+                        target:
+                          entity_id: input_boolean.lavadora_sessao_centrifugacao_detectada
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: active
+                  - conditions: >-
+                      {{ trigger.id in ['sensor_change', 'tick', 'harness_toggle', 'harness_change']
+                         and (not pot_valida or pot <= p_start) }}
+                    sequence:
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: idle
+
+          # ---------------------------------------------------------------
+          # ACTIVE -> ACTIVE | CONFIRMING_END
+          # Atividade valida atualiza ultima_atividade; unknown/unavailable
+          # preserva a sessao sem iniciar termino (nenhum `if` casa).
+          # ---------------------------------------------------------------
+          - conditions: "{{ estado_fsm == 'active' }}"
+            sequence:
+              - choose:
+                  - conditions: "{{ pot_valida and pot > p_silence }}"
+                    sequence:
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_ultima_atividade
+                        data:
+                          value: "{{ now().isoformat() }}"
+                  - conditions: "{{ pot_valida and pot <= p_silence }}"
+                    sequence:
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_fim_candidato_desde
+                        data:
+                          value: "{{ now().isoformat() }}"
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: confirming_end
+
+          # ---------------------------------------------------------------
+          # CONFIRMING_END -> ACTIVE | IDLE
+          # Retorno de atividade preserva session_id/centrifugacao, limpa
+          # fim_candidato_desde e nao cria sessao nova (secao 10). Tfim e
+          # medido por relogio de parede a partir do timestamp ISO 8601
+          # persistido - sobrevive a restart/reload naturalmente. unknown/
+          # unavailable nunca conta como silencio confirmado (EH-2).
+          # ---------------------------------------------------------------
+          - conditions: "{{ estado_fsm == 'confirming_end' }}"
+            sequence:
+              - choose:
+                  - conditions: "{{ pot_valida and pot > p_silence }}"
+                    sequence:
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_fim_candidato_desde
+                        data:
+                          value: ""
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_ultima_atividade
+                        data:
+                          value: "{{ now().isoformat() }}"
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: active
+                  - conditions: "{{ not pot_valida }}"
+                    sequence:
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_fim_candidato_desde
+                        data:
+                          value: ""
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: active
+                  - conditions: "{{ pot_valida and pot <= p_silence and not fim_valido }}"
+                    sequence:
+                      # Timestamp ausente/malformado (secao 14): nunca
+                      # confirma fim a partir de dado invalido - reancora o
+                      # inicio da janela em vez de estourar excecao ou
+                      # assumir tempo negativo/zero.
+                      - service: input_text.set_value
+                        target:
+                          entity_id: input_text.lavadora_sessao_fim_candidato_desde
+                        data:
+                          value: "{{ now().isoformat() }}"
+                  - conditions: >-
+                      {{ pot_valida and pot <= p_silence and fim_valido
+                         and fim_elapsed_min >= t_fim_min }}
+                    sequence:
+                      - service: input_select.select_option
+                        target:
+                          entity_id: input_select.lavadora_sessao_estado_fsm
+                        data:
+                          option: idle

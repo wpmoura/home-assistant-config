@@ -19,6 +19,7 @@ Registrar o estado atual da Central Operacional como fonte única de verdade.
 - V20.2B = auditoria executada; nenhuma ação operacional realizada
 - V20.2C-A1 = promoção limitada do CSMR consolidada documentalmente; implementação bloqueada pelo Gate específico
 - V20.2E = implementação estática concluída para integração aditiva do uso do carro à Timeline; homologação runtime pendente
+- Lavadora (frente independente, fora da numeração V20.x) = diagnóstico, calibração histórica (n=5) e desenho da FSM concluídos; contrato Timeline governado (`source = lavadora`, promoção/M4 não autorizada); M1 (helpers/parâmetros) e M2 (FSM de 4 estados em shadow mode, `packages/lavadora_sessao.yaml`) concluídos; EH-1/EH-2/EH-3 homologadas pelo Harness isolado (`lavadora_sessao_harness_*`) no Gate M3 — GO; despacho de fechamento em `docs/governance/despacho_lavadora_m3_fechamento.md`; classificador bruto (`sensor.casa_atividade_operacional_v20`) e Timeline seguem inalterados e são a única autoridade produtiva; `input_boolean.atividade_maquina_lavar_habilitada` continua ligado; M4 (promoção do contrato) e M5 (cutover) permanecem pendentes/não autorizados
 - V20.2/V20.3/V21 = planejamento futuro
 - V21+ = planejamento futuro
 

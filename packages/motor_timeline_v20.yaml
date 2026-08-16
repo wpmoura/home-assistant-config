@@ -411,7 +411,8 @@ template:
           {% set canonico_message = canonico.message | default('', true) | string | trim %}
           {% set canonico_eventos_por_source = {
             'csmr_v20_2c': ['wilson_left_home', 'remote_monitoring_started', 'wilson_arrived_home', 'remote_monitoring_ended'],
-            'carro_presenca': ['car_use_started', 'car_use_ended']
+            'carro_presenca': ['car_use_started', 'car_use_ended'],
+            'lavadora': ['washing_started', 'spinning_detected', 'washing_finished']
           } %}
           {% set canonico_mensagens = {
             'wilson_left_home': '📍 Wilson saiu de casa',
@@ -419,7 +420,10 @@ template:
             'wilson_arrived_home': '📍 Wilson chegou em casa',
             'remote_monitoring_ended': '🛡️ Monitoramento remoto encerrado',
             'car_use_started': '🚗 Uso do carro iniciado',
-            'car_use_ended': '🏠 Uso do carro finalizado'
+            'car_use_ended': '🏠 Uso do carro finalizado',
+            'washing_started': '🧺 Lavagem iniciada',
+            'spinning_detected': '🌀 Centrifugação detectada',
+            'washing_finished': '✅ Lavagem finalizada'
           } %}
           {% set canonico_reconhecido = canonico_source in canonico_eventos_por_source
             and canonico_event_code in canonico_eventos_por_source[canonico_source]
