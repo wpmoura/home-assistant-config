@@ -9,21 +9,22 @@
 #   - desenho tecnico da FSM concluido (GO com ressalvas)
 #   - contrato Timeline governado: source = lavadora (GO — M1 a M3 autorizados)
 #
-# Este pacote NAO implementa logica de decisao da FSM, NAO publica na Timeline,
-# NAO chama script.casa_publicar_evento_timeline_v20 e NAO altera o
-# classificador bruto atual (sensor.casa_atividade_operacional_v20) nem
-# input_boolean.atividade_maquina_lavar_habilitada.
+# Escopo original do M1: somente helpers de memoria/estado e parametros
+# ajustaveis aprovados pelo desenho. A logica de transicao de estados (M2), a
+# validacao via Harness em test_mode (M3) e a promocao do contrato canonico
+# (M4, em packages/contrato_publicacao_timeline_v20.yaml e
+# packages/motor_timeline_v20.yaml) ja foram concluidas em lotes anteriores.
+#
+# M5 (cutover, este arquivo): a partir daqui o pacote CHAMA
+# script.casa_publicar_evento_timeline_v20 (ver secao M5 mais abaixo) e o
+# classificador bruto legado (input_boolean.atividade_maquina_lavar_habilitada)
+# passa a ser desligado como parte deste mesmo cutover - ver historico de
+# commit/despacho para os detalhes de cada Gate.
 #
 # Namespace isolado do legado: nada aqui escreve em
 # input_select.maquina_lavar_estado nem em input_boolean.maquina_lavar_ciclo_ativo
 # (helper orfao, unavailable, nao declarado em nenhum YAML atual — nao
 # recriado por este pacote).
-#
-# Escopo do M1: somente helpers de memoria/estado e parametros ajustaveis
-# aprovados pelo desenho. A logica de transicao de estados (M2), a validacao
-# via Harness em test_mode (M3), a promocao do contrato canonico (M4) e o
-# cutover do classificador bruto (M5) pertencem a lotes futuros e nao existem
-# neste arquivo.
 ###############################################################################
 
 input_select:
@@ -163,12 +164,17 @@ input_number:
 #
 # Consome sensor.maq_de_lavar_potencia (sinal primario de potencia) e os
 # parametros/memoria criados em M1 para manter o proprio estado da sessao da
-# lavadora. NAO publica nada na Timeline, NAO chama
-# script.casa_publicar_evento_timeline_v20 nem qualquer outro publicador, e
-# NAO altera sensor.casa_atividade_operacional_v20,
-# input_boolean.atividade_maquina_lavar_habilitada ou qualquer helper do
-# namespace legado maquina_lavar_*. Escreve exclusivamente em helpers
-# lavadora_sessao_* ja materializados em M1 (nenhum helper novo criado).
+# lavadora, escrevendo exclusivamente em helpers lavadora_sessao_* ja
+# materializados em M1 (nenhum helper novo criado). NAO altera
+# sensor.casa_atividade_operacional_v20 nem qualquer helper do namespace
+# legado maquina_lavar_*.
+#
+# Nota (M5): a partir do cutover, a mesma automacao abaixo TAMBEM chama
+# script.casa_publicar_evento_timeline_v20 nos 3 pontos de transicao
+# productivos (ver secao M5 mais abaixo) - a logica de decisao de estado
+# descrita nesta secao M2 permanece exatamente a mesma; apenas a acao final
+# de cada transicao relevante passou a incluir, alem da escrita local,
+# uma chamada fire-and-forget ao publicador canonico.
 #
 # Maquina de estados (exclusivamente estes 4 estados formais):
 #   idle -> confirming_start -> active <-> confirming_end -> idle
@@ -229,10 +235,57 @@ input_number:
 #     apos restart, mesmo que tenha sido deixado "on" antes de uma queda;
 #   - nunca escreve em sensor.maq_de_lavar_potencia/corrente (fisicos, Tuya,
 #     intocados);
-#   - nunca chama script.casa_publicar_evento_timeline_v20 nem qualquer
-#     publicador (mesma garantia do M2);
 #   - ao desligar (harness_ativo -> off), pot_raw volta deterministicamente
 #     a ler sensor.maq_de_lavar_potencia no proximo ciclo de avaliacao.
+#
+# Nota (M5): com o cutover, os 3 pontos de publicacao productiva (ver secao
+# M5 abaixo) sao explicitamente guardados por `not harness_ativo` - o
+# Harness continua podendo simular potencia livremente, mas NUNCA aciona o
+# publicador canonico real, mesmo com uma sessao simulada completa em curso.
+# Essa guarda e a unica razao pela qual reativar o Harness apos o cutover
+# continua seguro.
+###############################################################################
+
+###############################################################################
+# Lavadora - Cutover produtivo (M5)
+#
+# Conecta a FSM ao publicador canonico ja existente
+# (script.casa_publicar_evento_timeline_v20, mesmo usado por csmr_v20_2c e
+# carro_presenca) - nenhum publicador paralelo foi criado. Contrato
+# promovido e sincronizado em M4 (packages/contrato_publicacao_timeline_v20.yaml
+# e packages/motor_timeline_v20.yaml): source=lavadora,
+# washing_started/spinning_detected/washing_finished.
+#
+# As 3 chamadas (uma por transicao productiva) sao despachadas via
+# `script.turn_on` (fire-and-forget), nao via `service:` bloqueante -
+# mesmo padrao ja usado/corrigido na frente CSMR para evitar que o
+# `mode: restart` desta automacao cancele uma publicacao em andamento caso
+# o sensor de potencia mude de novo enquanto o publicador ainda esta
+# retentando/aguardando ACK. A automacao FSM nunca espera o resultado da
+# publicacao - a verdade fisica da FSM (estado_fsm, session_id,
+# centrifugacao_detectada, fim_candidato_desde) e sempre decidida e
+# persistida ANTES da chamada ao publicador, nunca depende dela. Isso
+# satisfaz a exigencia de que um erro de publicacao nunca altere a verdade
+# fisica da FSM.
+#
+# Idempotencia: `request_id` gerado por md5(context.id ~ ':lavadora:<fase>'),
+# mesma convencao de session_id (M2) - unico por execucao real da automacao.
+# O contrato canonico (M4) fornece uma segunda camada de deduplicacao
+# logica (source+session_id+event_code) independente do request_id, entao
+# mesmo uma re-execucao anomala desta automacao para a mesma transicao
+# nunca produziria um segundo evento logico persistido - o proprio
+# publicador classificaria como `duplicate`.
+#
+# Mapeamento (mensagens identicas, caractere a caractere, ao dicionario
+# aprovado e promovido em M4):
+#   confirming_start -> active   : washing_started  "🧺 Lavagem iniciada"
+#   1o cruzamento de centrifugacao: spinning_detected "🌀 Centrifugação detectada"
+#   confirming_end -> idle (Tfim) : washing_finished "✅ Lavagem finalizada"
+#
+# Cada publicacao usa o `session_id` corrente (states('input_text.lavadora_sessao_id')),
+# lido ANTES de qualquer escrita da propria transicao - para washing_finished
+# isso e particularmente relevante porque EH-3 nunca limpa session_id, mas a
+# leitura e feita no mesmo instante da confirmacao, nunca depois.
 ###############################################################################
 
 automation:
@@ -324,6 +377,9 @@ automation:
           fim_elapsed_min: >-
             {{ ((now() - as_datetime(fim_raw)).total_seconds() / 60) if fim_valido else -1 }}
           centrifugacao_ativa: "{{ is_state('input_boolean.lavadora_sessao_centrifugacao_detectada', 'on') }}"
+          # M5: session_id corrente, lido uma vez por execucao e reaproveitado
+          # nos 3 pontos de publicacao productiva abaixo.
+          session_id_atual: "{{ states('input_text.lavadora_sessao_id') }}"
 
       # Centrifugacao: reconhecida somente dentro de sessao confirmada
       # (active ou confirming_end); primeiro cruzamento valido marca
@@ -341,6 +397,26 @@ automation:
           - service: input_boolean.turn_on
             target:
               entity_id: input_boolean.lavadora_sessao_centrifugacao_detectada
+          # M5: publicacao productiva de spinning_detected, apenas fora do
+          # Harness (ver secao M5). Fire-and-forget via script.turn_on.
+          - if:
+              - condition: template
+                value_template: "{{ not harness_ativo }}"
+            then:
+              - service: script.turn_on
+                target:
+                  entity_id: script.casa_publicar_evento_timeline_v20
+                data:
+                  variables:
+                    request_id: >-
+                      {% set h = md5(context.id ~ ':lavadora:spinning') %}
+                      {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                    source: lavadora
+                    session_id: "{{ session_id_atual }}"
+                    event_code: spinning_detected
+                    message: "🌀 Centrifugação detectada"
+                    schema_version: 1
+                    test_mode: false
 
       - choose:
           # ---------------------------------------------------------------
@@ -405,6 +481,28 @@ automation:
                           entity_id: input_select.lavadora_sessao_estado_fsm
                         data:
                           option: active
+                      # M5: publicacao productiva de washing_started, apenas
+                      # fora do Harness (ver secao M5). Fire-and-forget via
+                      # script.turn_on; usa session_id_novo (a identidade que
+                      # acabou de nascer), nao session_id_atual (a anterior).
+                      - if:
+                          - condition: template
+                            value_template: "{{ not harness_ativo }}"
+                        then:
+                          - service: script.turn_on
+                            target:
+                              entity_id: script.casa_publicar_evento_timeline_v20
+                            data:
+                              variables:
+                                request_id: >-
+                                  {% set h = md5(context.id ~ ':lavadora:started') %}
+                                  {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                                source: lavadora
+                                session_id: "{{ session_id_novo }}"
+                                event_code: washing_started
+                                message: "🧺 Lavagem iniciada"
+                                schema_version: 1
+                                test_mode: false
                   - conditions: >-
                       {{ trigger.id in ['sensor_change', 'tick', 'harness_toggle', 'harness_change']
                          and (not pot_valida or pot <= p_start) }}
@@ -498,8 +596,35 @@ automation:
                       {{ pot_valida and pot <= p_silence and fim_valido
                          and fim_elapsed_min >= t_fim_min }}
                     sequence:
+                      # M5: session_id_atual ja foi lido no topo desta
+                      # execucao (antes desta ou de qualquer outra escrita),
+                      # preservando corretamente a identidade da sessao que
+                      # esta sendo encerrada agora - EH-3 nunca limpa
+                      # session_id, mas a leitura aqui e feita no exato
+                      # instante da confirmacao, nunca depois.
                       - service: input_select.select_option
                         target:
                           entity_id: input_select.lavadora_sessao_estado_fsm
                         data:
                           option: idle
+                      # M5: publicacao productiva de washing_finished, apenas
+                      # fora do Harness (ver secao M5). Fire-and-forget via
+                      # script.turn_on.
+                      - if:
+                          - condition: template
+                            value_template: "{{ not harness_ativo }}"
+                        then:
+                          - service: script.turn_on
+                            target:
+                              entity_id: script.casa_publicar_evento_timeline_v20
+                            data:
+                              variables:
+                                request_id: >-
+                                  {% set h = md5(context.id ~ ':lavadora:finished') %}
+                                  {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                                source: lavadora
+                                session_id: "{{ session_id_atual }}"
+                                event_code: washing_finished
+                                message: "✅ Lavagem finalizada"
+                                schema_version: 1
+                                test_mode: false
