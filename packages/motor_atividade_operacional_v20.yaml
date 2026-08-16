@@ -15,7 +15,6 @@ input_boolean:
   atividade_maquina_lavar_habilitada:
     name: Atividade Maquina Lavar Habilitada
     icon: mdi:washing-machine
-    initial: true
 
   atividade_microondas_habilitada:
     name: Atividade Microondas Habilitada
