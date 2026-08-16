@@ -1,5 +1,12 @@
 # Changelog
 
+## [lavadora-m5-cutover-hardening] - 2026-08-16
+
+- O cutover (M5) conectou a FSM semântica (`packages/lavadora_sessao.yaml`) ao publicador canônico da Timeline, que passa a ser a autoridade produtiva da lavadora; `source=lavadora` publica `washing_started`, `spinning_detected` e `washing_finished` pelo mesmo contrato canônico já usado por `csmr_v20_2c`/`carro_presenca`, com `session_id`, idempotência e ACK/retry preservados.
+- O classificador bruto legado foi neutralizado (`input_boolean.atividade_maquina_lavar_habilitada=off`) como parte do mesmo cutover, sem alterar thresholds, TV, micro-ondas ou banho.
+- O hardening de startup (M5.1/M5.2) adicionou um guard `homeassistant.start` que força esse kill-switch de volta a `off` a cada boot e removeu `initial: true` da declaração original do helper, eliminando na origem a janela de boot que poderia religar o classificador bruto; restart real ainda não foi exercitado empiricamente.
+- A homologação física pós-cutover permanece pendente — depende da próxima lavagem física real confirmando exatamente uma publicação de início, no máximo uma de centrifugação, uma de término e ausência de spam legado.
+
 ## [v20.2e-publicar-timeline-type] - 2026-08-11
 
 - Diagnóstico da saída real confirmou que snapshots do Core 2026.7.1 podem materializar `publicar_timeline` como string `"true"`, bloqueando o consumidor que exigia booleano nativo e preservando corretamente ledger, ACK e checkpoints diante do timeout.
