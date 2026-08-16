@@ -628,3 +628,56 @@ automation:
                                 message: "✅ Lavagem finalizada"
                                 schema_version: 1
                                 test_mode: false
+
+###############################################################################
+# Lavadora - Hardening de persistencia do kill-switch (M5.1)
+#
+# input_boolean.atividade_maquina_lavar_habilitada esta declarado com
+# `initial: true` em packages/motor_atividade_operacional_v20.yaml (arquivo
+# da frente CSMR, fora do escopo deste Gate - NAO editado aqui). Isso cria
+# risco real de um restart completo do HA religar o classificador bruto
+# legado em paralelo com a FSM semantica, que e a autoridade produtiva
+# desde o cutover (M5).
+#
+# Guard: forca esse helper de volta a off a cada `homeassistant.start`,
+# mesmo padrao ja usado pelo proprio Harness (M3) para os helpers
+# lavadora_sessao_harness_*. Nao publica Timeline, nao toca
+# estado_fsm/session_id/centrifugacao/Harness, nao inicia sessao, nao gera
+# nenhum dos 3 event_codes - executa exclusivamente essa unica acao.
+#
+# Janela de boot (documentada, nao eliminada por este guard): `initial:`
+# e RestoreEntity de input_boolean sao resolvidos no carregamento da
+# plataforma input_boolean, que ocorre ANTES do evento `homeassistant.start`
+# disparar. sensor.casa_atividade_operacional_v20 (motor_atividade_operacional_v20.yaml)
+# e um sensor trigger-based que pode reavaliar assim que suas proprias
+# entidades de origem (ex.: sensor.maq_de_lavar_potencia ao reconectar)
+# emitirem estado - a ordem relativa entre essa reavaliacao e a execucao
+# deste guard NAO e garantida pelo HA (multiplas automacoes/sensores
+# disparados por `homeassistant.start`/entidades restauradas nao tem ordem
+# determinada entre si). Portanto existe uma janela real, ainda que breve,
+# em que o classificador bruto poderia publicar um evento espurio antes
+# deste guard executar, especialmente se a maquina estiver fisicamente em
+# uso no exato momento do restart. Este guard reduz a janela ao minimo
+# necessario apos o start, mas NAO a elimina - a eliminacao definitiva
+# exige remover `initial: true` na origem (packages/motor_atividade_operacional_v20.yaml),
+# o que pertence a frente CSMR e requer Gate coordenado.
+###############################################################################
+
+  - alias: "Lavadora - Kill-switch do classificador bruto (M5.1)"
+    id: lavadora_sessao_killswitch_classificador_bruto
+    description: >-
+      M5.1: forca input_boolean.atividade_maquina_lavar_habilitada=off a
+      cada homeassistant.start, porque esse helper esta declarado com
+      initial: true em packages/motor_atividade_operacional_v20.yaml e um
+      restart completo poderia religar o classificador bruto legado em
+      paralelo com a FSM semantica (M5), autoridade produtiva desde o
+      cutover. Nao publica Timeline, nao altera estado_fsm/session_id/
+      Harness, nao inicia sessao.
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.atividade_maquina_lavar_habilitada
