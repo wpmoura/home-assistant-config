@@ -1,5 +1,11 @@
 # Changelog
 
+## [lavadora-homologacao-fisica-fechamento] - 2026-08-19
+
+- A Homologação Física Pós-Cutover foi concluída com resultado HOMOLOGADO — SEM RESSALVAS, auditando o primeiro ciclo físico real pós-M5 (`session_id 211c29bd-b0bb-474f-87f7-9a818e5f0fa1`, 18/08/2026): exatamente 1 `washing_started`, 1 `spinning_detected` e 1 `washing_finished`, mesmo `session_id` nas três publicações, correspondência 1:1 entre as 3 chamadas do publicador canônico e o ledger de produção, sem `rejected`/`duplicate` e sem nenhuma mensagem no padrão legado.
+- Um restart real do Home Assistant ocorreu nesse intervalo e `input_boolean.atividade_maquina_lavar_habilitada` permaneceu `off` ininterruptamente desde o cutover, inclusive através desse restart — encerrando empiricamente a ressalva de que o hardening M5.1/M5.2 era apenas estruturalmente validado.
+- Nenhuma regressão foi observada em outros domínios (TV, micro-ondas, banho); a frente da Lavadora está formalmente encerrada nesta baseline, registrada em `docs/governance/despacho_lavadora_homologacao_fisica_fechamento.md`. O watcher de detecção (`packages/lavadora_homologacao_pos_cutover_watch.yaml`) permanece temporário, pendente de decisão operacional sobre remoção ou permanência.
+
 ## [lavadora-m5-cutover-hardening] - 2026-08-16
 
 - O cutover (M5) conectou a FSM semântica (`packages/lavadora_sessao.yaml`) ao publicador canônico da Timeline, que passa a ser a autoridade produtiva da lavadora; `source=lavadora` publica `washing_started`, `spinning_detected` e `washing_finished` pelo mesmo contrato canônico já usado por `csmr_v20_2c`/`carro_presenca`, com `session_id`, idempotência e ACK/retry preservados.
