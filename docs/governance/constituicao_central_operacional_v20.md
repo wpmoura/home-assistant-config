@@ -71,6 +71,17 @@ Limpeza de legado, automacoes, dashboards, helpers ou entidades residuais deve o
 
 Documentos grandes, historicos ou em expansao nao autorizam criacao automatica de novos arquivos, extracao automatica, mudanca de canonicidade ou decisao arquitetural implicita.
 
+### 12. Duas verticais formais de desenvolvimento
+
+A Central Operacional reconhece duas verticais formais:
+
+- Vertical A - Sistema Operacional Casa (SOC): arquitetura, componentes compartilhados, dashboards centrais, timeline, engines, observabilidade, seguranca, governanca, infraestrutura, integracoes e roadmap estrategico. Fluxo: Constituicao -> Source of Truth -> AGENTS -> Architecture -> Roadmap -> Implementacao -> Homologacao -> Auditoria.
+- Vertical B - Automacoes Taticas (AT): conforto, iluminacao, notificacoes, rotinas, pequenas integracoes, automacoes locais, experimentos controlados e melhorias operacionais. Fluxo reduzido: Requisito -> Projeto -> Implementacao -> Teste -> Documentacao resumida, registrado em `docs/governance/automacoes_taticas.md`.
+
+Uma AT migra automaticamente para o SOC quando altera componente central, arquitetura, dashboard global, cria engine nova, cria novo contrato entre modulos, modifica a Timeline, altera o Executor, o Scheduler ou o Recovery, altera infraestrutura estrutural do sistema ou altera seguranca.
+
+Utilizar ou acionar uma entidade ou infraestrutura residencial ja existente nao constitui, por si so, alteracao estrutural de infraestrutura para fins deste criterio.
+
 ## Politica Constitucional de Crescimento Documental
 
 ### Principios gerais

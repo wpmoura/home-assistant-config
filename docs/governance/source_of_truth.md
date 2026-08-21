@@ -32,7 +32,7 @@ Ele nao possui autoridade superior a Constituicao, nao substitui automaticamente
 7. Artefatos auxiliares
    - releases, checklists, discovery, technical debt e historicos.
 
-Documentos complementares dentro de `docs/governance/`, como `docs/governance/gates_v20.md`, permanecem subordinados a Constituicao e devem ser interpretados conforme esta hierarquia.
+Documentos complementares dentro de `docs/governance/`, como `docs/governance/gates_v20.md` e `docs/governance/automacoes_taticas.md`, permanecem subordinados a Constituicao e devem ser interpretados conforme esta hierarquia.
 
 ## Fontes atuais consolidadas
 
@@ -73,6 +73,11 @@ Este indice apenas define a precedencia: a Constituicao governa criacao de arqui
 ### governance
 
 Concentra regras ativas, fonte da verdade, gates e constituicao operacional.
+
+- `docs/governance/automacoes_taticas.md`
+  - Classificacao: registro canonico da Vertical B (Automacoes Taticas), reconhecida na Constituicao.
+  - Finalidade: registrar automacoes taticas (`AT-nnn`) sob fluxo reduzido, sem reproduzir os Gates 0-6 do SOC.
+  - Autoridade: subordinado a Constituicao e a este indice; nao compete com governance, roadmap ou arquitetura do SOC.
 
 ### roadmap
 
