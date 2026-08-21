@@ -145,7 +145,7 @@ template:
         unit_of_measurement: km
         state: >
           {% set meta = states('input_number.carro_km_meta_troca_oleo') | float(10000) %}
-          {% set rodado = states('sensor.carro_km_desde_ultima_troca_oleo') | float(0) %}
+          {% set rodado = states('sensor.carro_km_desde_ultima_troca_de_oleo') | float(0) %}
           {% set restante = meta - rodado %}
           {{ restante | round(0) }}
 
@@ -153,7 +153,7 @@ template:
         unique_id: carro_status_troca_oleo
         icon: mdi:alert-circle-outline
         state: >
-          {% set restante = states('sensor.carro_km_restantes_troca_oleo') | float(0) %}
+          {% set restante = states('sensor.carro_km_restantes_troca_de_oleo') | float(0) %}
           {% if restante <= 0 %}
             Vencida
           {% elif restante <= 1000 %}
@@ -214,7 +214,7 @@ automation:
     alias: Carro - Alerta troca de óleo vencida
     trigger:
       - platform: state
-        entity_id: sensor.carro_status_troca_oleo
+        entity_id: sensor.carro_status_troca_de_oleo
         to: "Vencida"
     action:
       - service: persistent_notification.create
@@ -222,14 +222,14 @@ automation:
           title: "Manutenção do carro"
           message: >
             A troca de óleo está vencida.
-            Rodados: {{ states('sensor.carro_km_desde_ultima_troca_oleo') }} km |
+            Rodados: {{ states('sensor.carro_km_desde_ultima_troca_de_oleo') }} km |
             Meta: {{ states('input_number.carro_km_meta_troca_oleo') }} km
 
   - id: carro_alerta_troca_oleo_atencao
     alias: Carro - Alerta troca de óleo em atenção
     trigger:
       - platform: state
-        entity_id: sensor.carro_status_troca_oleo
+        entity_id: sensor.carro_status_troca_de_oleo
         to: "Atenção"
     action:
       - service: persistent_notification.create
@@ -237,7 +237,7 @@ automation:
           title: "Manutenção do carro"
           message: >
             Falta pouco para a troca de óleo.
-            Restam {{ states('sensor.carro_km_restantes_troca_oleo') }} km.
+            Restam {{ states('sensor.carro_km_restantes_troca_de_oleo') }} km.
 
 recorder:
   include:
@@ -255,6 +255,6 @@ recorder:
       - sensor.carro_consumo_medio_ultimo_abastecimento
       - sensor.carro_preco_por_litro
       - sensor.carro_custo_por_km
-      - sensor.carro_km_desde_ultima_troca_oleo
-      - sensor.carro_km_restantes_troca_oleo
-      - sensor.carro_status_troca_oleo
+      - sensor.carro_km_desde_ultima_troca_de_oleo
+      - sensor.carro_km_restantes_troca_de_oleo
+      - sensor.carro_status_troca_de_oleo
