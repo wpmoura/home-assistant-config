@@ -162,30 +162,293 @@ template:
             Ok
           {% endif %}
 
+  # AT-GC-02 — Histórico canônico de abastecimentos.
+  # Sensor trigger-based: acumula em `attributes.registros` cada evento
+  # publicado por script.carro_confirmar_abastecimento. Padrão idêntico ao já
+  # comprovado em packages/contrato_publicacao_timeline_v20.yaml
+  # (sensor.casa_timeline_publicacao_ack_v20 / ledger_producao), sem expurgo:
+  # aqui é histórico permanente, não uma trilha de ACK transitória.
+  - trigger:
+      - platform: event
+        event_type: carro_abastecimento_confirmado
+    sensor:
+      - name: Carro histórico de abastecimentos
+        unique_id: carro_historico_abastecimentos
+        icon: mdi:history
+        state: >
+          {% set atual = this.attributes.registros | default([], true) %}
+          {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+          {{ ([trigger.event.data] + atual) | length }}
+        attributes:
+          registros: >
+            {% set atual = this.attributes.registros | default([], true) %}
+            {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+            {{ [trigger.event.data] + atual }}
+          contrato: >
+            {{ {
+              'schema_version': 1,
+              'identidade_idempotencia': 'dedup_key (source_id quando disponível; senão hash de source+minuto do evento+odômetro+litros+valor)',
+              'fontes_autorizadas': ['manual'],
+              'fontes_futuras_previstas': ['photo_odometer', 'fuel_app_screenshot'],
+              'retencao': 'permanente_sem_expurgo',
+              'estados_suportados': ['confirmed', 'pendente_revisao'],
+              'publicado_por': 'script.carro_confirmar_abastecimento'
+            } }}
+
 script:
-  carro_registrar_abastecimento:
-    alias: Carro - Registrar abastecimento
+  # AT-GC-02 — Ponto único de confirmação de abastecimento do domínio Carro.
+  # Valida, garante idempotência e, se aprovado, publica o evento
+  # carro_abastecimento_confirmado (histórico canônico em
+  # sensor.carro_historico_de_abastecimentos) e atualiza os helpers legados de
+  # compatibilidade (odômetro/data do último abastecimento — mantém os
+  # cálculos existentes de km rodados/km/L/preço/L/R$/km funcionando sem
+  # alteração). Fontes manuais e automáticas futuras (foto/screenshot) devem
+  # convergir para este script — não duplicar esta lógica em outro lugar.
+  carro_confirmar_abastecimento:
+    alias: Carro - Confirmar abastecimento (canônico)
+    description: >-
+      Contrato canônico de abastecimento (AT-GC-02). test_mode=true executa
+      validação e checagem de idempotência sem publicar evento nem alterar
+      nenhum estado — nunca gera abastecimento real.
+    icon: mdi:receipt-text-check-outline
+    mode: queued
+    max: 10
+    fields:
+      odometer_km:
+        name: Odômetro
+        description: Quilometragem no momento do abastecimento.
+        required: true
+        selector:
+          number:
+            min: 0
+            max: 500000
+            mode: box
+      liters:
+        name: Litros
+        description: Litros abastecidos.
+        required: true
+        selector:
+          number:
+            min: 0
+            max: 100
+            step: 0.01
+            mode: box
+      amount_brl:
+        name: Valor
+        description: Valor pago em reais.
+        required: true
+        selector:
+          number:
+            min: 0
+            max: 1000
+            step: 0.01
+            mode: box
+      source:
+        name: Origem
+        description: Origem do dado.
+        required: false
+        selector:
+          select:
+            options:
+              - manual
+              - photo_odometer
+              - fuel_app_screenshot
+      source_id:
+        name: ID externo
+        description: >-
+          Identificador externo/transação, quando disponível (usado como
+          chave de idempotência preferencial no lugar do hash composto).
+        required: false
+        selector:
+          text:
+      event_at:
+        name: Data/hora do abastecimento
+        description: "Formato YYYY-MM-DD HH:MM:SS. Vazio = usar o momento da confirmação."
+        required: false
+        selector:
+          text:
+      confidence:
+        name: Confiança
+        description: Nível de confiança da correlação (fontes automáticas futuras).
+        required: false
+        selector:
+          number:
+            min: 0
+            max: 1
+            step: 0.01
+            mode: box
+      evidence_ref:
+        name: Referência de evidência
+        description: Referência à evidência (foto/arquivo) que originou o dado.
+        required: false
+        selector:
+          text:
+      test_mode:
+        name: Modo teste
+        description: >-
+          Quando verdadeiro, executa validação e idempotência sem publicar
+          evento nem alterar estado. Uso exclusivo para verificação segura.
+        required: false
+        selector:
+          boolean:
     sequence:
+      - variables:
+          registros_raw: "{{ state_attr('sensor.carro_historico_de_abastecimentos', 'registros') | default([], true) }}"
+          registros_atuais: "{{ registros_raw if registros_raw is iterable and registros_raw is not string and registros_raw is not mapping else [] }}"
+          odometro_referencia: >-
+            {{ (registros_atuais[0].odometer_km if registros_atuais | count > 0
+                else states('input_number.carro_odometro_ultimo_abastecimento') | float(0)) | float(0) }}
+          agora_iso: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          evento_em: "{{ event_at | default('', true) if event_at | default('', true) != '' else agora_iso }}"
+          minuto_evento: "{{ evento_em[0:16] }}"
+          origem: "{{ source | default('manual', true) }}"
+          id_origem: "{{ source_id | default('', true) | string | trim }}"
+          litros_num: "{{ liters | float(0) }}"
+          valor_num: "{{ amount_brl | float(0) }}"
+          odometro_num: "{{ odometer_km | float(-1) }}"
+          preco_litro: "{{ (valor_num / litros_num) | round(3) if litros_num > 0 else 0 }}"
+          chave_dedup: >-
+            {{ id_origem if id_origem != '' else
+               md5(origem ~ '|' ~ minuto_evento ~ '|' ~ (odometro_num | round(1)) ~ '|' ~ (litros_num | round(2)) ~ '|' ~ (valor_num | round(2))) }}
+          id_hash: "{{ md5(chave_dedup ~ ':' ~ context.id) }}"
+          novo_id: >-
+            {{ id_hash[0:8] ~ '-' ~ id_hash[8:12] ~ '-4' ~ id_hash[13:16]
+               ~ '-8' ~ id_hash[17:20] ~ '-' ~ id_hash[20:32] }}
+          duplicado: "{{ registros_atuais | selectattr('dedup_key', 'equalto', chave_dedup) | list | count > 0 }}"
+          odometro_valido: "{{ odometer_km is number and odometro_num >= 0 }}"
+          litros_valido: "{{ liters is number and litros_num > 0 }}"
+          valor_valido: "{{ amount_brl is number and valor_num > 0 }}"
+          sem_regressao: "{{ odometro_num >= odometro_referencia }}"
+          motivo_rejeicao: >-
+            {% if not odometro_valido %}odometro_invalido
+            {% elif not litros_valido %}litros_invalido
+            {% elif not valor_valido %}valor_invalido
+            {% elif not sem_regressao %}regressao_odometro
+            {% else %}nenhum
+            {% endif %}
+          aprovado: "{{ odometro_valido and litros_valido and valor_valido and sem_regressao }}"
+          modo_teste: "{{ test_mode | default(false, true) }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ duplicado }}"
+        then:
+          - if:
+              - condition: template
+                value_template: "{{ not modo_teste }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Carro"
+                  message: "Abastecimento ignorado: já registrado anteriormente (idempotência)."
+          - variables:
+              resultado:
+                status: duplicate
+                dedup_key: "{{ chave_dedup }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: Abastecimento duplicado; nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ not aprovado }}"
+        then:
+          - if:
+              - condition: template
+                value_template: "{{ not modo_teste }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Carro"
+                  message: >-
+                    Abastecimento rejeitado ({{ motivo_rejeicao }}). Nenhum
+                    dado foi alterado. Verifique odômetro, litros e valor.
+          - variables:
+              resultado:
+                status: rejected
+                reason: "{{ motivo_rejeicao }}"
+                dedup_key: "{{ chave_dedup }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: Abastecimento rejeitado na validação; nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ modo_teste }}"
+        then:
+          - variables:
+              resultado:
+                status: would_confirm
+                id: "{{ novo_id }}"
+                dedup_key: "{{ chave_dedup }}"
+                odometer_km: "{{ odometro_num }}"
+                liters: "{{ litros_num }}"
+                amount_brl: "{{ valor_num }}"
+                price_per_liter: "{{ preco_litro }}"
+                test_mode: true
+          - stop: Modo teste; validado e aprovado, nenhum evento publicado.
+            response_variable: resultado
+
+      - event: carro_abastecimento_confirmado
+        event_data:
+          id: "{{ novo_id }}"
+          dedup_key: "{{ chave_dedup }}"
+          event_at: "{{ evento_em }}"
+          confirmed_at: "{{ agora_iso }}"
+          odometer_km: "{{ odometro_num }}"
+          liters: "{{ litros_num }}"
+          amount_brl: "{{ valor_num }}"
+          price_per_liter: "{{ preco_litro }}"
+          source: "{{ origem }}"
+          source_id: "{{ id_origem }}"
+          evidence_ref: "{{ evidence_ref | default('', true) }}"
+          confidence: "{{ confidence | default(1.0, true) }}"
+          status: confirmed
+
       - service: input_number.set_value
         target:
           entity_id: input_number.carro_odometro_ultimo_abastecimento
         data:
-          value: "{{ states('input_number.carro_odometro') | float(0) }}"
+          value: "{{ odometro_num }}"
 
       - service: input_datetime.set_datetime
         target:
           entity_id: input_datetime.carro_data_ultimo_abastecimento
         data:
-          date: "{{ now().strftime('%Y-%m-%d') }}"
+          date: "{{ evento_em[0:10] }}"
 
       - service: persistent_notification.create
         data:
           title: "Carro"
           message: >
             Abastecimento registrado com sucesso.
-            Odômetro: {{ states('input_number.carro_odometro') }} km |
-            Litros: {{ states('input_number.carro_litros_abastecidos') }} L |
-            Valor: R$ {{ states('input_number.carro_valor_abastecimento') }}
+            Odômetro: {{ odometro_num }} km | Litros: {{ litros_num }} L |
+            Valor: R$ {{ valor_num }} | Preço/L: R$ {{ preco_litro }}
+
+      - variables:
+          resultado:
+            status: confirmed
+            id: "{{ novo_id }}"
+            dedup_key: "{{ chave_dedup }}"
+            test_mode: false
+
+      - stop: Abastecimento confirmado e publicado no histórico canônico.
+        response_variable: resultado
+
+  carro_registrar_abastecimento:
+    alias: Carro - Registrar abastecimento
+    description: >-
+      Ponto de entrada manual (botão do dashboard). Lê os helpers atuais e
+      delega toda a validação/idempotência/histórico ao contrato canônico
+      (AT-GC-02).
+    mode: single
+    sequence:
+      - action: script.carro_confirmar_abastecimento
+        data:
+          odometer_km: "{{ states('input_number.carro_odometro') | float(0) }}"
+          liters: "{{ states('input_number.carro_litros_abastecidos') | float(0) }}"
+          amount_brl: "{{ states('input_number.carro_valor_abastecimento') | float(0) }}"
+          source: manual
 
   carro_registrar_troca_oleo:
     alias: Carro - Registrar troca de óleo
@@ -258,3 +521,4 @@ recorder:
       - sensor.carro_km_desde_ultima_troca_de_oleo
       - sensor.carro_km_restantes_troca_de_oleo
       - sensor.carro_status_troca_de_oleo
+      - sensor.carro_historico_de_abastecimentos
