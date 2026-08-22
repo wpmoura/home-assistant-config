@@ -295,17 +295,27 @@ script:
       - variables:
           registros_raw: "{{ state_attr('sensor.carro_historico_de_abastecimentos', 'registros') | default([], true) }}"
           registros_atuais: "{{ registros_raw if registros_raw is iterable and registros_raw is not string and registros_raw is not mapping else [] }}"
+          # AT-GC-04 — a referência de regressão ignora registros históricos:
+          # um evento histórico nunca deve virar a "última verdade conhecida"
+          # para checagem de regressão de submissões futuras.
+          registro_referencia: >-
+            {{ registros_atuais | selectattr('historical', 'equalto', false) | list | first | default(none) }}
           odometro_referencia: >-
-            {{ (registros_atuais[0].odometer_km if registros_atuais | count > 0
+            {{ (registro_referencia.odometer_km if registro_referencia
                 else states('input_number.carro_odometro_ultimo_abastecimento') | float(0)) | float(0) }}
+          referencia_timestamp: >-
+            {{ registro_referencia.event_at if registro_referencia
+               else states('input_datetime.carro_data_ultimo_abastecimento') }}
           agora_iso: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
           evento_em: "{{ event_at | default('', true) if event_at | default('', true) != '' else agora_iso }}"
+          tem_event_at_explicito: "{{ event_at | default('', true) | string | trim != '' }}"
           minuto_evento: "{{ evento_em[0:16] }}"
           origem: "{{ source | default('manual', true) }}"
           id_origem: "{{ source_id | default('', true) | string | trim }}"
           litros_num: "{{ liters | float(0) }}"
           valor_num: "{{ amount_brl | float(0) }}"
           odometro_num: "{{ odometer_km | float(-1) }}"
+          confianca_num: "{{ confidence | default(1.0, true) | float(1.0) }}"
           preco_litro: "{{ (valor_num / litros_num) | round(3) if litros_num > 0 else 0 }}"
           chave_dedup: >-
             {{ id_origem if id_origem != '' else
@@ -318,15 +328,29 @@ script:
           odometro_valido: "{{ odometer_km is number and odometro_num >= 0 }}"
           litros_valido: "{{ liters is number and litros_num > 0 }}"
           valor_valido: "{{ amount_brl is number and valor_num > 0 }}"
-          sem_regressao: "{{ odometro_num >= odometro_referencia }}"
+          # AT-GC-04 — distinção evento histórico x regressão inválida.
+          # "Regressão" sozinha não basta para virar histórico: exige data do
+          # evento explícita (não o "agora" default) E cronologicamente
+          # anterior à referência conhecida — timestamp/estado canônico,
+          # origem e identidade (dedup) já cobertos acima.
+          regressao: "{{ odometro_num < odometro_referencia }}"
+          evento_dt: "{{ as_datetime(evento_em, default=none) }}"
+          referencia_dt: "{{ as_datetime(referencia_timestamp, default=none) }}"
+          evento_anterior_a_referencia: >-
+            {{ tem_event_at_explicito and evento_dt is not none and referencia_dt is not none
+               and evento_dt < referencia_dt }}
+          elegivel_historico: "{{ regressao and tem_event_at_explicito and evento_anterior_a_referencia }}"
+          historico_baixa_confianca: "{{ elegivel_historico and confianca_num < 0.5 }}"
           motivo_rejeicao: >-
             {% if not odometro_valido %}odometro_invalido
             {% elif not litros_valido %}litros_invalido
             {% elif not valor_valido %}valor_invalido
-            {% elif not sem_regressao %}regressao_odometro
+            {% elif regressao and not elegivel_historico %}regressao_odometro
             {% else %}nenhum
             {% endif %}
-          aprovado: "{{ odometro_valido and litros_valido and valor_valido and sem_regressao }}"
+          aprovado: >-
+            {{ odometro_valido and litros_valido and valor_valido
+               and (not regressao or elegivel_historico) }}
           modo_teste: "{{ test_mode | default(false, true) }}"
 
       - if:
@@ -347,6 +371,24 @@ script:
                 dedup_key: "{{ chave_dedup }}"
                 test_mode: "{{ modo_teste }}"
           - stop: Abastecimento duplicado; nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ historico_baixa_confianca }}"
+        then:
+          - variables:
+              resultado:
+                status: pending_review
+                reason: historico_baixa_confianca
+                dedup_key: "{{ chave_dedup }}"
+                odometer_km: "{{ odometro_num }}"
+                event_at: "{{ evento_em }}"
+                confidence: "{{ confianca_num }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: >-
+              Evento histórico plausível, mas confiança insuficiente;
+              enviado para revisão manual, nenhum evento publicado.
             response_variable: resultado
 
       - if:
@@ -379,12 +421,14 @@ script:
           - variables:
               resultado:
                 status: would_confirm
+                historical: "{{ elegivel_historico }}"
                 id: "{{ novo_id }}"
                 dedup_key: "{{ chave_dedup }}"
                 odometer_km: "{{ odometro_num }}"
                 liters: "{{ litros_num }}"
                 amount_brl: "{{ valor_num }}"
                 price_per_liter: "{{ preco_litro }}"
+                odometro_atual_preservado: "{{ odometro_referencia if elegivel_historico else none }}"
                 test_mode: true
           - stop: Modo teste; validado e aprovado, nenhum evento publicado.
             response_variable: resultado
@@ -402,38 +446,60 @@ script:
           source: "{{ origem }}"
           source_id: "{{ id_origem }}"
           evidence_ref: "{{ evidence_ref | default('', true) }}"
-          confidence: "{{ confidence | default(1.0, true) }}"
+          confidence: "{{ confianca_num }}"
           status: confirmed
+          historical: "{{ elegivel_historico }}"
 
-      - service: input_number.set_value
-        target:
-          entity_id: input_number.carro_odometro_ultimo_abastecimento
-        data:
-          value: "{{ odometro_num }}"
+      - if:
+          - condition: template
+            value_template: "{{ not elegivel_historico }}"
+        then:
+          # Só evento CORRENTE atualiza odômetro/data "atuais" — um evento
+          # histórico nunca regride o estado vigente (AT-GC-04, seção 1).
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.carro_odometro_ultimo_abastecimento
+            data:
+              value: "{{ odometro_num }}"
 
-      - service: input_datetime.set_datetime
-        target:
-          entity_id: input_datetime.carro_data_ultimo_abastecimento
-        data:
-          date: "{{ evento_em[0:10] }}"
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.carro_data_ultimo_abastecimento
+            data:
+              date: "{{ evento_em[0:10] }}"
 
       - service: persistent_notification.create
         data:
           title: "Carro"
-          message: >
+          message: >-
+            {% if elegivel_historico %}
+            Abastecimento histórico registrado ({{ evento_em[0:10] }}).
+            Odômetro: {{ odometro_num }} km | Litros: {{ litros_num }} L |
+            Valor: R$ {{ valor_num }} | Preço/L: R$ {{ preco_litro }}.
+            Odômetro atual preservado em {{ odometro_referencia }} km.
+            {% else %}
             Abastecimento registrado com sucesso.
             Odômetro: {{ odometro_num }} km | Litros: {{ litros_num }} L |
             Valor: R$ {{ valor_num }} | Preço/L: R$ {{ preco_litro }}
+            {% endif %}
 
       - variables:
           resultado:
             status: confirmed
+            historical: "{{ elegivel_historico }}"
             id: "{{ novo_id }}"
             dedup_key: "{{ chave_dedup }}"
             test_mode: false
 
-      - stop: Abastecimento confirmado e publicado no histórico canônico.
-        response_variable: resultado
+      - if:
+          - condition: template
+            value_template: "{{ elegivel_historico }}"
+        then:
+          - stop: Abastecimento histórico confirmado; odômetro atual preservado.
+            response_variable: resultado
+        else:
+          - stop: Abastecimento confirmado e publicado no histórico canônico.
+            response_variable: resultado
 
   carro_registrar_abastecimento:
     alias: Carro - Registrar abastecimento
