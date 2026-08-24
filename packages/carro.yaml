@@ -249,6 +249,11 @@ template:
           # id/dedup_key/liters/amount_brl/etc.; nenhum registro é
           # adicionado/removido. Sem correction_of, comportamento idêntico ao
           # original (prepend simples). Nunca reescreve o histórico em massa.
+          # Reconciliação tardia: se o evento também trouxer odometer_km (não
+          # nulo), esse campo é atualizado in-place junto com event_at —
+          # mesmo mecanismo, usado para preencher odômetro de um
+          # abastecimento já confirmado quando evidência complementar chega
+          # depois. Sem odometer_km no evento, o valor existente é preservado.
           registros: >
             {% set atual = this.attributes.registros | default([], true) %}
             {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
@@ -257,7 +262,8 @@ template:
               {% set ns = namespace(novos=[]) %}
               {% for r in atual %}
                 {% if r.dedup_key == evt.correction_of %}
-                  {% set ns.novos = ns.novos + [ dict(r, event_at=evt.event_at, evidence_ref=evt.evidence_ref, corrected_at=evt.corrected_at) ] %}
+                  {% set novo_odometro = evt.odometer_km if (evt.odometer_km is defined and evt.odometer_km is not none) else r.odometer_km %}
+                  {% set ns.novos = ns.novos + [ dict(r, event_at=evt.event_at, evidence_ref=evt.evidence_ref, corrected_at=evt.corrected_at, odometer_km=novo_odometro) ] %}
                 {% else %}
                   {% set ns.novos = ns.novos + [r] %}
                 {% endif %}
@@ -789,6 +795,8 @@ script:
                     dedup_key: "{{ correcao_alvo }}"
                     event_at_atual: "{{ registro_alvo.event_at }}"
                     event_at_novo: "{{ evento_em }}"
+                    odometer_km_atual: "{{ registro_alvo.odometer_km }}"
+                    odometer_km_novo: "{{ odometro_num if odometro_fornecido else registro_alvo.odometer_km }}"
                     test_mode: true
               - stop: Modo teste; correção validada, nenhum evento publicado.
                 response_variable: resultado
@@ -798,19 +806,23 @@ script:
               event_at: "{{ evento_em }}"
               evidence_ref: "{{ evidence_ref | default(registro_alvo.evidence_ref, true) }}"
               corrected_at: "{{ agora_iso }}"
+              odometer_km: "{{ odometro_num if odometro_fornecido else none }}"
           - service: persistent_notification.create
             data:
               title: "Carro"
               message: >-
                 Registro de abastecimento corrigido (dedup_key
                 {{ correcao_alvo }}): event_at ajustado de
-                {{ registro_alvo.event_at }} para {{ evento_em }}.
+                {{ registro_alvo.event_at }} para {{ evento_em }}{% if odometro_fornecido %};
+                odometer_km reconciliado para {{ odometro_num }} km{% endif %}.
           - variables:
               resultado:
                 status: corrected
                 dedup_key: "{{ correcao_alvo }}"
                 event_at_anterior: "{{ registro_alvo.event_at }}"
                 event_at_novo: "{{ evento_em }}"
+                odometer_km_anterior: "{{ registro_alvo.odometer_km }}"
+                odometer_km_novo: "{{ odometro_num if odometro_fornecido else registro_alvo.odometer_km }}"
                 test_mode: false
           - stop: Registro corrigido com sucesso; demais campos preservados.
             response_variable: resultado
