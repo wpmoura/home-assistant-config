@@ -80,27 +80,35 @@ input_text:
 
 template:
   - sensor:
+      # Gate 2 (correção de rastreabilidade dashboard x ledger) — fórmula
+      # passa a derivar de sensor.carro_ultimo_abastecimento (projeção
+      # canônica do ledger, Gate 1) em vez dos helpers manuais. odometer_km
+      # ausente é tratado como ausência de dado (none/unknown), nunca 0.
       - name: Carro km rodados desde último abastecimento
         unique_id: carro_km_rodados_desde_ultimo_abastecimento
         icon: mdi:map-marker-distance
         unit_of_measurement: km
         state: >
-          {% set atual = states('input_number.carro_odometro') | float(0) %}
-          {% set anterior = states('input_number.carro_odometro_ultimo_abastecimento') | float(0) %}
-          {% set valor = atual - anterior %}
-          {{ iif(valor >= 0, valor, 0) }}
+          {% set atual = states('input_number.carro_odometro') %}
+          {% set referencia = state_attr('sensor.carro_ultimo_abastecimento', 'odometer_km') %}
+          {% if atual not in [none, 'unknown', 'unavailable'] and referencia is not none %}
+            {% set diff = (atual | float(0)) - (referencia | float(0)) %}
+            {{ diff if diff >= 0 else none }}
+          {% else %}
+            {{ none }}
+          {% endif %}
 
       - name: Carro consumo médio último abastecimento
         unique_id: carro_consumo_medio_ultimo_abastecimento
         icon: mdi:chart-line
         unit_of_measurement: km/L
         state: >
-          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') | float(0) %}
-          {% set litros = states('input_number.carro_litros_abastecidos') | float(0) %}
-          {% if litros > 0 and km > 0 %}
-            {{ (km / litros) | round(2) }}
+          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') %}
+          {% set litros = state_attr('sensor.carro_ultimo_abastecimento', 'liters') %}
+          {% if km not in [none, 'unknown', 'unavailable'] and litros is not none and (km | float(0)) > 0 and (litros | float(0)) > 0 %}
+            {{ ((km | float(0)) / (litros | float(0))) | round(2) }}
           {% else %}
-            0
+            {{ none }}
           {% endif %}
 
       - name: Carro preço por litro
@@ -108,12 +116,12 @@ template:
         icon: mdi:fuel
         unit_of_measurement: BRL/L
         state: >
-          {% set valor = states('input_number.carro_valor_abastecimento') | float(0) %}
-          {% set litros = states('input_number.carro_litros_abastecidos') | float(0) %}
-          {% if litros > 0 %}
-            {{ (valor / litros) | round(3) }}
+          {% set litros = state_attr('sensor.carro_ultimo_abastecimento', 'liters') %}
+          {% set valor = state_attr('sensor.carro_ultimo_abastecimento', 'amount_brl') %}
+          {% if litros is not none and valor is not none and (litros | float(0)) > 0 %}
+            {{ ((valor | float(0)) / (litros | float(0))) | round(3) }}
           {% else %}
-            0
+            {{ none }}
           {% endif %}
 
       - name: Carro custo por km
@@ -121,12 +129,12 @@ template:
         icon: mdi:cash
         unit_of_measurement: BRL/km
         state: >
-          {% set valor = states('input_number.carro_valor_abastecimento') | float(0) %}
-          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') | float(0) %}
-          {% if km > 0 %}
-            {{ (valor / km) | round(3) }}
+          {% set km = states('sensor.carro_km_rodados_desde_ultimo_abastecimento') %}
+          {% set valor = state_attr('sensor.carro_ultimo_abastecimento', 'amount_brl') %}
+          {% if km not in [none, 'unknown', 'unavailable'] and valor is not none and (km | float(0)) > 0 %}
+            {{ ((valor | float(0)) / (km | float(0))) | round(3) }}
           {% else %}
-            0
+            {{ none }}
           {% endif %}
 
       - name: Carro km desde última troca de óleo
@@ -162,6 +170,54 @@ template:
             Ok
           {% endif %}
 
+  # Gate 1 (refactor: mecanismo B, trigger-based + variables) — projeção
+  # declarativa e somente-leitura do ledger canônico
+  # (sensor.carro_historico_de_abastecimentos). "Último abastecimento" é
+  # definido como o registro de maior event_at entre os que NÃO têm
+  # historical == true (null/ausente é elegível — só true exclui). Nunca
+  # usa registros[0]/ordem de inserção. O registro vencedor ("melhor") é
+  # calculado uma única vez em `variables`, e reutilizado tanto no `state`
+  # quanto em todos os atributos abaixo — elimina a repetição da versão
+  # anterior (mesma seleção seria recalculada 11x). O trigger usa
+  # `attribute: registros` (não o `state`/contagem do ledger) para também
+  # disparar em correções in-place que não mudam a quantidade de registros
+  # (ex.: correção de event_at de um registro já existente). Não escreve em
+  # nenhum helper — é puramente derivado.
+  - trigger:
+      - platform: state
+        entity_id: sensor.carro_historico_de_abastecimentos
+        attribute: registros
+    variables:
+      registros_raw: "{{ state_attr('sensor.carro_historico_de_abastecimentos', 'registros') | default([], true) }}"
+      registros: "{{ registros_raw if registros_raw is iterable and registros_raw is not string and registros_raw is not mapping else [] }}"
+      elegiveis: "{{ registros | rejectattr('historical', 'equalto', true) | list }}"
+      melhor: >-
+        {% set ns = namespace(melhor=none, melhor_dt=none) %}
+        {% for r in elegiveis %}
+          {% set dt = as_datetime(r.get('event_at'), default=none) %}
+          {% if dt is not none and (ns.melhor_dt is none or dt > ns.melhor_dt) %}
+            {% set ns.melhor = r %}
+            {% set ns.melhor_dt = dt %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.melhor }}
+    sensor:
+      - name: Carro último abastecimento
+        unique_id: carro_ultimo_abastecimento
+        icon: mdi:gas-station-in-use
+        state: "{{ melhor.get('event_at') if melhor is not none else none }}"
+        attributes:
+          event_at: "{{ melhor.get('event_at') if melhor is not none else none }}"
+          liters: "{{ melhor.get('liters') if melhor is not none else none }}"
+          amount_brl: "{{ melhor.get('amount_brl') if melhor is not none else none }}"
+          price_per_liter: "{{ melhor.get('price_per_liter') if melhor is not none else none }}"
+          odometer_km: "{{ melhor.get('odometer_km') if melhor is not none else none }}"
+          source_id: "{{ melhor.get('source_id') if melhor is not none else none }}"
+          dedup_key: "{{ melhor.get('dedup_key') if melhor is not none else none }}"
+          evidence_ref: "{{ melhor.get('evidence_ref') if melhor is not none else none }}"
+          confidence: "{{ melhor.get('confidence') if melhor is not none else none }}"
+          historical: "{{ melhor.get('historical') if melhor is not none else none }}"
+
   # AT-GC-02 — Histórico canônico de abastecimentos.
   # Sensor trigger-based: acumula em `attributes.registros` cada evento
   # publicado por script.carro_confirmar_abastecimento. Padrão idêntico ao já
@@ -178,12 +234,38 @@ template:
         state: >
           {% set atual = this.attributes.registros | default([], true) %}
           {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
-          {{ ([trigger.event.data] + atual) | length }}
+          {% set evt = trigger.event.data %}
+          {% if evt.correction_of is defined and evt.correction_of is not none %}
+            {{ atual | length }}
+          {% else %}
+            {{ ([evt] + atual) | length }}
+          {% endif %}
         attributes:
+          # AT-GC-05 (Gate de qualidade temporal) — correção in-place de UM
+          # registro já publicado: quando o evento traz `correction_of`
+          # (dedup_key alvo, só emitido pelo próprio script após validar
+          # identidade — ver script.carro_confirmar_abastecimento), o registro
+          # correspondente é substituído na mesma posição da lista, preservando
+          # id/dedup_key/liters/amount_brl/etc.; nenhum registro é
+          # adicionado/removido. Sem correction_of, comportamento idêntico ao
+          # original (prepend simples). Nunca reescreve o histórico em massa.
           registros: >
             {% set atual = this.attributes.registros | default([], true) %}
             {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
-            {{ [trigger.event.data] + atual }}
+            {% set evt = trigger.event.data %}
+            {% if evt.correction_of is defined and evt.correction_of is not none %}
+              {% set ns = namespace(novos=[]) %}
+              {% for r in atual %}
+                {% if r.dedup_key == evt.correction_of %}
+                  {% set ns.novos = ns.novos + [ dict(r, event_at=evt.event_at, evidence_ref=evt.evidence_ref, corrected_at=evt.corrected_at) ] %}
+                {% else %}
+                  {% set ns.novos = ns.novos + [r] %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.novos }}
+            {% else %}
+              {{ [evt] + atual }}
+            {% endif %}
           contrato: >
             {{ {
               'schema_version': 1,
@@ -195,7 +277,283 @@ template:
               'publicado_por': 'script.carro_confirmar_abastecimento'
             } }}
 
+  # AT-GC-05 — Histórico canônico de leituras de odômetro (Fluxo A),
+  # independente de abastecimento. Mesmo padrão de acumulação já comprovado
+  # acima para o histórico de abastecimentos.
+  - trigger:
+      - platform: event
+        event_type: carro_odometro_confirmado
+    sensor:
+      - name: Carro histórico de odômetro
+        unique_id: carro_historico_odometro
+        icon: mdi:counter
+        state: >
+          {% set atual = this.attributes.registros | default([], true) %}
+          {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+          {{ ([trigger.event.data] + atual) | length }}
+        attributes:
+          registros: >
+            {% set atual = this.attributes.registros | default([], true) %}
+            {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
+            {{ [trigger.event.data] + atual }}
+          contrato: >
+            {{ {
+              'schema_version': 1,
+              'identidade_idempotencia': 'dedup_key (source_id quando disponível; senão hash de source+minuto do evento+valor)',
+              'fontes_autorizadas': ['manual'],
+              'fontes_futuras_previstas': ['photo_odometer'],
+              'retencao': 'permanente_sem_expurgo',
+              'estados_suportados': ['confirmed', 'pendente_revisao'],
+              'publicado_por': 'script.carro_registrar_leitura_odometro'
+            } }}
+
 script:
+  # AT-GC-05 — Fluxo A: leitura independente de odômetro (ODOMETER_TOTAL),
+  # desacoplada de abastecimento. Reaproveita a mesma lógica de
+  # histórico/regressão já comprovada em carro_confirmar_abastecimento
+  # (AT-GC-04), mas comparando direto contra o odômetro canônico
+  # (input_number.carro_odometro), que é a única referência necessária aqui
+  # — nenhum outro helper precisa existir para isso.
+  carro_registrar_leitura_odometro:
+    alias: Carro - Registrar leitura de odômetro (canônico)
+    description: >-
+      Contrato canônico de leitura de odômetro (AT-GC-05). Leitura corrente
+      e válida atualiza input_number.carro_odometro diretamente. Leitura
+      histórica só entra no histórico próprio, sem tocar o odômetro atual.
+      ODOMETER_TRIP nunca deve ser enviado a este script — é
+      responsabilidade do chamador (pipeline) nunca mapear TRIP para cá.
+      test_mode=true executa validação/idempotência sem publicar evento nem
+      alterar nenhum estado.
+    icon: mdi:speedometer
+    mode: queued
+    max: 10
+    fields:
+      odometer_km:
+        name: Odômetro
+        description: Quilometragem lida no painel (somente ODOMETER_TOTAL).
+        required: true
+        selector:
+          number:
+            min: 0
+            max: 500000
+            mode: box
+      source:
+        name: Origem
+        description: Origem do dado.
+        required: false
+        selector:
+          select:
+            options:
+              - manual
+              - photo_odometer
+      source_id:
+        name: ID externo
+        description: Identificador estável da evidência, quando disponível.
+        required: false
+        selector:
+          text:
+      event_at:
+        name: Data/hora da leitura
+        description: "Formato YYYY-MM-DD HH:MM:SS. Vazio = usar o momento da confirmação."
+        required: false
+        selector:
+          text:
+      confidence:
+        name: Confiança
+        description: Nível de confiança da leitura/extração.
+        required: false
+        selector:
+          number:
+            min: 0
+            max: 1
+            step: 0.01
+            mode: box
+      evidence_ref:
+        name: Referência de evidência
+        description: Referência ao arquivo/foto que originou a leitura.
+        required: false
+        selector:
+          text:
+      test_mode:
+        name: Modo teste
+        description: >-
+          Quando verdadeiro, executa validação e idempotência sem publicar
+          evento nem alterar estado.
+        required: false
+        selector:
+          boolean:
+    sequence:
+      - variables:
+          registros_raw: "{{ state_attr('sensor.carro_historico_de_odometro', 'registros') | default([], true) }}"
+          registros_atuais: "{{ registros_raw if registros_raw is iterable and registros_raw is not string and registros_raw is not mapping else [] }}"
+          odometro_atual: "{{ states('input_number.carro_odometro') | float(0) }}"
+          referencia_timestamp: "{{ states.input_number.carro_odometro.last_changed }}"
+          agora_iso: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+          evento_em: "{{ event_at | default('', true) if event_at | default('', true) != '' else agora_iso }}"
+          tem_event_at_explicito: "{{ event_at | default('', true) | string | trim != '' }}"
+          minuto_evento: "{{ evento_em[0:16] }}"
+          origem: "{{ source | default('manual', true) }}"
+          id_origem: "{{ source_id | default('', true) | string | trim }}"
+          odometro_num: "{{ odometer_km | float(-1) }}"
+          confianca_num: "{{ confidence | default(1.0, true) | float(1.0) }}"
+          chave_dedup: >-
+            {{ id_origem if id_origem != '' else
+               md5(origem ~ '|' ~ minuto_evento ~ '|' ~ (odometro_num | round(1))) }}
+          id_hash: "{{ md5(chave_dedup ~ ':' ~ context.id) }}"
+          novo_id: >-
+            {{ id_hash[0:8] ~ '-' ~ id_hash[8:12] ~ '-4' ~ id_hash[13:16]
+               ~ '-8' ~ id_hash[17:20] ~ '-' ~ id_hash[20:32] }}
+          duplicado: "{{ registros_atuais | selectattr('dedup_key', 'equalto', chave_dedup) | list | count > 0 }}"
+          odometro_valido: "{{ odometer_km is number and odometro_num >= 0 }}"
+          regressao: "{{ odometro_num < odometro_atual }}"
+          evento_dt: "{{ as_datetime(evento_em, default=none) }}"
+          referencia_dt: "{{ referencia_timestamp }}"
+          evento_anterior_a_referencia: >-
+            {{ tem_event_at_explicito and evento_dt is not none and referencia_dt is not none
+               and evento_dt < referencia_dt }}
+          elegivel_historico: "{{ regressao and tem_event_at_explicito and evento_anterior_a_referencia }}"
+          historico_baixa_confianca: "{{ elegivel_historico and confianca_num < 0.5 }}"
+          motivo_rejeicao: >-
+            {% if not odometro_valido %}odometro_invalido
+            {% elif regressao and not elegivel_historico %}regressao_odometro
+            {% else %}nenhum
+            {% endif %}
+          aprovado: "{{ odometro_valido and (not regressao or elegivel_historico) }}"
+          modo_teste: "{{ test_mode | default(false, true) }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ duplicado }}"
+        then:
+          - if:
+              - condition: template
+                value_template: "{{ not modo_teste }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Carro"
+                  message: "Leitura de odômetro ignorada: já registrada anteriormente (idempotência)."
+          - variables:
+              resultado:
+                status: duplicate
+                dedup_key: "{{ chave_dedup }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: Leitura de odômetro duplicada; nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ historico_baixa_confianca }}"
+        then:
+          - variables:
+              resultado:
+                status: pending_review
+                reason: historico_baixa_confianca
+                dedup_key: "{{ chave_dedup }}"
+                odometer_km: "{{ odometro_num }}"
+                event_at: "{{ evento_em }}"
+                confidence: "{{ confianca_num }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: >-
+              Leitura histórica plausível, mas confiança insuficiente;
+              enviada para revisão manual, nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ not aprovado }}"
+        then:
+          - if:
+              - condition: template
+                value_template: "{{ not modo_teste }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Carro"
+                  message: >-
+                    Leitura de odômetro rejeitada ({{ motivo_rejeicao }}).
+                    Nenhum dado foi alterado.
+          - variables:
+              resultado:
+                status: rejected
+                reason: "{{ motivo_rejeicao }}"
+                dedup_key: "{{ chave_dedup }}"
+                test_mode: "{{ modo_teste }}"
+          - stop: Leitura de odômetro rejeitada na validação; nenhum evento publicado.
+            response_variable: resultado
+
+      - if:
+          - condition: template
+            value_template: "{{ modo_teste }}"
+        then:
+          - variables:
+              resultado:
+                status: would_confirm
+                historical: "{{ elegivel_historico }}"
+                id: "{{ novo_id }}"
+                dedup_key: "{{ chave_dedup }}"
+                odometer_km: "{{ odometro_num }}"
+                odometro_atual_preservado: "{{ odometro_atual if elegivel_historico else none }}"
+                test_mode: true
+          - stop: Modo teste; validado e aprovado, nenhum evento publicado.
+            response_variable: resultado
+
+      - event: carro_odometro_confirmado
+        event_data:
+          id: "{{ novo_id }}"
+          dedup_key: "{{ chave_dedup }}"
+          event_at: "{{ evento_em }}"
+          confirmed_at: "{{ agora_iso }}"
+          odometer_km: "{{ odometro_num }}"
+          source: "{{ origem }}"
+          source_id: "{{ id_origem }}"
+          evidence_ref: "{{ evidence_ref | default('', true) }}"
+          confidence: "{{ confianca_num }}"
+          status: confirmed
+          historical: "{{ elegivel_historico }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ not elegivel_historico }}"
+        then:
+          # Só leitura CORRENTE atualiza o odômetro canônico diretamente —
+          # leitura histórica nunca regride o estado vigente (AT-GC-05,
+          # Decisão 1).
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.carro_odometro
+            data:
+              value: "{{ odometro_num }}"
+
+      - service: persistent_notification.create
+        data:
+          title: "Carro"
+          message: >-
+            {% if elegivel_historico %}
+            Leitura histórica de odômetro registrada ({{ evento_em[0:10] }}):
+            {{ odometro_num }} km. Odômetro atual preservado em
+            {{ odometro_atual }} km.
+            {% else %}
+            Odômetro atualizado para {{ odometro_num }} km.
+            {% endif %}
+
+      - variables:
+          resultado:
+            status: confirmed
+            historical: "{{ elegivel_historico }}"
+            id: "{{ novo_id }}"
+            dedup_key: "{{ chave_dedup }}"
+            test_mode: false
+
+      - if:
+          - condition: template
+            value_template: "{{ elegivel_historico }}"
+        then:
+          - stop: Leitura histórica confirmada; odômetro atual preservado.
+            response_variable: resultado
+        else:
+          - stop: Leitura de odômetro confirmada e odômetro atual atualizado.
+            response_variable: resultado
   # AT-GC-02 — Ponto único de confirmação de abastecimento do domínio Carro.
   # Valida, garante idempotência e, se aprovado, publica o evento
   # carro_abastecimento_confirmado (histórico canônico em
@@ -216,8 +574,13 @@ script:
     fields:
       odometer_km:
         name: Odômetro
-        description: Quilometragem no momento do abastecimento.
-        required: true
+        description: >-
+          Quilometragem no momento do abastecimento, quando disponível
+          (AT-GC-05). Opcional: se não houver leitura de odômetro
+          correlacionada com confiança, o abastecimento ainda pode ser
+          confirmado sem odômetro — não atualiza o odômetro/data "atuais"
+          nesse caso.
+        required: false
         selector:
           number:
             min: 0
@@ -291,6 +654,21 @@ script:
         required: false
         selector:
           boolean:
+      correction_of_dedup_key:
+        name: Corrigir registro existente (dedup_key)
+        description: >-
+          Uso excepcional (Gate de qualidade temporal, AT-GC-05): quando
+          informado, corrige EM VIGOR o único registro já publicado
+          identificado por este dedup_key, em vez de publicar um novo. Só
+          event_at e evidence_ref são alterados; liters, amount_brl e
+          source_id enviados nesta chamada precisam bater exatamente com o
+          registro existente, senão a correção é rejeitada. Não é uma via de
+          reenvio comum — existe só para sanear divergências de qualidade de
+          dado (ex.: event_at incorretamente preenchido com o horário de
+          processamento em vez da data real do evento).
+        required: false
+        selector:
+          text:
     sequence:
       - variables:
           registros_raw: "{{ state_attr('sensor.carro_historico_de_abastecimentos', 'registros') | default([], true) }}"
@@ -314,26 +692,27 @@ script:
           id_origem: "{{ source_id | default('', true) | string | trim }}"
           litros_num: "{{ liters | float(0) }}"
           valor_num: "{{ amount_brl | float(0) }}"
-          odometro_num: "{{ odometer_km | float(-1) }}"
+          # AT-GC-05 — odômetro passa a ser opcional (Fluxo B desacoplado do
+          # Fluxo A): "fornecido" distingue campo ausente de campo inválido.
+          odometro_fornecido: "{{ odometer_km | default(none, true) is not none }}"
+          odometro_num: "{{ (odometer_km | float(-1)) if odometro_fornecido else none }}"
           confianca_num: "{{ confidence | default(1.0, true) | float(1.0) }}"
           preco_litro: "{{ (valor_num / litros_num) | round(3) if litros_num > 0 else 0 }}"
           chave_dedup: >-
             {{ id_origem if id_origem != '' else
-               md5(origem ~ '|' ~ minuto_evento ~ '|' ~ (odometro_num | round(1)) ~ '|' ~ (litros_num | round(2)) ~ '|' ~ (valor_num | round(2))) }}
+               md5(origem ~ '|' ~ minuto_evento ~ '|' ~ ((odometro_num | round(1)) if odometro_fornecido else 'sem_odometro') ~ '|' ~ (litros_num | round(2)) ~ '|' ~ (valor_num | round(2))) }}
           id_hash: "{{ md5(chave_dedup ~ ':' ~ context.id) }}"
           novo_id: >-
             {{ id_hash[0:8] ~ '-' ~ id_hash[8:12] ~ '-4' ~ id_hash[13:16]
                ~ '-8' ~ id_hash[17:20] ~ '-' ~ id_hash[20:32] }}
           duplicado: "{{ registros_atuais | selectattr('dedup_key', 'equalto', chave_dedup) | list | count > 0 }}"
-          odometro_valido: "{{ odometer_km is number and odometro_num >= 0 }}"
+          odometro_valido: "{{ (not odometro_fornecido) or (odometer_km is number and odometro_num >= 0) }}"
           litros_valido: "{{ liters is number and litros_num > 0 }}"
           valor_valido: "{{ amount_brl is number and valor_num > 0 }}"
-          # AT-GC-04 — distinção evento histórico x regressão inválida.
-          # "Regressão" sozinha não basta para virar histórico: exige data do
-          # evento explícita (não o "agora" default) E cronologicamente
-          # anterior à referência conhecida — timestamp/estado canônico,
-          # origem e identidade (dedup) já cobertos acima.
-          regressao: "{{ odometro_num < odometro_referencia }}"
+          # AT-GC-04/05 — distinção evento histórico x regressão inválida.
+          # Só se aplica quando odômetro foi de fato informado — ausência de
+          # odômetro nunca é regressão nem histórico, é só "sem essa info".
+          regressao: "{{ odometro_fornecido and odometro_num < odometro_referencia }}"
           evento_dt: "{{ as_datetime(evento_em, default=none) }}"
           referencia_dt: "{{ as_datetime(referencia_timestamp, default=none) }}"
           evento_anterior_a_referencia: >-
@@ -341,6 +720,9 @@ script:
                and evento_dt < referencia_dt }}
           elegivel_historico: "{{ regressao and tem_event_at_explicito and evento_anterior_a_referencia }}"
           historico_baixa_confianca: "{{ elegivel_historico and confianca_num < 0.5 }}"
+          # Só atualiza odômetro/data "atuais" quando odômetro foi informado
+          # E não é um evento histórico.
+          atualiza_odometro_atual: "{{ odometro_fornecido and not elegivel_historico }}"
           motivo_rejeicao: >-
             {% if not odometro_valido %}odometro_invalido
             {% elif not litros_valido %}litros_invalido
@@ -352,6 +734,86 @@ script:
             {{ odometro_valido and litros_valido and valor_valido
                and (not regressao or elegivel_historico) }}
           modo_teste: "{{ test_mode | default(false, true) }}"
+          # Gate de qualidade temporal (AT-GC-05) — correção in-place de um
+          # único registro já publicado. Isolado do fluxo normal: nunca
+          # participa de chave_dedup/duplicado/regressao/elegivel_historico
+          # acima. correcao_alvo passa pela mesma coerção nativa de tipo do
+          # HA que já afeta chave_dedup/dedup_key (string numérica -> int),
+          # garantindo que o selectattr abaixo compare tipos iguais.
+          correcao_alvo_bruto: "{{ correction_of_dedup_key | default('', true) | string | trim }}"
+          modo_correcao: "{{ correcao_alvo_bruto != '' }}"
+          correcao_alvo: >-
+            {{ (correcao_alvo_bruto | string | int) if (correcao_alvo_bruto | string).isdigit() else correcao_alvo_bruto }}
+          registro_alvo: >-
+            {{ registros_atuais | selectattr('dedup_key', 'equalto', correcao_alvo) | list | first | default(none) }}
+
+      - if:
+          - condition: template
+            value_template: "{{ modo_correcao }}"
+        then:
+          - if:
+              - condition: template
+                value_template: "{{ registro_alvo is none }}"
+            then:
+              - variables:
+                  resultado:
+                    status: rejected
+                    reason: correction_alvo_nao_encontrado
+                    test_mode: "{{ modo_teste }}"
+              - stop: Correção rejeitada; dedup_key alvo não encontrado no histórico.
+                response_variable: resultado
+          - if:
+              - condition: template
+                value_template: >-
+                  {{ not ( (registro_alvo.liters | round(2)) == (litros_num | round(2))
+                           and (registro_alvo.amount_brl | round(2)) == (valor_num | round(2))
+                           and (registro_alvo.source_id | string) == (id_origem | string) ) }}
+            then:
+              - variables:
+                  resultado:
+                    status: rejected
+                    reason: correction_identidade_divergente
+                    test_mode: "{{ modo_teste }}"
+              - stop: >-
+                  Correção rejeitada; litros/valor/source_id enviados não batem
+                  com o registro alvo (proteção contra corrigir a identidade
+                  errada). Nenhum dado foi alterado.
+                response_variable: resultado
+          - if:
+              - condition: template
+                value_template: "{{ modo_teste }}"
+            then:
+              - variables:
+                  resultado:
+                    status: would_correct
+                    dedup_key: "{{ correcao_alvo }}"
+                    event_at_atual: "{{ registro_alvo.event_at }}"
+                    event_at_novo: "{{ evento_em }}"
+                    test_mode: true
+              - stop: Modo teste; correção validada, nenhum evento publicado.
+                response_variable: resultado
+          - event: carro_abastecimento_confirmado
+            event_data:
+              correction_of: "{{ correcao_alvo }}"
+              event_at: "{{ evento_em }}"
+              evidence_ref: "{{ evidence_ref | default(registro_alvo.evidence_ref, true) }}"
+              corrected_at: "{{ agora_iso }}"
+          - service: persistent_notification.create
+            data:
+              title: "Carro"
+              message: >-
+                Registro de abastecimento corrigido (dedup_key
+                {{ correcao_alvo }}): event_at ajustado de
+                {{ registro_alvo.event_at }} para {{ evento_em }}.
+          - variables:
+              resultado:
+                status: corrected
+                dedup_key: "{{ correcao_alvo }}"
+                event_at_anterior: "{{ registro_alvo.event_at }}"
+                event_at_novo: "{{ evento_em }}"
+                test_mode: false
+          - stop: Registro corrigido com sucesso; demais campos preservados.
+            response_variable: resultado
 
       - if:
           - condition: template
@@ -421,10 +883,10 @@ script:
           - variables:
               resultado:
                 status: would_confirm
-                historical: "{{ elegivel_historico }}"
+                historical: "{{ elegivel_historico if odometro_fornecido else none }}"
                 id: "{{ novo_id }}"
                 dedup_key: "{{ chave_dedup }}"
-                odometer_km: "{{ odometro_num }}"
+                odometer_km: "{{ odometro_num if odometro_fornecido else none }}"
                 liters: "{{ litros_num }}"
                 amount_brl: "{{ valor_num }}"
                 price_per_liter: "{{ preco_litro }}"
@@ -439,7 +901,7 @@ script:
           dedup_key: "{{ chave_dedup }}"
           event_at: "{{ evento_em }}"
           confirmed_at: "{{ agora_iso }}"
-          odometer_km: "{{ odometro_num }}"
+          odometer_km: "{{ odometro_num if odometro_fornecido else none }}"
           liters: "{{ litros_num }}"
           amount_brl: "{{ valor_num }}"
           price_per_liter: "{{ preco_litro }}"
@@ -448,14 +910,16 @@ script:
           evidence_ref: "{{ evidence_ref | default('', true) }}"
           confidence: "{{ confianca_num }}"
           status: confirmed
-          historical: "{{ elegivel_historico }}"
+          historical: "{{ elegivel_historico if odometro_fornecido else none }}"
 
       - if:
           - condition: template
-            value_template: "{{ not elegivel_historico }}"
+            value_template: "{{ atualiza_odometro_atual }}"
         then:
-          # Só evento CORRENTE atualiza odômetro/data "atuais" — um evento
-          # histórico nunca regride o estado vigente (AT-GC-04, seção 1).
+          # Só evento CORRENTE com odômetro informado atualiza odômetro/data
+          # "atuais" — evento histórico nunca regride o estado vigente
+          # (AT-GC-04), e ausência de odômetro nunca fabrica um valor
+          # (AT-GC-05, Decisão 3).
           - service: input_number.set_value
             target:
               entity_id: input_number.carro_odometro_ultimo_abastecimento
@@ -472,7 +936,12 @@ script:
         data:
           title: "Carro"
           message: >-
-            {% if elegivel_historico %}
+            {% if not odometro_fornecido %}
+            Abastecimento registrado sem odômetro associado ({{ evento_em[0:10] }}).
+            Litros: {{ litros_num }} L | Valor: R$ {{ valor_num }} |
+            Preço/L: R$ {{ preco_litro }}.
+            Km rodados/consumo permanecem pendentes até haver odômetro.
+            {% elif elegivel_historico %}
             Abastecimento histórico registrado ({{ evento_em[0:10] }}).
             Odômetro: {{ odometro_num }} km | Litros: {{ litros_num }} L |
             Valor: R$ {{ valor_num }} | Preço/L: R$ {{ preco_litro }}.
@@ -486,7 +955,7 @@ script:
       - variables:
           resultado:
             status: confirmed
-            historical: "{{ elegivel_historico }}"
+            historical: "{{ elegivel_historico if odometro_fornecido else none }}"
             id: "{{ novo_id }}"
             dedup_key: "{{ chave_dedup }}"
             test_mode: false
@@ -588,3 +1057,4 @@ recorder:
       - sensor.carro_km_restantes_troca_de_oleo
       - sensor.carro_status_troca_de_oleo
       - sensor.carro_historico_de_abastecimentos
+      - sensor.carro_historico_de_odometro
