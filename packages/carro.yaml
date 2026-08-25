@@ -296,16 +296,33 @@ template:
         state: >
           {% set atual = this.attributes.registros | default([], true) %}
           {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
-          {{ ([trigger.event.data] + atual) | length }}
+          {% set evt = trigger.event.data %}
+          {% if evt.remove_dedup_key is defined and evt.remove_dedup_key is not none %}
+            {{ (atual | rejectattr('dedup_key', 'equalto', evt.remove_dedup_key) | list) | length }}
+          {% else %}
+            {{ ([evt] + atual) | length }}
+          {% endif %}
         attributes:
+          # Remoção cirúrgica pós-auditoria de duplicidade (2026-08):
+          # mesmo padrão de evento de correção já usado no histórico de
+          # abastecimentos (correction_of), aplicado aqui só para remover —
+          # nunca altera nenhum campo de um registro existente. Usado
+          # exclusivamente para excluir os 31 duplicados comprovados
+          # (mesma evidência publicada duas vezes com dedup_key diferente
+          # antes da correção de identidade acima).
           registros: >
             {% set atual = this.attributes.registros | default([], true) %}
             {% set atual = atual if atual is iterable and atual is not string and atual is not mapping else [] %}
-            {{ [trigger.event.data] + atual }}
+            {% set evt = trigger.event.data %}
+            {% if evt.remove_dedup_key is defined and evt.remove_dedup_key is not none %}
+              {{ atual | rejectattr('dedup_key', 'equalto', evt.remove_dedup_key) | list }}
+            {% else %}
+              {{ [evt] + atual }}
+            {% endif %}
           contrato: >
             {{ {
               'schema_version': 1,
-              'identidade_idempotencia': 'dedup_key (source_id quando disponível; senão hash de source+minuto do evento+valor)',
+              'identidade_idempotencia': 'dedup_key = source_id (sha1 real, obrigatório para photo_odometer); hash de source+minuto+valor só para source=manual',
               'fontes_autorizadas': ['manual'],
               'fontes_futuras_previstas': ['photo_odometer'],
               'retencao': 'permanente_sem_expurgo',
@@ -411,6 +428,15 @@ script:
                ~ '-8' ~ id_hash[17:20] ~ '-' ~ id_hash[20:32] }}
           duplicado: "{{ registros_atuais | selectattr('dedup_key', 'equalto', chave_dedup) | list | count > 0 }}"
           odometro_valido: "{{ odometer_km is number and odometro_num >= 0 }}"
+          # Pós-auditoria do gap de ODO (2026-08): a mesma evidência de foto
+          # publicada sem source_id (fallback por hash) e via integrate.py
+          # (source_id=sha1 real) gerava DOIS dedup_key diferentes para o
+          # mesmo arquivo — violação de idempotência por evidência. Para
+          # source=photo_odometer, source_id (o sha1 real do arquivo) passa a
+          # ser obrigatório; nunca mais cai no hash-fallback. source=manual
+          # (sem arquivo para hashear) continua podendo usar o fallback.
+          evidencia_obrigatoria: "{{ origem == 'photo_odometer' }}"
+          evidencia_presente: "{{ id_origem != '' }}"
           regressao: "{{ odometro_num < odometro_atual }}"
           evento_dt: "{{ as_datetime(evento_em, default=none) }}"
           referencia_dt: "{{ referencia_timestamp }}"
@@ -421,10 +447,13 @@ script:
           historico_baixa_confianca: "{{ elegivel_historico and confianca_num < 0.5 }}"
           motivo_rejeicao: >-
             {% if not odometro_valido %}odometro_invalido
+            {% elif evidencia_obrigatoria and not evidencia_presente %}source_id_obrigatorio_para_foto
             {% elif regressao and not elegivel_historico %}regressao_odometro
             {% else %}nenhum
             {% endif %}
-          aprovado: "{{ odometro_valido and (not regressao or elegivel_historico) }}"
+          aprovado: >-
+            {{ odometro_valido and (not evidencia_obrigatoria or evidencia_presente)
+               and (not regressao or elegivel_historico) }}
           modo_teste: "{{ test_mode | default(false, true) }}"
 
       - if:
