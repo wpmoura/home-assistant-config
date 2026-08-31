@@ -235,13 +235,36 @@ template:
           # true apenas em success; false em failed (inclui falha de
           # contrato E falha de executor); preserva valor anterior nos
           # estados transitórios.
+          #
+          # GATE contrato_ok booleano: literais `true`/`false` (texto fora de
+          # `{{ }}`) renderizavam como STRING "true"/"false" — ast.literal_eval
+          # (conversão de tipo nativo do HA) só aceita os literais Python
+          # `True`/`False`, então a string minúscula nunca era promovida a
+          # booleano nativo (risco cosmético já registrado desde o Gate 5.3C).
+          # Fix: `{{ true }}`/`{{ false }}` (literais Jinja, minúsculos na
+          # sintaxe, avaliados internamente como True/False do Python) —
+          # mesmo padrão de coerção nativa já usado pelos demais atributos
+          # deste arquivo (ex.: duracao_segundos, execution_id). O ramo
+          # `else` normaliza explicitamente qualquer valor STRING legado
+          # ("true"/"True"/"false"/"False") já persistido antes deste fix
+          # para booleano nativo; um booleano nativo já presente é repassado
+          # sem alteração (idempotente); ausência de valor permanece `none`.
           contrato_ok: >-
             {% if estado_valido and evt.estado == 'success' %}
-              true
+              {{ true }}
             {% elif estado_valido and evt.estado == 'failed' %}
-              false
+              {{ false }}
             {% else %}
-              {{ this.attributes.contrato_ok | default(none) }}
+              {% set anterior = this.attributes.contrato_ok | default(none) %}
+              {% if anterior in [true, false] %}
+                {{ anterior }}
+              {% elif anterior in ['true', 'True'] %}
+                {{ true }}
+              {% elif anterior in ['false', 'False'] %}
+                {{ false }}
+              {% else %}
+                {{ none }}
+              {% endif %}
             {% endif %}
           # `modelo` e populado com "mock" a partir do Gate 5.3C sempre que
           # uma execucao (sucesso ou falha) e efetivamente tentada, para
