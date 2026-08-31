@@ -199,6 +199,38 @@ Dois sensores, dois namespaces, deliberadamente separados:
 - **Próxima atividade:** aplicar e homologar a integração diretamente no Node-RED (Fase 1 de leitura/documentação real do código + Fase 2 de implementação + Deploy controlado, por sessão/pessoa com acesso).
 - **Qualquer chamada real continua proibida sem autorização humana explícita e específica.**
 
+### 9.2 Diagnóstico de acesso Claude Code → Node-RED (somente leitura, nenhuma credencial testada)
+
+**Objetivo desta subseção:** registrar por que esta e sessões futuras do Claude Code não conseguem operar diretamente nos flows do Node-RED, e o que seria necessário para restaurar esse acesso — sem executar nenhuma correção agora.
+
+**Diagnóstico:**
+- Node-RED é alcançável pela LAN em `192.168.50.237:1880` — **conectividade de rede não é o problema** (correção de um diagnóstico anterior desta mesma frente, que havia testado endereços incorretos: IP interno Docker `172.30.32.1` e hostname mDNS `.local.hass.io`, nenhum dos dois alcançável a partir de uma sessão externa).
+- A tentativa somente-leitura à Admin API (`GET /`, `GET /auth/token`, `GET /flows`, sem enviar nenhuma credencial) retorna **HTTP 401** em todas as rotas testadas, com corpo/cabeçalhos idênticos: `Server: nginx`, `WWW-Authenticate: Basic realm="Home Assistant Authentication"`.
+- **Portanto: o bloqueio não é de conectividade — existe uma barreira de autenticação antes do acesso à Admin API.**
+- Nesta instalação do Claude Code **NÃO existe MCP dedicado ao Node-RED configurado**. `~/.claude.json` contém apenas o servidor `ha-mcp`; nenhuma entrada para Node-RED existe (global ou por projeto).
+- O acesso histórico utilizado nesta frente está documentado (`docs/governance/incidente_node_red_post_flows_gate53b1.md`) como chamadas HTTP diretas à Admin API do Node-RED, incluindo `GET /flows`, `POST /flows`, `PUT /flow/<id>` — mas **esse documento não registra a credencial/mecanismo usado para atravessar a autenticação**.
+- **Não foi possível comprovar nesta investigação** qual credencial ou mecanismo concreto era utilizado historicamente.
+- **Não foi encontrada** nenhuma credencial reutilizável, variável de ambiente, script auxiliar ou conta de automação Node-RED documentada em nenhum arquivo lido (`.claude/settings.local.json`, docs de governança).
+- O diagnóstico atual aponta para **autenticação Basic via proxy associado ao ambiente Home Assistant/Supervisor** (realm explicitamente identificado como "Home Assistant Authentication", resposta servida por `nginx`, não pelo próprio Node-RED) — consistente com o campo `protected: true` já observado na configuração do add-on. **Essa é uma hipótese fundamentada, não uma confirmação** — a autenticação efetiva ainda precisa ser comprovada por teste controlado antes de ser tratada como mecanismo operacional definitivo.
+- **Nenhuma senha, token, `credential_secret` ou outro segredo foi registrado nesta investigação ou neste handoff.**
+
+**Risco histórico importante — reafirmado:** existe incidente documentado nesta frente (`incidente_node_red_post_flows_gate53b1.md`, Gate 5.3B.1) envolvendo `POST /flows`, que provocou substituição integral do conjunto de flows e perda de 58 nós (recuperado sem perda residual). Por isso, **se o acesso automatizado ao Node-RED for restaurado no futuro**:
+- `POST /flows` fica **proibido** para alterações normais;
+- preferir `PUT /flow/<id>` para alteração cirúrgica (atualiza uma tab por vez, preserva as demais);
+- snapshot/export antes de qualquer escrita;
+- hash SHA-256 antes/depois;
+- zero retry automático;
+- verificação pós-escrita (`GET /flows` de conferência estrutural completa);
+- escopo mínimo por alteração;
+- Deploy controlado, nunca automático/silencioso.
+
+**Próximo passo técnico (nesta ordem):**
+1. Comprovar de forma controlada o mecanismo de autenticação real da Admin API (não presumir a hipótese acima como definitiva).
+2. Preferencialmente utilizar uma identidade dedicada para automação, evitando reutilizar credencial pessoal do usuário.
+3. Nunca persistir senha em texto claro em repositório ou `settings.local.json`.
+4. Somente depois, restaurar ao Claude Code acesso controlado à Admin API.
+5. Só então realizar a integração real Haiku/Sonnet no Node-RED (item 4 pendente da Seção 9, acima).
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
