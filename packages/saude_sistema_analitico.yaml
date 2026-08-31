@@ -446,6 +446,39 @@ input_select:
       - "1x por dia"
     initial: "Desativado"
 
+  ###############################################################################
+  # GATE — Seleção controlada do modelo analítico (Haiku/Sonnet)
+  #
+  # Fonte única de configuração do modelo Anthropic usado pelo Health Check
+  # Analítico (Node-RED deve ler este helper no início de cada execução real;
+  # a UI do HA escreve nele — sem editar flow para trocar de modelo). Apenas
+  # 2 opções, mapeadas explicitamente para identificadores reais de API — o
+  # Node-RED deve tratar qualquer valor fora desta whitelist como falha
+  # segura, e nunca aceitar nome de modelo arbitrário vindo de msg/payload
+  # externo.
+  #
+  # Mapeamento (aplicado no Node-RED, fora deste arquivo):
+  #   "Claude Haiku 4.5 — Econômico" -> claude-haiku-4-5
+  #   "Claude Sonnet 5 — Avançado"   -> claude-sonnet-5
+  #
+  # Preferência inicial: Haiku (opção econômica), por padrão operacional.
+  #
+  # PENDÊNCIA REGISTRADA: a leitura deste helper e a whitelist no Node-RED
+  # (gate53c_fn_prep_manual / gate53b_sf_fn_build_real_request) AINDA NÃO
+  # foram implementadas nesta fase — este helper existe e persiste a
+  # preferência do usuário, mas o pipeline real continua usando o modelo
+  # hardcoded (claude-sonnet-5) até essa integração ser feita por quem tiver
+  # acesso direto ao Node-RED. Ver proposta de código no gate de governança
+  # correspondente.
+  ###############################################################################
+  saude_sistema_health_check_modelo_analitico:
+    name: "Saúde do Sistema - Health Check - Modelo analítico"
+    icon: mdi:brain
+    options:
+      - "Claude Haiku 4.5 — Econômico"
+      - "Claude Sonnet 5 — Avançado"
+    initial: "Claude Haiku 4.5 — Econômico"
+
 ###############################################################################
 # GATE 5.3B.1 — Teste bidirecional HA → Node-RED → MOCK → HA
 #

@@ -157,6 +157,33 @@ Dois sensores, dois namespaces, deliberadamente separados:
 ### F. Melhorias futuras
 - Nenhuma additional formalmente proposta além das listadas acima; qualquer nova funcionalidade (ex.: cache prompt real, nova frequência de scheduler, dashboard novo) deve passar por um Gate explícito, autorizado por humano, com o mesmo rigor desta frente.
 
+## 9. GATE — Seleção controlada do modelo analítico (Haiku/Sonnet) — EM ANDAMENTO, NÃO CONCLUÍDO
+
+**Nota:** as Seções 1-8 acima predatam esta atividade e alguns eventos posteriores já ocorridos nesta linha do tempo (fix de `contrato_ok`, a 5ª chamada real Sonnet, correções de coerência do dashboard) — não foram reescritas aqui; esta seção documenta exclusivamente o estado desta atividade específica.
+
+**Objetivo:** permitir seleção controlada entre Claude Haiku 4.5 (econômico, padrão) e Claude Sonnet 5 (avançado) para o Health Check Analítico, com whitelist estrita no Node-RED.
+
+**Estado atual — INCOMPLETO:**
+- Commit local `d236c8b` (branch `gate/modelo-analitico-select`, worktree `config-gate-modelo-analitico`, cortado de `origin/main`) contém **somente** a criação do helper `input_select.saude_sistema_health_check_modelo_analitico` (YAML, `packages/saude_sistema_analitico.yaml`) — opções "Claude Haiku 4.5 — Econômico" / "Claude Sonnet 5 — Avançado", inicial = Haiku.
+- **Helper ainda NÃO implantado no runtime** (nem PR aberto, nem merge, nem `template.reload`/deploy executado).
+- **Seletor ainda NÃO presente no dashboard** — nenhum card foi adicionado (evitado deliberadamente, para não referenciar uma entidade inexistente em produção).
+- **Node-RED ainda usa `claude-sonnet-5` hardcoded** — nenhuma alteração foi feita no Node-RED nesta atividade (sem ferramenta de acesso ao Node-RED nesta sessão); o pipeline real não lê o novo helper.
+- **Portanto: Haiku ainda NÃO está operacional.** Selecionar a opção Haiku no helper (quando implantado) não terá nenhum efeito real até a integração Node-RED ser feita.
+- Correção dinâmica do card "Telemetria e Uso" (remoção da frase hardcoded "todas via motor MOCK até o momento", agora derivada de `sensor.saude_sistema_analitico_status.modelo`) **já foi aplicada em `.storage/lovelace.sistema_casa`** — essa parte está concluída e ao vivo.
+- Scheduler permanece `Desativado`. Pipeline permanece DARK/MOCK. **Zero nova chamada Anthropic realizada nesta atividade. Nenhuma chamada Haiku foi realizada.**
+- **Próxima chamada real continua proibida sem autorização humana explícita e específica** — mesma regra permanente desta frente.
+
+**Objetivo pendente (nesta ordem):**
+1. Proteger/versionar o helper pelo fluxo de governança (PR a partir do commit `d236c8b`, merge em `main`).
+2. Implantar o helper no runtime (mesmo mecanismo já usado no gate `contrato_ok`: sync do arquivo + `template.reload`).
+3. Adicionar o seletor ao dashboard (`.storage/lovelace.sistema_casa`, seção "Health Check Analítico (IA)").
+4. Alterar Node-RED (`gate53c_fn_prep_manual`/executor) para ler o helper e aplicar whitelist estrita:
+   - "Claude Haiku 4.5 — Econômico" → `claude-haiku-4-5`
+   - "Claude Sonnet 5 — Avançado" → `claude-sonnet-5`
+   - Qualquer valor fora da whitelist = falha segura, zero chamada.
+5. Validar ambos os caminhos **sem chamada externa** (MOCK/fixture/estrutural).
+6. **Somente depois**, solicitar autorização humana explícita para **UMA** chamada real Haiku (mesmo protocolo rigoroso já usado para a 5ª chamada Sonnet: pré-voo, guard temporário, zero retry, restauração imediata para DARK/MOCK).
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
