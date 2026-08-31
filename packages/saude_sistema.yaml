@@ -1,0 +1,159 @@
+###############################################################################
+# AT-HC-01 — Persistência do Health Check Operacional (Gate 3)
+#
+# Camada de PERSISTÊNCIA apenas. A inteligência semântica (observar runtime,
+# interpretar evidências, classificar saúde) é feita fora do HA por Claude +
+# HA-MCP; este package só recebe o resultado já classificado, valida a forma
+# do payload e o expõe como entidade — nada aqui decide se algo está saudável.
+#
+# Mesmo padrão trigger-based + evento customizado já comprovado em
+# packages/carro.yaml (sensor.carro_historico_de_odometro) e em
+# packages/contrato_publicacao_timeline_v20.yaml
+# (sensor.casa_timeline_publicacao_ack_v20): o sensor acumula/atualiza via
+# `trigger: platform: event`, usa `this.*` para reaproveitar o valor anterior
+# quando o payload recebido é inválido, e documenta seu próprio contrato em
+# um atributo `contrato`.
+#
+# Evento de publicação: saude_sistema_diagnostico_publicado
+# Campos obrigatórios do payload: status, checked_at, summary, source,
+#   contract_version, red_count, yellow_count, indeterminate_count.
+# Campo opcional: action_today, dominios (mapping).
+# Payload inválido (campo obrigatório ausente/tipo errado, status fora do
+# enum, checked_at não parseável como data) é REJEITADO silenciosamente do
+# ponto de vista de estado: o último resultado válido é preservado
+# integralmente (nenhum campo é parcialmente sobrescrito).
+#
+# Deliberadamente NÃO incluído em `recorder.include` (ver final deste
+# arquivo): o payload já é compacto por contrato, mas ficar fora do recorder
+# elimina de saída o risco do problema já conhecido de atributo grande
+# (sensor.carro_historico_de_odometro). O estado mais recente sobrevive a
+# reinícios via restauração nativa de trigger-based template sensor
+# (restored automaticamente pelo HA), independente do recorder.
+###############################################################################
+
+input_number:
+  saude_sistema_watchdog_limite_horas:
+    name: "Saúde do Sistema - Limite do watchdog (provisório)"
+    icon: mdi:timer-alert-outline
+    min: 1
+    max: 168
+    step: 1
+    unit_of_measurement: h
+    mode: box
+    initial: 48
+    # Valor inicial PROVISÓRIO (Gate 3). Ainda não existe cadência diária
+    # aprovada para o Health Check (isso é decisão de um gate futuro) — 48h
+    # foi escolhido apenas para não gerar falso "atrasado"/"crítico" durante
+    # a fase de implantação e testes, sem qualquer SLA real por trás. Deve
+    # ser revisto assim que uma cadência de execução for formalmente
+    # aprovada.
+
+template:
+  # Sensor principal — snapshot mais recente do Health Check.
+  - trigger:
+      - platform: event
+        event_type: saude_sistema_diagnostico_publicado
+    variables:
+      evt: "{{ trigger.event.data | default({}, true) }}"
+      estados_validos: ["healthy", "degraded", "failed", "indeterminate"]
+      status_valido: "{{ evt.status is defined and evt.status in estados_validos }}"
+      checked_at_valido: >-
+        {{ evt.checked_at is defined and evt.checked_at is string
+           and as_datetime(evt.checked_at, default=none) is not none }}
+      contadores_validos: >-
+        {{ evt.red_count is defined and evt.red_count is number and evt.red_count is not boolean
+           and evt.yellow_count is defined and evt.yellow_count is number and evt.yellow_count is not boolean
+           and evt.indeterminate_count is defined and evt.indeterminate_count is number and evt.indeterminate_count is not boolean }}
+      campos_texto_obrigatorios_ok: >-
+        {{ evt.summary is defined and evt.summary is string and evt.summary | trim != ''
+           and evt.source is defined and evt.source is string and evt.source | trim != ''
+           and evt.contract_version is defined and evt.contract_version is string and evt.contract_version | trim != '' }}
+      dominios_ok: "{{ evt.dominios is not defined or evt.dominios is mapping }}"
+      payload_valido: >-
+        {{ status_valido and checked_at_valido and contadores_validos
+           and campos_texto_obrigatorios_ok and dominios_ok }}
+    sensor:
+      - name: Saúde do Sistema - Status
+        unique_id: saude_sistema_status
+        icon: mdi:heart-pulse
+        state: "{{ evt.status if payload_valido else this.state }}"
+        attributes:
+          checked_at: "{{ evt.checked_at if payload_valido else this.attributes.checked_at | default(none) }}"
+          summary: "{{ evt.summary if payload_valido else this.attributes.summary | default(none) }}"
+          action_today: >-
+            {{ (evt.action_today if evt.action_today is defined else none) if payload_valido
+               else this.attributes.action_today | default(none) }}
+          red_count: "{{ evt.red_count if payload_valido else this.attributes.red_count | default(none) }}"
+          yellow_count: "{{ evt.yellow_count if payload_valido else this.attributes.yellow_count | default(none) }}"
+          indeterminate_count: >-
+            {{ evt.indeterminate_count if payload_valido
+               else this.attributes.indeterminate_count | default(none) }}
+          source: "{{ evt.source if payload_valido else this.attributes.source | default(none) }}"
+          contract_version: >-
+            {{ evt.contract_version if payload_valido
+               else this.attributes.contract_version | default(none) }}
+          dominios: >-
+            {{ (evt.dominios | default({}, true)) if payload_valido
+               else this.attributes.dominios | default({}) }}
+          payload_rejeitado: "{{ not payload_valido and evt != {} }}"
+          ultima_rejeicao_em: >-
+            {{ now().isoformat() if (not payload_valido and evt != {})
+               else this.attributes.ultima_rejeicao_em | default(none) }}
+          contrato: >
+            {{ {
+              'schema_version': 1,
+              'evento': 'saude_sistema_diagnostico_publicado',
+              'estados_permitidos': ['healthy', 'degraded', 'failed', 'indeterminate'],
+              'estados_nao_contaminantes': ['dormant_expected', 'informational'],
+              'campos_obrigatorios': ['status', 'checked_at', 'summary', 'source', 'contract_version', 'red_count', 'yellow_count', 'indeterminate_count'],
+              'campos_opcionais': ['action_today', 'dominios'],
+              'validacao': 'payload invalido preserva integralmente o ultimo resultado valido (nenhuma escrita parcial)',
+              'apresentacao_visual': 'responsabilidade do futuro dashboard, nao deste sensor',
+              'publicado_por': 'Claude + HA-MCP (observação/classificação fora do HA)'
+            } }}
+
+  # Watchdog — detecta se o próprio Health Check ficou desatualizado.
+  # Recalcula periodicamente (não depende de um novo evento chegar) porque a
+  # ausência de evento é justamente o que precisa ser percebida.
+  - trigger:
+      - platform: time_pattern
+        minutes: "/15"
+      - platform: event
+        event_type: saude_sistema_diagnostico_publicado
+    sensor:
+      - name: Saúde do Sistema - Watchdog
+        unique_id: saude_sistema_watchdog
+        icon: mdi:clock-alert-outline
+        state: >-
+          {% set checked_at = state_attr('sensor.saude_sistema_status', 'checked_at') %}
+          {% set dt = as_datetime(checked_at, default=none) if checked_at is not none else none %}
+          {% if dt is none %}
+            desconhecido
+          {% else %}
+            {% set limite = states('input_number.saude_sistema_watchdog_limite_horas') | float(48) %}
+            {% set horas = ((now() - dt).total_seconds() / 3600) %}
+            {% if horas <= limite %}
+              ok
+            {% elif horas <= (limite * 2) %}
+              atrasado
+            {% else %}
+              sem_execucao
+            {% endif %}
+          {% endif %}
+        attributes:
+          checked_at: "{{ state_attr('sensor.saude_sistema_status', 'checked_at') }}"
+          horas_desde_ultima_execucao: >-
+            {% set checked_at = state_attr('sensor.saude_sistema_status', 'checked_at') %}
+            {% set dt = as_datetime(checked_at, default=none) if checked_at is not none else none %}
+            {{ ((now() - dt).total_seconds() / 3600) | round(2) if dt is not none else none }}
+          limite_horas: "{{ states('input_number.saude_sistema_watchdog_limite_horas') | float(48) }}"
+          contrato: >
+            {{ {
+              'schema_version': 1,
+              'base_de_calculo': "state_attr('sensor.saude_sistema_status', 'checked_at')",
+              'motivo': 'checked_at reflete toda publicacao valida, mesmo quando o status textual nao muda; last_changed/last_updated da entidade nao serviriam sozinhos para isso',
+              'limite_configuravel_via': 'input_number.saude_sistema_watchdog_limite_horas',
+              'limite_e_provisorio': true,
+              'estados': ['ok', 'atrasado', 'sem_execucao', 'desconhecido'],
+              'nota': 'sem_execucao so e declarado acima de 2x o limite configurado; nunca antes da primeira publicacao valida (nesse caso o estado e desconhecido, nao sem_execucao)'
+            } }}

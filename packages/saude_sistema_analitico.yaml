@@ -1,0 +1,461 @@
+###############################################################################
+# AT-HC-03 — Fundação Operacional do Health Check Analítico (Gate 5.3B)
+#
+# Camada de PERSISTÊNCIA MÍNIMA do estado operacional da camada analítica por
+# IA (Anthropic) — NAMESPACE SEPARADO de sensor.saude_sistema_status
+# (AT-HC-01), que permanece soberano e nunca é escrito por este package.
+#
+# Este sensor não decide nada: apenas reflete transições de estado emitidas
+# pela orquestração em Node-RED (flow "Gate 5.3B - Fundacao Operacional
+# Health Check"). Não contém, em nenhuma etapa, a resposta integral de um
+# modelo Anthropic — apenas contagens/resumo curto (condicionante 2 do
+# Gate 5.3A). O campo `modelo` passou a ser populado com o literal "mock"
+# a partir do Gate 5.3C, para deixar inequivocamente explícito quando
+# nenhuma chamada Anthropic real ocorreu (nunca fabricar tokens/custo
+# como se fossem reais).
+#
+# GATE 5.3F.6.1 — telemetria real de tokens/custo. Os campos input_tokens/
+# output_tokens/custo_usd (e a granularidade cache_*/custo_*_usd/
+# modelo_retornado/stop_reason/request_id_ultima_chamada) eram reservados
+# (hardcoded para reaproveitar apenas `this.attributes.*`, nunca liam
+# `evt.*`) até este Gate. Passam agora a seguir o MESMO padrão dos demais
+# campos pos-execucao (leem evt.* em success/failed, preservam valor
+# anterior nos demais estados). Populados por gate53b_fn_finalize a partir
+# de msg.telemetria_real (extraido em gate53b_sf_fn_parse_real_response,
+# resp.usage da API real). Permanecem `none` quando nao numericos (MOCK,
+# falha antes de usage, ou campo ausente na resposta) — NUNCA fabricados.
+# Preco calculado com valores oficiais documentados em
+# platform.claude.com/docs/en/about-claude/pricing (consultado no Gate
+# 5.3F.6.1): claude-sonnet-5 input $2/MTok, output $10/MTok, cache write
+# 5m $2.50/MTok, cache read $0.20/MTok.
+#
+# Mesmo padrão trigger-based + evento customizado já comprovado em
+# packages/saude_sistema.yaml (AT-HC-01): `this.*` reaproveita o valor
+# anterior quando o evento recebido não se aplica ao campo, e um atributo
+# `contrato` documenta o contrato do próprio sensor.
+#
+# GATE 5.3C — schema de diagnóstico atualizado para o contrato pós-POC
+# homologado no Gate 5.2B (executor_gate52b_pos_poc.py, JSON_SCHEMA/
+# CHAVES_ESPERADAS): resumo, avaliacao_geral, evidencias_relevantes,
+# anomalias, inferencias, riscos, recomendacoes, dados_insuficientes,
+# possiveis_divergencias — todas as 9 chaves de nível superior do contrato
+# homologado, cada uma persistida como o resultado da ÚLTIMA execução
+# (nunca histórico cumulativo, para evitar crescimento ilimitado do
+# atributo). `contrato_ok` reflete se a última resposta (MOCK ou, no
+# futuro, real) passou na validação estrutural desse contrato.
+#
+# GATE 5.3D — scheduler e frequência configurável. `ultima_janela_scheduled_
+# atendida` é o CHECKPOINT anti-duplicidade do scheduler (Node-RED): marca a
+# última janela de calendário ("YYYY-MM-DD") em que uma execução scheduled
+# já foi despachada, atualizado por um evento dedicado
+# (health_check_scheduled_checkpoint) e propositalmente DESACOPLADO do
+# ciclo de sucesso/falha do FSM — permanece válido mesmo se a execução
+# scheduled daquela janela for rejeitada pelo lock ou falhar, garantindo no
+# máximo 1 tentativa scheduled por janela (guardrail estrutural). Sobrevive
+# a restart do Node-RED (memória de flow context é volátil; este atributo
+# vive no HA) e a restart do HA (restauração nativa de trigger-based
+# template sensor). `frequencia_na_execucao`/`janela_execucao` registram,
+# por execução, qual configuração estava vigente e qual janela foi
+# atendida (apenas quando origem=scheduled; None para manual/system_test).
+# `contagem_execucoes_*` são contadores CUMULATIVOS simples (não listas
+# ilimitadas) para observabilidade mínima de uso (Seção 17 do Gate 5.3D).
+#
+# Eventos consumidos (todos internos, disparados pelo próprio Node-RED,
+# nunca por chamada externa):
+#   - health_check_requested       {execution_id, origem, requested_at}
+#   - health_check_rejected        {origem, motivo, rejected_at}
+#   - health_check_state_changed   {execution_id, origem, estado, timestamp,
+#                                    motivo?, contrato_ok?, modelo?, + as
+#                                    9 chaves do contrato quando estado=success}
+#
+# Consolidação deliberada: em vez de um evento HA distinto por transição de
+# FSM (preparing/calling/processing/validating/success/failed/interrupted),
+# todas as transições de estado usam um único tipo de evento
+# (health_check_state_changed) com o campo `estado` distinguindo a fase —
+# reduz o número de listeners/sensores necessários nesta fundação.
+# `health_check_requested`/`health_check_rejected` permanecem eventos
+# distintos por representarem sinais anteriores à existência de uma
+# execução aceita (não há `estado` de FSM ainda nesse momento).
+#
+# Deliberadamente NÃO incluído em `recorder.include` — mesmo raciocínio do
+# AT-HC-01: o estado mais recente sobrevive a reinícios via restauração
+# nativa de trigger-based template sensor, independente do recorder.
+###############################################################################
+
+template:
+  - trigger:
+      - platform: event
+        event_type: health_check_requested
+        id: requested
+      - platform: event
+        event_type: health_check_rejected
+        id: rejected
+      - platform: event
+        event_type: health_check_state_changed
+        id: state_changed
+      - platform: event
+        event_type: health_check_scheduled_checkpoint
+        id: scheduled_checkpoint
+    variables:
+      evt: "{{ trigger.event.data | default({}, true) }}"
+      estados_validos: ["preparing", "calling", "processing", "validating", "success", "failed", "interrupted"]
+      eh_state_changed: "{{ trigger.id == 'state_changed' }}"
+      eh_rejected: "{{ trigger.id == 'rejected' }}"
+      eh_requested: "{{ trigger.id == 'requested' }}"
+      eh_scheduled_checkpoint: "{{ trigger.id == 'scheduled_checkpoint' }}"
+      estado_valido: >-
+        {{ eh_state_changed and evt.estado is defined and evt.estado in estados_validos }}
+    sensor:
+      - name: Saúde do Sistema - Analítico - Status
+        unique_id: saude_sistema_analitico_status
+        icon: mdi:brain
+        # Estado inicial (nunca houve evento): idle. Preserva o último
+        # estado válido quando o evento recebido não é um state_changed
+        # válido (ex.: um requested/rejected não move a FSM).
+        state: >-
+          {% if estado_valido %}
+            {{ evt.estado }}
+          {% elif this is defined and this.state not in [none, 'unknown', 'unavailable'] %}
+            {{ this.state }}
+          {% else %}
+            idle
+          {% endif %}
+        attributes:
+          execution_id: >-
+            {% if eh_requested or estado_valido %}
+              {{ evt.execution_id | default(none) }}
+            {% else %}
+              {{ this.attributes.execution_id | default(none) }}
+            {% endif %}
+          origem: >-
+            {% if eh_requested or estado_valido %}
+              {{ evt.origem | default(none) }}
+            {% else %}
+              {{ this.attributes.origem | default(none) }}
+            {% endif %}
+          iniciado_em: >-
+            {% if estado_valido and evt.estado == 'preparing' %}
+              {{ evt.timestamp | default(none) }}
+            {% elif estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ this.attributes.iniciado_em | default(none) }}
+            {% elif estado_valido and evt.estado == 'interrupted' %}
+              {{ this.attributes.iniciado_em | default(none) }}
+            {% elif not estado_valido %}
+              {{ this.attributes.iniciado_em | default(none) }}
+            {% else %}
+              {{ this.attributes.iniciado_em | default(none) }}
+            {% endif %}
+          finalizado_em: >-
+            {% if estado_valido and evt.estado in ['success', 'failed', 'interrupted'] %}
+              {{ evt.timestamp | default(none) }}
+            {% else %}
+              {{ this.attributes.finalizado_em | default(none) }}
+            {% endif %}
+          duracao_segundos: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.duracao_segundos | default(none) }}
+            {% elif estado_valido and evt.estado == 'interrupted' %}
+              {{ none }}
+            {% else %}
+              {{ this.attributes.duracao_segundos | default(none) }}
+            {% endif %}
+          motivo_falha: >-
+            {% if estado_valido and evt.estado in ['failed', 'interrupted'] %}
+              {{ evt.motivo | default(none) }}
+            {% elif estado_valido and evt.estado in ['preparing', 'calling', 'processing', 'validating', 'success'] %}
+              {{ none }}
+            {% else %}
+              {{ this.attributes.motivo_falha | default(none) }}
+            {% endif %}
+          ultima_rejeicao_em: >-
+            {{ evt.rejected_at if eh_rejected else this.attributes.ultima_rejeicao_em | default(none) }}
+          ultima_rejeicao_motivo: >-
+            {{ evt.motivo if eh_rejected else this.attributes.ultima_rejeicao_motivo | default(none) }}
+          ultima_rejeicao_origem: >-
+            {{ evt.origem if eh_rejected else this.attributes.ultima_rejeicao_origem | default(none) }}
+          # Diagnóstico (GATE 5.3C: contrato pós-POC homologado, 9 chaves).
+          # NUNCA a resposta integral bruta da IA — apenas estes campos
+          # estruturados, e apenas da ÚLTIMA execução (sem acúmulo).
+          resumo: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.resumo | default(none) }}
+            {% else %}
+              {{ this.attributes.resumo | default(none) }}
+            {% endif %}
+          avaliacao_geral: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.avaliacao_geral | default(none) }}
+            {% else %}
+              {{ this.attributes.avaliacao_geral | default(none) }}
+            {% endif %}
+          evidencias_relevantes: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.evidencias_relevantes | default([]) }}
+            {% else %}
+              {{ this.attributes.evidencias_relevantes | default([]) }}
+            {% endif %}
+          anomalias: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.anomalias | default([]) }}
+            {% else %}
+              {{ this.attributes.anomalias | default([]) }}
+            {% endif %}
+          inferencias: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.inferencias | default([]) }}
+            {% else %}
+              {{ this.attributes.inferencias | default([]) }}
+            {% endif %}
+          riscos: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.riscos | default([]) }}
+            {% else %}
+              {{ this.attributes.riscos | default([]) }}
+            {% endif %}
+          recomendacoes: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.recomendacoes | default([]) }}
+            {% else %}
+              {{ this.attributes.recomendacoes | default([]) }}
+            {% endif %}
+          dados_insuficientes: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.dados_insuficientes | default([]) }}
+            {% else %}
+              {{ this.attributes.dados_insuficientes | default([]) }}
+            {% endif %}
+          possiveis_divergencias: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              {{ evt.possiveis_divergencias | default([]) }}
+            {% else %}
+              {{ this.attributes.possiveis_divergencias | default([]) }}
+            {% endif %}
+          # contrato_ok: resultado da validação estrutural da última resposta
+          # (MOCK ou, no futuro, real) contra o contrato pós-POC homologado.
+          # true apenas em success; false em failed (inclui falha de
+          # contrato E falha de executor); preserva valor anterior nos
+          # estados transitórios.
+          contrato_ok: >-
+            {% if estado_valido and evt.estado == 'success' %}
+              true
+            {% elif estado_valido and evt.estado == 'failed' %}
+              false
+            {% else %}
+              {{ this.attributes.contrato_ok | default(none) }}
+            {% endif %}
+          # `modelo` e populado com "mock" a partir do Gate 5.3C sempre que
+          # uma execucao (sucesso ou falha) e efetivamente tentada, para
+          # deixar inequivoco quando nao houve Anthropic real.
+          modelo: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.modelo | default('mock') }}
+            {% else %}
+              {{ this.attributes.modelo | default(none) }}
+            {% endif %}
+          # GATE 5.3F.6.1: telemetria real de tokens/custo (ver nota no topo
+          # do arquivo). `none` ate que uma chamada real com usage numerico
+          # seja processada; nunca fabricado.
+          input_tokens: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.input_tokens | default(none) }}
+            {% else %}
+              {{ this.attributes.input_tokens | default(none) }}
+            {% endif %}
+          output_tokens: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.output_tokens | default(none) }}
+            {% else %}
+              {{ this.attributes.output_tokens | default(none) }}
+            {% endif %}
+          cache_creation_input_tokens: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.cache_creation_input_tokens | default(none) }}
+            {% else %}
+              {{ this.attributes.cache_creation_input_tokens | default(none) }}
+            {% endif %}
+          cache_read_input_tokens: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.cache_read_input_tokens | default(none) }}
+            {% else %}
+              {{ this.attributes.cache_read_input_tokens | default(none) }}
+            {% endif %}
+          custo_input_usd: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.custo_input_usd | default(none) }}
+            {% else %}
+              {{ this.attributes.custo_input_usd | default(none) }}
+            {% endif %}
+          custo_output_usd: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.custo_output_usd | default(none) }}
+            {% else %}
+              {{ this.attributes.custo_output_usd | default(none) }}
+            {% endif %}
+          custo_cache_write_usd: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.custo_cache_write_usd | default(none) }}
+            {% else %}
+              {{ this.attributes.custo_cache_write_usd | default(none) }}
+            {% endif %}
+          custo_cache_read_usd: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.custo_cache_read_usd | default(none) }}
+            {% else %}
+              {{ this.attributes.custo_cache_read_usd | default(none) }}
+            {% endif %}
+          custo_usd: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.custo_usd | default(none) }}
+            {% else %}
+              {{ this.attributes.custo_usd | default(none) }}
+            {% endif %}
+          modelo_retornado: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.modelo_retornado | default(none) }}
+            {% else %}
+              {{ this.attributes.modelo_retornado | default(none) }}
+            {% endif %}
+          stop_reason: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.stop_reason | default(none) }}
+            {% else %}
+              {{ this.attributes.stop_reason | default(none) }}
+            {% endif %}
+          request_id_ultima_chamada: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.request_id_ultima_chamada | default(none) }}
+            {% else %}
+              {{ this.attributes.request_id_ultima_chamada | default(none) }}
+            {% endif %}
+          # GATE 5.3D — checkpoint do scheduler (ver nota no topo do arquivo).
+          # Atualizado SOMENTE por health_check_scheduled_checkpoint; nunca
+          # tocado por nenhum outro tipo de evento.
+          ultima_janela_scheduled_atendida: >-
+            {% if eh_scheduled_checkpoint %}
+              {{ evt.janela | default(none) }}
+            {% else %}
+              {{ this.attributes.ultima_janela_scheduled_atendida | default(none) }}
+            {% endif %}
+          ultima_scheduled_marcada_em: >-
+            {% if eh_scheduled_checkpoint %}
+              {{ evt.timestamp | default(none) }}
+            {% else %}
+              {{ this.attributes.ultima_scheduled_marcada_em | default(none) }}
+            {% endif %}
+          # Frequência/janela vigentes na ÚLTIMA execução (apenas quando
+          # origem=scheduled; preservado nas demais transições/estados).
+          frequencia_na_execucao: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.frequencia_execucao | default(none) }}
+            {% else %}
+              {{ this.attributes.frequencia_na_execucao | default(none) }}
+            {% endif %}
+          janela_execucao: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.janela_execucao | default(none) }}
+            {% else %}
+              {{ this.attributes.janela_execucao | default(none) }}
+            {% endif %}
+          # Contadores cumulativos simples (Secao 17 do Gate 5.3D) - NAO sao
+          # listas ilimitadas, apenas inteiros incrementais.
+          contagem_execucoes_total: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ (this.attributes.contagem_execucoes_total | default(0, true)) + 1 }}
+            {% else %}
+              {{ this.attributes.contagem_execucoes_total | default(0) }}
+            {% endif %}
+          contagem_execucoes_manual: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] and evt.origem == 'manual' %}
+              {{ (this.attributes.contagem_execucoes_manual | default(0, true)) + 1 }}
+            {% else %}
+              {{ this.attributes.contagem_execucoes_manual | default(0) }}
+            {% endif %}
+          contagem_execucoes_scheduled: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] and evt.origem == 'scheduled' %}
+              {{ (this.attributes.contagem_execucoes_scheduled | default(0, true)) + 1 }}
+            {% else %}
+              {{ this.attributes.contagem_execucoes_scheduled | default(0) }}
+            {% endif %}
+          contrato: >
+            {{ {
+              'schema_version': 3,
+              'namespace': 'camada analítica (Gate 5.3B/5.3C/5.3D) — separado do estado determinístico de sensor.saude_sistema_status',
+              'eventos_consumidos': ['health_check_requested', 'health_check_rejected', 'health_check_state_changed', 'health_check_scheduled_checkpoint'],
+              'estados_fsm': ['idle', 'preparing', 'calling', 'processing', 'validating', 'success', 'failed', 'interrupted'],
+              'contrato_diagnostico': ['resumo', 'avaliacao_geral', 'evidencias_relevantes', 'anomalias', 'inferencias', 'riscos', 'recomendacoes', 'dados_insuficientes', 'possiveis_divergencias'],
+              'contrato_diagnostico_origem': 'schema pos-POC homologado no Gate 5.2B (executor_gate52b_pos_poc.py)',
+              'origens_validas': ['manual', 'scheduled', 'system_test'],
+              'scheduler': 'frequencia configurada em input_select.saude_sistema_health_check_frequencia; checkpoint anti-duplicidade em ultima_janela_scheduled_atendida',
+              'principio': 'a IA nao e fonte da verdade operacional; este sensor reflete apenas o estado do MECANISMO analitico, nunca altera sensor.saude_sistema_status',
+              'persistencia_enxuta': 'nunca armazena resposta integral da IA; apenas os campos estruturados do contrato, e apenas da ultima execucao (sem historico cumulativo, exceto contadores inteiros simples)',
+              'publicado_por': 'Node-RED (flow Gate 5.3B/5.3C/5.3D), sem chamada Anthropic real ate o momento'
+            } }}
+
+###############################################################################
+# GATE 5.3D — Frequência automática configurável do Health Check
+#
+# Fonte única de configuração do scheduler (Node-RED lê este helper; a UI
+# do HA escreve nele — sem editar flow para trocar frequência). Opções
+# fixas e definitivas (NUNCA adicionar opções de teste aqui — ver Node-RED,
+# mecanismo de teste acelerado usa fixture de data, nunca uma opção nova
+# neste helper).
+#
+# Política determinística de dias (documentada; Node-RED aplica):
+#   Desativado     -> nenhuma execução automática
+#   1x por semana  -> segunda-feira
+#   2x por semana  -> segunda-feira e quinta-feira
+#   3x por semana  -> segunda, quarta e sexta-feira
+#   1x por dia     -> todos os dias
+# Horário fixo de execução: 08:00 (horário local), constante documentada em
+# Node-RED (gate53d_fn_decidir), fácil de alterar, não configurável pela UI
+# neste Gate (ver Seção 5 do Gate 5.3D — evitar complexidade desnecessária
+# sem requisito prévio de horário configurável).
+###############################################################################
+input_select:
+  saude_sistema_health_check_frequencia:
+    name: "Saúde do Sistema - Health Check - Frequência automática"
+    icon: mdi:calendar-clock
+    options:
+      - "Desativado"
+      - "1x por semana"
+      - "2x por semana"
+      - "3x por semana"
+      - "1x por dia"
+    initial: "Desativado"
+
+###############################################################################
+# GATE 5.3B.1 — Teste bidirecional HA → Node-RED → MOCK → HA
+#
+# Helper EXCLUSIVAMENTE DE TESTE, usado apenas para comprovar que Node-RED
+# consegue: (a) reagir a uma mudança de estado originada no lado HA, e
+# (b) publicar de volta o resultado do MOCK no HA (via sensor acima).
+#
+# NÃO é o botão manual de produção (esse foi implementado no Gate 5.3C como
+# input_button.saude_sistema_executar_health_check_manual, abaixo). Escopo
+# deste helper permanece estritamente limitado à validação da interface
+# bidirecional feita no Gate 5.3B.1.
+###############################################################################
+input_boolean:
+  gate53b1_teste_disparo_ha:
+    name: "Gate 5.3B.1 - Teste - Disparo HA -> Node-RED (NAO E O BOTAO FINAL)"
+    icon: mdi:test-tube
+
+###############################################################################
+# GATE 5.3C — Execução manual controlada do Health Check
+#
+# input_button (não input_boolean): cada `press` produz um novo timestamp de
+# estado, então toda solicitação é uma transição de estado real e distinta —
+# não requer lógica de "resetar" um booleano após o uso, ao contrário de um
+# botão simulado por input_boolean. Semântica exata de um botão momentâneo
+# de UI ("Executar Health Check agora"), preparado para representação futura
+# no dashboard definitivo (Gate 5.3E, não implementado aqui).
+#
+# Ainda 100% MOCK: nenhuma chamada Anthropic real é feita ao pressionar este
+# botão neste Gate. O Node-RED escuta mudanças deste estado e injeta a
+# solicitação na MESMA cadeia de lock/FSM/executor/validação já homologada
+# nos Gates 5.3B/5.3B.1, com origem='manual'.
+###############################################################################
+input_button:
+  saude_sistema_executar_health_check_manual:
+    name: "Saúde do Sistema - Executar Health Check agora"
+    icon: mdi:play-circle
