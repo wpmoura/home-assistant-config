@@ -174,15 +174,30 @@ Dois sensores, dois namespaces, deliberadamente separados:
 - **Próxima chamada real continua proibida sem autorização humana explícita e específica** — mesma regra permanente desta frente.
 
 **Objetivo pendente (nesta ordem):**
-1. Proteger/versionar o helper pelo fluxo de governança (PR a partir do commit `d236c8b`, merge em `main`).
-2. Implantar o helper no runtime (mesmo mecanismo já usado no gate `contrato_ok`: sync do arquivo + `template.reload`).
-3. Adicionar o seletor ao dashboard (`.storage/lovelace.sistema_casa`, seção "Health Check Analítico (IA)").
-4. Alterar Node-RED (`gate53c_fn_prep_manual`/executor) para ler o helper e aplicar whitelist estrita:
+1. ~~Proteger/versionar o helper pelo fluxo de governança~~ — **CONCLUÍDO**: PR #5 mergeado em `main` (merge commit `984519fbf4f0d5e4f5b9bb10ce368cb222d72ac6`).
+2. ~~Implantar o helper no runtime~~ — **CONCLUÍDO**: `input_select.saude_sistema_health_check_modelo_analitico` implantado via sync do arquivo + `input_select.reload` (não `template.reload` — reload específico do domínio, sem restart).
+3. ~~Adicionar o seletor ao dashboard~~ — **CONCLUÍDO**: tile presente em `.storage/lovelace.sistema_casa`, seção "Health Check Analítico (IA)", com legenda explícita "(em preparação)" para não induzir o usuário a acreditar que já está operacional.
+4. Alterar Node-RED (`gate53c_fn_prep_manual`/executor) para ler o helper e aplicar whitelist estrita — **AINDA NÃO FEITO**:
    - "Claude Haiku 4.5 — Econômico" → `claude-haiku-4-5`
    - "Claude Sonnet 5 — Avançado" → `claude-sonnet-5`
-   - Qualquer valor fora da whitelist = falha segura, zero chamada.
-5. Validar ambos os caminhos **sem chamada externa** (MOCK/fixture/estrutural).
+   - Qualquer valor fora da whitelist = falha segura (`modelo_analitico_invalido`), zero chamada.
+5. Validar ambos os caminhos **sem chamada externa** (MOCK/fixture/estrutural) — **PARCIALMENTE FEITO**: ver Seção 9.1 abaixo.
 6. **Somente depois**, solicitar autorização humana explícita para **UMA** chamada real Haiku (mesmo protocolo rigoroso já usado para a 5ª chamada Sonnet: pré-voo, guard temporário, zero retry, restauração imediata para DARK/MOCK).
+
+### 9.1 Atualização — tentativa de integração Node-RED (validação apenas como lógica isolada; Node-RED real NÃO alterado)
+
+**Estado runtime confirmado nesta atualização:**
+- Helper **implantado e homologado**: `input_select.saude_sistema_health_check_modelo_analitico`, `state` atual = **"Claude Haiku 4.5 — Econômico"**, `options` = `["Claude Haiku 4.5 — Econômico", "Claude Sonnet 5 — Avançado"]`.
+- Seletor **presente no dashboard**, junto aos controles de "Frequência automática"/"Executar Health Check agora", com legenda "(em preparação)".
+- **Whitelist Haiku/Sonnet validada apenas como lógica isolada** (Node.js local, zero rede, zero Node-RED real, zero Anthropic): 10/10 casos PASS — Haiku→`claude-haiku-4-5`, Sonnet→`claude-sonnet-5`, valores inválidos (id de API bruto, outro provedor, payload de injeção) e estados HA não-operacionais (`unavailable`/`unknown`/vazio/`undefined`/`null`) → `modelo_analitico_invalido`, zero POST simulado. **Isso prova apenas a lógica proposta, não o comportamento do Node-RED real.**
+- **Node-RED real NÃO foi alterado** — sem ferramenta de acesso ao Node-RED nesta sessão (mesma limitação já registrada nos gates de pré-voo da 5ª chamada). Código proposto (função `resolverModeloAnalitico`) entregue como sugestão para aplicação futura por quem tiver acesso direto.
+- **Executor real continua hardcoded em `claude-sonnet-5`.**
+- **Portanto: Haiku AINDA NÃO está operacional** — a seleção no helper não tem nenhum efeito sobre qual modelo é efetivamente chamado.
+- **Nenhuma chamada Haiku foi realizada. Nenhuma nova chamada Sonnet foi realizada.**
+- Pipeline permanece **DARK/MOCK**. Scheduler permanece **Desativado**.
+- `anthropic_calls_this_gate` **continua sendo um débito técnico separado** (escopo/persistência do contador) — deliberadamente não tocado nem usado para validar esta atividade, para não misturar frentes.
+- **Próxima atividade:** aplicar e homologar a integração diretamente no Node-RED (Fase 1 de leitura/documentação real do código + Fase 2 de implementação + Deploy controlado, por sessão/pessoa com acesso).
+- **Qualquer chamada real continua proibida sem autorização humana explícita e específica.**
 
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
