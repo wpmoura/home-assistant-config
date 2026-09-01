@@ -231,6 +231,50 @@ Dois sensores, dois namespaces, deliberadamente separados:
 4. Somente depois, restaurar ao Claude Code acesso controlado à Admin API.
 5. Só então realizar a integração real Haiku/Sonnet no Node-RED (item 4 pendente da Seção 9, acima).
 
+### 9.3 INTEGRAÇÃO REAL HAIKU/SONNET NO NODE-RED — CONCLUÍDA E AUDITADA
+
+**Estado homologado:**
+- Acesso programático Claude Code → Node-RED **restaurado** via HTTP Basic Auth com conta dedicada (não a pessoal do usuário).
+- `GET /flows` autenticado retornou HTTP 200.
+- Node-RED real confirmado contendo `Gate 5.3B`, `HC Executor`, subflow `gate53b_subflow_executor`.
+
+**Alteração aplicada:**
+- Mecanismo utilizado: **`PUT /flow/global`** (`GET /flow/<id>` de subflow retorna 404 neste runtime — só tabs são endereçáveis individualmente; `/flow/global` é o mecanismo oficial para configs/subflows).
+- **`POST /flows` NÃO foi utilizado.**
+- **Exatamente 1** `PUT /flow/global` executado, **zero retry**.
+
+**Escopo da alteração, dentro de `gate53b_subflow_executor`:**
+1. Criado: `gate53b_sf_st_modelo_analitico` (tipo `api-current-state`, mesmo padrão nativo já usado por `gate53d_st_frequencia` para o helper de frequência — não um `global.get` inventado).
+2. Alterado somente: `gate53b_sf_fn_router.wires[1]` — de `gate53b_sf_fn_build_real_request` para `gate53b_sf_st_modelo_analitico`.
+3. Alterado: `gate53b_sf_fn_build_real_request` — whitelist estrita:
+   ```
+   "Claude Haiku 4.5 — Econômico" -> "claude-haiku-4-5"
+   "Claude Sonnet 5 — Avançado"   -> "claude-sonnet-5"
+   qualquer outro valor -> executor_erro = 'modelo_analitico_invalido', bloqueio ANTES do HTTP POST
+   ```
+   Hardcode `model: 'claude-sonnet-5'` substituído por `model: modeloResolvido`.
+
+**Preservações confirmadas:** caminho MOCK, DARK/MOCK, zero retry, lock, timeout, contrato JSON, coleta, credencial Anthropic (nunca exposta), scheduler, frequência, telemetria existente — todos intocados. HTTP request Anthropic **não foi executado** em nenhum momento. Nenhum segredo trafegou em `GET /flow/global` (campo `env` do subflow, tipo `cred`, sem `value` na leitura).
+
+**Validação:**
+- `PUT /flow/global` → HTTP 200; `GET` pós-escrita → HTTP 200.
+- Diff estrutural (hash antes/depois) confirmou **somente**: 1 nó criado, 1 wire alterado, 1 Function alterada — nenhuma outra diferença.
+- Whitelist validada isoladamente (Node.js local, antes do deploy): **10/10 PASS** — Haiku→`claude-haiku-4-5`, Sonnet→`claude-sonnet-5`, inválido/`unavailable`/`unknown`/ausente→`modelo_analitico_invalido`. Código implantado confirmado textualmente idêntico ao validado.
+- **Zero chamada Anthropic.** `contagem_execucoes_total = 26`. `hc_em_andamento = false` (lido diretamente via `GET /context/flow/gate53b_tab`, autenticado). `scheduler = Desativado`. Helper atual = `"Claude Haiku 4.5 — Econômico"`.
+
+**Riscos residuais / débitos técnicos:**
+1. `anthropic_calls_this_gate` permanece **`4`** no contexto observado (lido ao vivo via `/context/flow/gate53b_tab`) — divergente do que a leitura de código sozinha sugeria (guard `>=5`). **Não corrigido nem reinterpretado nesta atividade.** Tratar separadamente.
+2. Existe **segundo hardcode** em `gate53b_sf_fn_parse_real_response` (linha ~19: `msg.modelo_usado = 'claude-sonnet-5'`, nunca reatribuído no ramo de erro HTTP) que pode registrar `claude-sonnet-5` incorretamente na telemetria **se uma chamada Haiku real falhar** antes de retornar `resp.model`. **Não corrigido nesta atividade.** Tratar separadamente.
+3. O único `config` global do Home Assistant (`87769718.457718`) teve seu campo `_users` atualizado automaticamente pelo próprio runtime do Node-RED (registro de que o novo nó passou a referenciá-lo) — **não foi uma alteração deliberada desta atividade**, é comportamento padrão do sistema ao criar um nó que referencia esse config node. Nenhum outro campo do config mudou; nenhuma credencial exposta.
+
+**Estado final:**
+- Helper Haiku/Sonnet operacional. Seletor presente no dashboard. Node-RED integrado ao seletor. **Haiku tecnicamente operacional no executor.**
+- **Nenhuma chamada Haiku real executada ainda.** Pipeline permanece DARK/MOCK. Scheduler permanece Desativado.
+- **Próxima chamada real continua proibida sem autorização humana explícita e específica.**
+
+**Governança futura para Node-RED (regra permanente, reafirmada):**
+`GET` para auditoria · `PUT /flow/<tab_id>` quando aplicável · `PUT /flow/global` somente quando necessário para subflow (tabs não endereçam subflows individualmente neste runtime) · `POST /flows` proibido para alterações normais · snapshot/hash antes · diff estrutural pós-escrita · zero retry · leitura pós-escrita · segredo nunca em log/repositório.
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
