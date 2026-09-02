@@ -1,7 +1,7 @@
 ## Handoff — Health Check / Saúde do Sistema (pós-merge PR #2)
 
 **Data deste handoff:** 2026-08-31
-**Última atualização de conteúdo:** 2026-09-02 (Seções 5, 7, 8, 9.4-9.9, 10 e 11 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard, auditoria Health Check → Timeline, entrada em operação normal e diagnóstico de billing/créditos Anthropic). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.
+**Última atualização de conteúdo:** 2026-09-02 (Seções 5, 7, 8, 9.4-9.9, 10, 11 e 12 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard, auditoria Health Check → Timeline, entrada em operação normal, diagnóstico de billing/créditos Anthropic, e habilitação do scheduler 1x/dia com a primeira execução automática ainda PENDENTE de homologação). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.
 **Autor:** sessão Claude Code anterior (compactada múltiplas vezes) — este documento existe exatamente para que uma NOVA sessão, sem esse contexto, não precise reconstruir nada por memória.
 
 **Regra de ouro deste documento:** tudo aqui foi verificado por leitura direta (Git/GitHub, runtime HA/Node-RED, arquivos versionados) no momento em que foi escrito. Runtime muda; releia antes de agir. Ver "REGRAS PARA A PRÓXIMA SESSÃO" no final.
@@ -519,13 +519,124 @@ Toggle MOCK `off`, scheduler `Desativado`, lock livre, modelo selecionado inalte
 1. Classificação `billing` depende de correspondência de texto no `message` real — se a Anthropic mudar a redação da mensagem, pode cair em `desconhecido` (seguro por design: nunca falha silenciosamente, o erro original continua sempre visível).
 2. Push nunca testado sob lock realmente ocupado (limitação do harness, não da implementação).
 
+## 12. GATE — Scheduler habilitado (1x/dia) — HOMOLOGAÇÃO AUTOMÁTICA PENDENTE
+
+**Consolidação para troca de sessão — auditado por leitura direta de runtime e Git/GitHub em 2026-09-02, não por memória.**
+
+### 12.1 Entrada em operação normal (consolidado — ver Seção 10)
+
+- Health Check operacional para uso normal.
+- Botão manual: REAL por padrão.
+- Scheduler: REAL por padrão quando habilitado.
+- MOCK disponível somente pelo toggle administrativo `input_boolean.saude_sistema_health_check_modo_mock`.
+- Toggle MOCK atual: `off`.
+- Modelo selecionado: `Claude Haiku 4.5 — Econômico`.
+- Lock atual: livre (`hc_em_andamento=false`).
+- Zero retry preservado em toda a frente.
+
+### 12.2 Homologação manual real (consolidado — ver Seção 10.7)
+
+| Campo | Valor |
+|---|---|
+| Caminho | Dashboard → botão manual → executor REAL → Anthropic |
+| Modelo real retornado | `claude-haiku-4-5-20251001` |
+| HTTP | `200` |
+| `contrato_ok` | `true` |
+| Tokens input/output | `6100` / `2155` |
+| Custo persistido | `US$ 0,016875` |
+| Custo recalculado | `US$ 0,016875` — MATCH |
+| Contagem total | `31 → 32` |
+| Contagem manual | `13 → 14` |
+| Zero retry | confirmado |
+| Lock final | livre |
+
+### 12.3 Billing/Credit Diagnostics (consolidado — ver Seção 11)
+
+- Implementado e homologado **sem** chamada Anthropic real.
+- Campos expostos em `sensor.saude_sistema_analitico_status`: `erro_status_http`, `erro_tipo`, `erro_mensagem`, `erro_categoria`, `erro_diagnostico`.
+- Diagnóstico visível no dashboard (card "Estado da Execução").
+- HTTP/error type/mensagem original **preservados quando disponíveis** — nunca descartados, mesmo com corpo truncado/não-JSON.
+- `erro_diagnostico` combina diagnóstico + orientação em um único campo (não existe campo separado de "ação recomendada").
+- Falhas de billing/crédito **não ficam silenciosas**: classificadas, visíveis no dashboard, e com Push dedicado (categorias `billing`/`limite`/`autenticacao`).
+- **Risco residual**: mudança futura no texto retornado pela Anthropic pode afetar apenas a categorização fina (`erro_categoria` cairia em `desconhecido`) — o dado bruto (`erro_status_http`/`erro_tipo`/`erro_mensagem`) continua sempre preservado e visível independentemente disso.
+
+### 12.4 Scheduler — estado atual
+
+- Anteriormente: `Desativado`.
+- **Em 2026-09-02: habilitado para `1x por dia`** (autorização humana explícita).
+- Horário real, já existente no código (`gate53d_fn_decidir`, **não inventado nesta atividade**): `HORA_EXECUCAO_UTC = 11` → **08:00 America/Sao_Paulo**, todos os dias da semana.
+- `gate53d_scheduler_tick` (inject de produção) verifica a condição a cada **15 minutos**.
+- Checkpoint anti-duplicidade por janela diária: `ultima_janela_scheduled_atendida`, comparado contra a data corrente (formato `YYYY-MM-DD`).
+- Caminho automático: **REAL** — mesmo gate único de convergência da Seção 10 (`gate53_st_modo_mock_admin`/`gate53_fn_aplicar_modo_mock`), `mock_mode` resolvido pelo toggle administrativo.
+- Toggle MOCK no momento da habilitação: `off`.
+- Modelo no momento da habilitação: `Claude Haiku 4.5 — Econômico`.
+- Habilitar o scheduler **não disparou execução**: `contagem_execucoes_total` permaneceu **`42`** imediatamente após a mudança (confirmado por leitura antes/depois).
+- Chamadas Anthropic durante a habilitação: **`0`**.
+
+### 12.5 Primeira execução automática (scheduled, 08:00 America/Sao_Paulo) — CONCLUÍDA E AUDITADA (auditoria somente-leitura, 2026-09-02)
+
+**Estado anterior desta seção (SUPERADO — preservado para rastreabilidade):**
+
+> PENDÊNCIA IMEDIATA — próximo passo (NÃO CONCLUÍDO)
+> Aguardar a primeira execução automática normal, prevista para 08:00 America/Sao_Paulo.
+> A próxima sessão deve auditar, sem disparar manualmente: existência da execução scheduled;
+> horário real; origem=scheduled; modelo selecionado; model ID real retornado; HTTP; contrato_ok;
+> tokens; custo persistido/recalculado; incremento de contagem_execucoes_total/_scheduled;
+> contagem_execucoes_manual inalterada; zero retry; ausência de 2ª execução na janela; lock final
+> livre; frequência ainda 1x/dia; toggle MOCK ainda off; Billing/Credit Diagnostics sem alerta.
+> Esta execução NÃO deve ser declarada homologada antes de existir evidência de runtime real.
+
+**Auditoria realizada** — somente leitura (`ha_get_state` + `ha_get_history` sobre
+`sensor.saude_sistema_analitico_status`, before/after da transição de hoje), zero disparo manual,
+zero chamada Anthropic, zero escrita em Node-RED/HA/dashboard/Git nesta atividade:
+
+| Item auditado (checklist original) | Resultado |
+|---|---|
+| `execution_id` | `hc-mtjzodga-4rq9t4k0` |
+| `origem` | `scheduled` |
+| Horário real (America/Sao_Paulo) | `iniciado_em` 08:04:38.946 → `finalizado_em` 08:05:04.431 (`duracao_segundos=25.493`) |
+| Modelo selecionado no disparo | `Claude Haiku 4.5 — Econômico` (helper inalterado desde 31/08) |
+| Model ID real retornado | `claude-haiku-4-5-20251001` |
+| `contrato_ok` | `true` (9 chaves) |
+| Tokens input/output | `6099` / `2260` |
+| Custo persistido | `US$ 0,017399` |
+| Custo recalculado independentemente ((6099/1e6×1)+(2260/1e6×5)) | `US$ 0,017399` — **MATCH exato** |
+| `contagem_execucoes_total` | `42 → 43` |
+| `contagem_execucoes_scheduled` | `5 → 6` |
+| `contagem_execucoes_manual` | `15 → 15` — **inalterada**, confirmado por leitura before/after via histórico |
+| FSM percorrida | `preparing → calling → processing → validating → success`, sem repetição de `calling`/`failed` — nenhum indício estrutural de retry |
+| Segunda execução na mesma janela | Não há — uma única transição `scheduled`; `ultima_janela_scheduled_atendida=2026-09-02` gravado uma vez |
+| Frequência do scheduler | `1x por dia`, inalterada |
+| Toggle MOCK administrativo | `off`, inalterado (`last_changed` de 01/09, anterior à execução) |
+| Billing/Credit Diagnostics | Sem alerta — `erro_status_http`/`erro_tipo`/`erro_categoria`/`erro_diagnostico` = `null` |
+| HTTP status | O contrato do sensor não persiste um campo dedicado para HTTP em caminho de sucesso (só existe `erro_status_http`, usado em falha, aqui `null`). Inferido indiretamente por `contrato_ok=true` + `stop_reason=end_turn` + ausência de erro — **não é leitura direta de código HTTP**, registrado por honestidade metodológica |
+| Lock final (`hc_em_andamento`) | **Não verificável diretamente via HA nesta auditoria** — o lock vive só no contexto de flow do Node-RED; nenhum MCP dedicado ao Node-RED está configurado nesta sessão (mesma limitação já registrada na Seção 9.2). Inferência indireta apenas: estado terminal `success` estável, sem nova `preparing` pendurada |
+
+**Conclusão da auditoria:** a 1ª execução automática do scheduler ocorreu, pelo caminho REAL, com
+sucesso de contrato e custo validado por recálculo independente, contadores coerentes com o padrão
+já observado na frente, e nenhum indício estrutural de retry ou execução duplicada. **O critério de
+homologação da Seção 12.5 original está satisfeito**, com uma ressalva honesta: o estado final do
+lock Node-RED não pôde ser confirmado por leitura direta (limitação de acesso desta sessão, não um
+achado negativo).
+
+**Pendência remanescente:** nenhuma funcional. Nenhuma ação corretiva foi necessária. Documentação
+desta auditoria ainda não commitada/PR'd — ver Seção 12.6.
+
+### 12.6 Governança/Git — marcos protegidos em `main` (auditados nesta atividade via `gh pr view`)
+
+| PR | Estado | Merge commit | Conteúdo |
+|---|---|---|---|
+| #10 | **MERGED** | `fbda93366a9e3bc42bc9e4d21ac0bf6f7613a3a8` | Seção 10 — entrada em operação normal |
+| #11 | **MERGED** | `7fae4e2dc34eb37a1b946f8b8eeaecd02a926688` | Seção 11 — diagnóstico billing/créditos Anthropic |
+| *(a abrir)* | **NÃO CRIADO** | — | Seção 12.5 — auditoria somente-leitura da 1ª execução automática (2026-09-02) |
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
-- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-11); Node-RED/HA podem ter mudado desde então.
+- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-12); Node-RED/HA podem ter mudado desde então. **Em especial**: a Seção 12 registra o scheduler habilitado (`1x por dia`, 08:00 America/Sao_Paulo) mas com a **primeira execução automática ainda não confirmada por evidência de runtime** — comece por aí.
 - **Não confie apenas em memória conversacional** (nem a de sessões anteriores, nem eventual resumo automático) — reconstrua a partir de `main`, runtime e Git/GitHub, nessa ordem.
 - **Regra de autorização para chamada Anthropic — atualizada pela Seção 10**: durante a fase de homologação (Seções 1-9), toda chamada real exigia autorização humana explícita e específica por chamada. **A partir da Seção 10, o Health Check está em operação normal** — botão manual e scheduler (quando habilitado) fazem chamadas reais **sem exigir uma nova autorização a cada disparo**, pois essa é agora a operação padrão pretendida e homologada. Isso não dispensa autorização humana para **alterar** esse comportamento (voltar a MOCK por padrão, mudar o mecanismo, etc.) — apenas para o uso normal já homologado.
-- **Não habilitar o scheduler automaticamente** — ele é `Desativado` por padrão, e essa é uma escolha deliberada até uma decisão humana explícita em contrário.
+- ~~Não habilitar o scheduler automaticamente — ele é Desativado por padrão~~ — **SUPERADO pela Seção 12**: o scheduler foi habilitado para `1x por dia` em 2026-09-02 por autorização humana explícita. A regra permanente que continua valendo é outra: **não alterar a frequência/toggle MOCK/modelo sem autorização humana explícita** — a habilitação já feita não deve ser revertida ou alterada sem uma nova decisão humana igualmente explícita.
 - **Não expor, imprimir, logar ou tentar ler a credencial Anthropic** em nenhuma circunstância.
 - **Não executar nenhuma ação física** a partir de uma saída da camada analítica — ela produz apenas recomendações.
 - **Preservar `sensor.saude_sistema_status` como soberano** — nenhuma alteração desta frente deve escrever nele.
