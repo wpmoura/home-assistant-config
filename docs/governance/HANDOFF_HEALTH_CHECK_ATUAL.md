@@ -573,35 +573,54 @@ Toggle MOCK `off`, scheduler `Desativado`, lock livre, modelo selecionado inalte
 - Habilitar o scheduler **não disparou execução**: `contagem_execucoes_total` permaneceu **`42`** imediatamente após a mudança (confirmado por leitura antes/depois).
 - Chamadas Anthropic durante a habilitação: **`0`**.
 
-### 12.5 PENDÊNCIA IMEDIATA — próximo passo (NÃO CONCLUÍDO)
+### 12.5 Primeira execução automática (scheduled, 08:00 America/Sao_Paulo) — CONCLUÍDA E AUDITADA (auditoria somente-leitura, 2026-09-02)
 
-**Aguardar a primeira execução automática normal**, prevista para `08:00 America/Sao_Paulo`.
+**Estado anterior desta seção (SUPERADO — preservado para rastreabilidade):**
 
-A próxima sessão deve **auditar, sem disparar manualmente**:
-- existência da execução `scheduled`;
-- horário real da execução;
-- `origem = scheduled`;
-- modelo selecionado no momento;
-- model ID real retornado;
-- HTTP;
-- `contrato_ok`;
-- tokens input/output;
-- custo persistido;
-- custo recalculado (comparação independente);
-- incremento de `contagem_execucoes_total`;
-- incremento de `contagem_execucoes_scheduled`;
-- `contagem_execucoes_manual` **inalterada**;
-- zero retry;
-- ausência de segunda execução na mesma janela;
-- lock final livre;
-- frequência ainda `1x por dia`;
-- toggle MOCK ainda `off`;
-- Billing/Credit Diagnostics sem alerta (execução normal esperada — nenhuma categoria `billing`/`limite`/`autenticacao`/`temporario`/`desconhecido` presente).
+> PENDÊNCIA IMEDIATA — próximo passo (NÃO CONCLUÍDO)
+> Aguardar a primeira execução automática normal, prevista para 08:00 America/Sao_Paulo.
+> A próxima sessão deve auditar, sem disparar manualmente: existência da execução scheduled;
+> horário real; origem=scheduled; modelo selecionado; model ID real retornado; HTTP; contrato_ok;
+> tokens; custo persistido/recalculado; incremento de contagem_execucoes_total/_scheduled;
+> contagem_execucoes_manual inalterada; zero retry; ausência de 2ª execução na janela; lock final
+> livre; frequência ainda 1x/dia; toggle MOCK ainda off; Billing/Credit Diagnostics sem alerta.
+> Esta execução NÃO deve ser declarada homologada antes de existir evidência de runtime real.
 
-**Se a execução automática não ocorrer**: não disparar manualmente — investigar somente leitura (trace `gate53b_trace` via `/context/global`, `/context/flow/gate53b_tab`, horário real do sistema vs. UTC esperado).
-**Se falhar**: não fazer retry — preservar e reportar o diagnóstico Billing/Credit já implementado (Seção 11).
+**Auditoria realizada** — somente leitura (`ha_get_state` + `ha_get_history` sobre
+`sensor.saude_sistema_analitico_status`, before/after da transição de hoje), zero disparo manual,
+zero chamada Anthropic, zero escrita em Node-RED/HA/dashboard/Git nesta atividade:
 
-**Esta execução NÃO deve ser declarada homologada antes de existir evidência de runtime real.**
+| Item auditado (checklist original) | Resultado |
+|---|---|
+| `execution_id` | `hc-mtjzodga-4rq9t4k0` |
+| `origem` | `scheduled` |
+| Horário real (America/Sao_Paulo) | `iniciado_em` 08:04:38.946 → `finalizado_em` 08:05:04.431 (`duracao_segundos=25.493`) |
+| Modelo selecionado no disparo | `Claude Haiku 4.5 — Econômico` (helper inalterado desde 31/08) |
+| Model ID real retornado | `claude-haiku-4-5-20251001` |
+| `contrato_ok` | `true` (9 chaves) |
+| Tokens input/output | `6099` / `2260` |
+| Custo persistido | `US$ 0,017399` |
+| Custo recalculado independentemente ((6099/1e6×1)+(2260/1e6×5)) | `US$ 0,017399` — **MATCH exato** |
+| `contagem_execucoes_total` | `42 → 43` |
+| `contagem_execucoes_scheduled` | `5 → 6` |
+| `contagem_execucoes_manual` | `15 → 15` — **inalterada**, confirmado por leitura before/after via histórico |
+| FSM percorrida | `preparing → calling → processing → validating → success`, sem repetição de `calling`/`failed` — nenhum indício estrutural de retry |
+| Segunda execução na mesma janela | Não há — uma única transição `scheduled`; `ultima_janela_scheduled_atendida=2026-09-02` gravado uma vez |
+| Frequência do scheduler | `1x por dia`, inalterada |
+| Toggle MOCK administrativo | `off`, inalterado (`last_changed` de 01/09, anterior à execução) |
+| Billing/Credit Diagnostics | Sem alerta — `erro_status_http`/`erro_tipo`/`erro_categoria`/`erro_diagnostico` = `null` |
+| HTTP status | O contrato do sensor não persiste um campo dedicado para HTTP em caminho de sucesso (só existe `erro_status_http`, usado em falha, aqui `null`). Inferido indiretamente por `contrato_ok=true` + `stop_reason=end_turn` + ausência de erro — **não é leitura direta de código HTTP**, registrado por honestidade metodológica |
+| Lock final (`hc_em_andamento`) | **Não verificável diretamente via HA nesta auditoria** — o lock vive só no contexto de flow do Node-RED; nenhum MCP dedicado ao Node-RED está configurado nesta sessão (mesma limitação já registrada na Seção 9.2). Inferência indireta apenas: estado terminal `success` estável, sem nova `preparing` pendurada |
+
+**Conclusão da auditoria:** a 1ª execução automática do scheduler ocorreu, pelo caminho REAL, com
+sucesso de contrato e custo validado por recálculo independente, contadores coerentes com o padrão
+já observado na frente, e nenhum indício estrutural de retry ou execução duplicada. **O critério de
+homologação da Seção 12.5 original está satisfeito**, com uma ressalva honesta: o estado final do
+lock Node-RED não pôde ser confirmado por leitura direta (limitação de acesso desta sessão, não um
+achado negativo).
+
+**Pendência remanescente:** nenhuma funcional. Nenhuma ação corretiva foi necessária. Documentação
+desta auditoria ainda não commitada/PR'd — ver Seção 12.6.
 
 ### 12.6 Governança/Git — marcos protegidos em `main` (auditados nesta atividade via `gh pr view`)
 
@@ -609,6 +628,7 @@ A próxima sessão deve **auditar, sem disparar manualmente**:
 |---|---|---|---|
 | #10 | **MERGED** | `fbda93366a9e3bc42bc9e4d21ac0bf6f7613a3a8` | Seção 10 — entrada em operação normal |
 | #11 | **MERGED** | `7fae4e2dc34eb37a1b946f8b8eeaecd02a926688` | Seção 11 — diagnóstico billing/créditos Anthropic |
+| *(a abrir)* | **NÃO CRIADO** | — | Seção 12.5 — auditoria somente-leitura da 1ª execução automática (2026-09-02) |
 
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
