@@ -1,6 +1,7 @@
 ## Handoff — Health Check / Saúde do Sistema (pós-merge PR #2)
 
 **Data deste handoff:** 2026-08-31
+**Última atualização de conteúdo:** 2026-09-01 (Seções 5, 7, 8 e 9.4-9.9 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard e auditoria Health Check → Timeline). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.
 **Autor:** sessão Claude Code anterior (compactada múltiplas vezes) — este documento existe exatamente para que uma NOVA sessão, sem esse contexto, não precise reconstruir nada por memória.
 
 **Regra de ouro deste documento:** tudo aqui foi verificado por leitura direta (Git/GitHub, runtime HA/Node-RED, arquivos versionados) no momento em que foi escrito. Runtime muda; releia antes de agir. Ver "REGRAS PARA A PRÓXIMA SESSÃO" no final.
@@ -100,24 +101,40 @@ Dois sensores, dois namespaces, deliberadamente separados:
 - **CI:** **não configurado neste repositório** (nenhum `.github/workflows/`) — isso significa que não há verificação automatizada; qualquer validação de qualidade depende de auditoria manual/humana, como a que gerou este PR.
 - **Working tree de outras frentes:** no checkout usado por esta sessão (`/Volumes/config`, branch `feature/v20-2c-contextual-automations`), existem alterações não commitadas de **outra frente (CSMR/V20.2C)**: `CHANGELOG.md`, `automations.yaml`, `docs/ARCHITECTURE.md`, `docs/governance/gates_v20.md`, `docs/v20_2c/c1_saida_de_casa.md`, `docs/v20_2c/plano_tecnico_csmr.md`, `packages/csmr_dispatcher_integracao_v20_2c.yaml`, `packages/v20_2c_contextual_automations.yaml`, `packages/v20_2c_protect_csmr.yaml` (todos `M`), mais `packages/smalltv_publicacao_v20.yaml` (`??`, untracked). **Isso é pré-existente, de outra frente, e não deve ser tocado, commitado ou descartado por quem trabalhar em Health Check.**
 
-## 5. Estado runtime atual (verificado por leitura ao vivo, `GET`-only, nesta sessão)
+## 5. Estado runtime atual (verificado por leitura ao vivo, `GET`-only)
+
+**Fotografia atual (verificada nesta rodada, após as Seções 9.4-9.9):**
+
+| Item | Valor confirmado (atual) |
+|---|---|
+| Scheduler | **Desativado** |
+| Lock (`hc_em_andamento`) | **`false`** (livre) |
+| Caminho Anthropic real | **DARK** — `mock_mode: 'success'` |
+| Guard de chamadas reais (`anthropic_calls_this_gate`) | **REMOVIDO** — ratchet retirado do código (ver "Riscos residuais" da Seção 9), ausente também do runtime (`/context/flow/gate53b_tab` não retorna mais essa chave) |
+| Helper de modelo analítico | `"Claude Haiku 4.5 — Econômico"` selecionado; whitelist Haiku/Sonnet operacional (Seção 9.4) |
+| `sensor.saude_sistema_status` (determinístico) | `degraded` — publicação **real** (Seção 9.7), `source=claude_hamcp_manual`, não mais `gate3_test`; `red_count=0`/`yellow_count=1`/`indeterminate_count=0` |
+| `sensor.saude_sistema_watchdog` | `ok` |
+| `sensor.saude_sistema_analitico_status` (analítico) | `success`; `modelo=claude-haiku-4-5-20251001`; `custo_usd=0,014671` (Seções 9.5/9.6) |
+| `contagem_execucoes_total` / `manual` / `scheduled` | `30` / `12` / `5` |
+
+**Tabela original desta seção (fotografia de 2026-08-31, histórica — preservada para rastreabilidade, campos superados marcados explicitamente):**
 
 | Item | Valor confirmado |
 |---|---|
-| Scheduler (`input_select.saude_sistema_health_check_frequencia`) | **Desativado** |
-| Lock (`flow.hc_em_andamento`, contexto de flow `gate53b_tab`) | **`false`** (livre) |
-| Caminho Anthropic real (`gate53c_fn_prep_manual`) | **DARK** — `mock_mode: 'success'` |
-| Guard de chamadas reais (`gate53b_sf_fn_build_real_request`, subflow em `/flow/global`) | **`contagemAtual >= 4`** (bloqueia a 5ª chamada) |
-| Contador histórico (`anthropic_calls_this_gate`, contexto do nó `gate53b_subflow_instance`) | **4** |
-| Nós na tab `gate53b_tab` | **70** (68 originais + 2 do harness de teste da Fase 6.1) |
-| `gate53b_fn_finalize` propaga telemetria | **Sim** (`msg.telemetria_real` presente na função) |
-| `sensor.saude_sistema_status` (determinístico) | `degraded` — não escrito por este pipeline, valor independente |
-| `sensor.saude_sistema_analitico_status` (analítico) | `success`; última transição registrada foi um disparo de teste MOCK (`origem=ha_bidirectional_test_531`, `modelo=mock`, `contrato_ok=true`) — **não é a 4ª chamada real**, é um teste bidirecional posterior, sem tokens/custo (esperado, MOCK) |
-| `contagem_execucoes_total` / `manual` / `scheduled` | 24 / 7 / 5 (cumulativo desde o início da frente; inclui execuções MOCK, testes e as 4 chamadas reais) |
+| Scheduler (`input_select.saude_sistema_health_check_frequencia`) | Desativado |
+| Lock (`flow.hc_em_andamento`, contexto de flow `gate53b_tab`) | `false` (livre) |
+| Caminho Anthropic real (`gate53c_fn_prep_manual`) | DARK — `mock_mode: 'success'` |
+| Guard de chamadas reais (`gate53b_sf_fn_build_real_request`, subflow em `/flow/global`) | `contagemAtual >= 4` (bloqueia a 5ª chamada) — **SUPERADO, ratchet removido, ver tabela atual acima** |
+| Contador histórico (`anthropic_calls_this_gate`, contexto do nó `gate53b_subflow_instance`) | 4 — **SUPERADO, removido, ver tabela atual acima** |
+| Nós na tab `gate53b_tab` | 70 (68 originais + 2 do harness de teste da Fase 6.1) |
+| `gate53b_fn_finalize` propaga telemetria | Sim (`msg.telemetria_real` presente na função) |
+| `sensor.saude_sistema_status` (determinístico) | `degraded` — não escrito por este pipeline, valor independente — **SUPERADO, era o fixture sintético `gate3_test`, ver Seção 9.7 para a publicação real que o substituiu** |
+| `sensor.saude_sistema_analitico_status` (analítico) | `success`; última transição registrada foi um disparo de teste MOCK (`origem=ha_bidirectional_test_531`, `modelo=mock`, `contrato_ok=true`) — não é a 4ª chamada real, é um teste bidirecional posterior, sem tokens/custo (esperado, MOCK) — **SUPERADO, ver tabela atual acima** |
+| `contagem_execucoes_total` / `manual` / `scheduled` | 24 / 7 / 5 (cumulativo desde o início da frente; inclui execuções MOCK, testes e as 4 chamadas reais) — **SUPERADO, ver tabela atual acima** |
 | `input_boolean.gate53b1_teste_disparo_ha` (helper de teste bidirecional) | `off` |
 | `input_text.gate_5_3f_6_1_disparo_de_teste_local_de_telemetria_nao_e_producao` (helper de teste da Fase 6.1) | existe, último valor `E` (último caso de teste executado) — **helper de teste, não de produção**; não está versionado em nenhum YAML (é um helper de storage do HA, criado via UI/API) |
 
-**Nenhuma divergência runtime × documentação foi encontrada** nesta verificação.
+**Nenhuma divergência runtime × documentação foi encontrada** em nenhuma das duas verificações (2026-08-31 e a rodada atual).
 
 ## 6. Estado da credencial Anthropic (sem revelar segredo)
 
@@ -130,10 +147,10 @@ Dois sensores, dois namespaces, deliberadamente separados:
 
 - Extraída de `resp.usage` da resposta real da Anthropic, em `gate53b_sf_fn_parse_real_response` → `msg.telemetria_real` → propagada por `gate53b_fn_finalize` → evento `health_check_state_changed` → lida por `evt.*` em `saude_sistema_analitico.yaml` (nos estados `success`/`failed`, preservando valor anterior nos demais).
 - 12 campos: `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `custo_input_usd`, `custo_output_usd`, `custo_cache_write_usd`, `custo_cache_read_usd`, `custo_usd`, `modelo_retornado`, `stop_reason`, `request_id_ultima_chamada`.
-- Preços oficiais usados (Claude Sonnet 5, consultados em `platform.claude.com/docs/en/about-claude/pricing` nesta fase): input US$2/MTok, output US$10/MTok, cache write (5m) US$2,50/MTok, cache read US$0,20/MTok. **O valor histórico US$0,036712 do Gate 5.2B nunca deve ser reutilizado como custo real de uma chamada específica.**
+- Preços oficiais usados (consultados em `platform.claude.com/docs/en/about-claude/pricing`): **Claude Sonnet 5** — input US$2/MTok, output US$10/MTok, cache write (5m) US$2,50/MTok, cache read US$0,20/MTok. **Claude Haiku 4.5** — input US$1/MTok, output US$5/MTok (preços de cache do Haiku não homologados nesta frente — nunca inventados; ausência do campo produz `null`, nunca `0`). **O valor histórico US$0,036712 do Gate 5.2B nunca deve ser reutilizado como custo real de uma chamada específica.**
 - Campos ausentes/não numéricos permanecem `null` — **nunca fabricados**. `custo_usd` soma apenas os componentes numéricos conhecidos quando parte dos dados está ausente (comportamento documentado, não um bug oculto).
 - Validado com 8 testes locais via fixture (zero chamadas Anthropic): usage completo, cache zero, cache presente, usage ausente, output ausente, persistência, MOCK sem custo fabricado, regressão completa — todos PASS.
-- **Ainda não validado com uma NOVA chamada real** desde a correção (a correção foi testada apenas com fixtures locais). Isso é uma pendência explícita (ver Seção 8).
+- ~~Ainda não validado com uma NOVA chamada real desde a correção~~ — **RESOLVIDO**: validado com uma chamada real Haiku (Seção 9.5), que revelou um segundo bug (model ID versionado não batendo com a chave da tabela de preços, causando `custo_usd=null` mesmo com tokens presentes — Seção 9.6), corrigido e re-validado com uma nova chamada real: `custo_usd` persistido = recalculado independentemente = **US$ 0,014671** (MATCH exato).
 
 ## 8. Pendências pós-merge
 
@@ -141,11 +158,11 @@ Dois sensores, dois namespaces, deliberadamente separados:
 1. Corrigir `contrato_ok` (hoje persiste como **string** `"true"`/`"false"`, não booleano nativo — risco: uma checagem Jinja ingênua trataria `"false"` como truthy).
 
 ### B. Observabilidade
-2. Validar futuramente a telemetria real de tokens/custo em uma **nova execução real autorizada** (a correção da Fase 6.1 só foi testada com fixtures locais, nunca com uma chamada Anthropic real pós-correção).
+2. ~~Validar futuramente a telemetria real de tokens/custo em uma nova execução real autorizada~~ — **RESOLVIDA**. Validado com chamada real Haiku pós-correção do effort (Seção 9.5); revelou e permitiu corrigir um segundo bug de precificação por model ID versionado (Seção 9.6), com validação final `custo_usd` persistido = recalculado = US$ 0,014671 (MATCH).
 3. Revisar a política de `recorder` para os sensores Health Check (atualmente deliberadamente fora do `recorder.include`; reavaliar se isso continua correto).
 
 ### C. UI
-4. Revisar coerência visual/temporal da página "Saúde do Sistema" entre dados históricos de homologação e a última análise real.
+4. Revisar coerência visual/temporal da página "Saúde do Sistema" entre dados históricos de homologação e a última análise real — **PARCIALMENTE RESOLVIDA**: o item específico de horário local (cards exibindo hora em UTC em vez de America/Sao_Paulo) foi corrigido via `as_local` (Seção 9.8). Não confirmado se há outros aspectos de coerência visual/temporal fora desse item específico — item mantido aberto para eventual revisão adicional.
 
 ### D. Governança/documentação
 5. Atualizar o comentário "Ainda 100% MOCK... neste Gate" no bloco `input_button` de `saude_sistema_analitico.yaml` — ficou desatualizado desde o Gate 5.3F, quando esse mesmo botão passou a poder disparar chamadas reais via dark-path.
@@ -157,7 +174,7 @@ Dois sensores, dois namespaces, deliberadamente separados:
 ### F. Melhorias futuras
 - Nenhuma additional formalmente proposta além das listadas acima; qualquer nova funcionalidade (ex.: cache prompt real, nova frequência de scheduler, dashboard novo) deve passar por um Gate explícito, autorizado por humano, com o mesmo rigor desta frente.
 
-## 9. GATE — Seleção controlada do modelo analítico (Haiku/Sonnet) — EM ANDAMENTO, NÃO CONCLUÍDO
+## 9. GATE — Seleção controlada do modelo analítico (Haiku/Sonnet) — CONCLUÍDO E HOMOLOGADO (ver Seções 9.4-9.9)
 
 **Nota:** as Seções 1-8 acima predatam esta atividade e alguns eventos posteriores já ocorridos nesta linha do tempo (fix de `contrato_ok`, a 5ª chamada real Sonnet, correções de coerência do dashboard) — não foram reescritas aqui; esta seção documenta exclusivamente o estado desta atividade específica.
 
@@ -262,18 +279,112 @@ Dois sensores, dois namespaces, deliberadamente separados:
 - Whitelist validada isoladamente (Node.js local, antes do deploy): **10/10 PASS** — Haiku→`claude-haiku-4-5`, Sonnet→`claude-sonnet-5`, inválido/`unavailable`/`unknown`/ausente→`modelo_analitico_invalido`. Código implantado confirmado textualmente idêntico ao validado.
 - **Zero chamada Anthropic.** `contagem_execucoes_total = 26`. `hc_em_andamento = false` (lido diretamente via `GET /context/flow/gate53b_tab`, autenticado). `scheduler = Desativado`. Helper atual = `"Claude Haiku 4.5 — Econômico"`.
 
-**Riscos residuais / débitos técnicos:**
-1. `anthropic_calls_this_gate` permanece **`4`** no contexto observado (lido ao vivo via `/context/flow/gate53b_tab`) — divergente do que a leitura de código sozinha sugeria (guard `>=5`). **Não corrigido nem reinterpretado nesta atividade.** Tratar separadamente.
-2. Existe **segundo hardcode** em `gate53b_sf_fn_parse_real_response` (linha ~19: `msg.modelo_usado = 'claude-sonnet-5'`, nunca reatribuído no ramo de erro HTTP) que pode registrar `claude-sonnet-5` incorretamente na telemetria **se uma chamada Haiku real falhar** antes de retornar `resp.model`. **Não corrigido nesta atividade.** Tratar separadamente.
-3. O único `config` global do Home Assistant (`87769718.457718`) teve seu campo `_users` atualizado automaticamente pelo próprio runtime do Node-RED (registro de que o novo nó passou a referenciá-lo) — **não foi uma alteração deliberada desta atividade**, é comportamento padrão do sistema ao criar um nó que referencia esse config node. Nenhum outro campo do config mudou; nenhuma credencial exposta.
+**Riscos residuais / débitos técnicos (estado original desta subseção — ver resolução abaixo):**
+1. ~~`anthropic_calls_this_gate` permanece `4`...~~ — **RESOLVIDO.** O ratchet foi classificado (auditoria dedicada) como mecanismo temporário de homologação da Gate 5.3F, não um controle de segurança permanente, e foi **removido** do código de `gate53b_sf_fn_build_real_request` (grep exaustivo dos 131 objetos do flow confirmou zero referência remanescente). Confirmado ausente também em runtime (`/context/flow/gate53b_tab` não retorna mais a chave `anthropic_calls_this_gate`).
+2. ~~Existe segundo hardcode em `gate53b_sf_fn_parse_real_response`...~~ — **RESOLVIDO.** `msg.modelo_usado` foi consolidado em uma única atribuição (`(resp && resp.model) || msg.modeloAnaliticoRequisitado || null`, cobrindo sucesso e erro HTTP) e o mesmo padrão foi aplicado em `gate53b_sf_fn_real_error` (catch de transporte). Confirmado pela telemetria real: mesmo na chamada Haiku que falhou por HTTP 400 (Seção 9.5), o campo `modelo` registrou corretamente `claude-haiku-4-5`, nunca `claude-sonnet-5`.
+3. O único `config` global do Home Assistant (`87769718.457718`) teve seu campo `_users` atualizado automaticamente pelo próprio runtime do Node-RED (registro de que o novo nó passou a referenciá-lo) — **não foi uma alteração deliberada desta atividade**, é comportamento padrão do sistema ao criar um nó que referencia esse config node; **reincidiu em todas as escritas subsequentes desta frente**, sempre com o mesmo caráter benigno. Nenhum outro campo do config mudou; nenhuma credencial exposta.
 
-**Estado final:**
-- Helper Haiku/Sonnet operacional. Seletor presente no dashboard. Node-RED integrado ao seletor. **Haiku tecnicamente operacional no executor.**
-- **Nenhuma chamada Haiku real executada ainda.** Pipeline permanece DARK/MOCK. Scheduler permanece Desativado.
-- **Próxima chamada real continua proibida sem autorização humana explícita e específica.**
+**Estado final desta subseção (SUPERADO — ver Seções 9.4-9.9 para o fechamento completo da frente):**
+- Helper Haiku/Sonnet operacional. Seletor presente no dashboard. Node-RED integrado ao seletor. Haiku tecnicamente operacional no executor.
+- ~~Nenhuma chamada Haiku real executada ainda.~~ **SUPERADO**: a primeira chamada real Haiku foi executada e homologada com sucesso (Seção 9.5). Pipeline foi restaurado para DARK/MOCK imediatamente após, como em toda a frente.
+- Regra permanente mantida: qualquer nova chamada real continua exigindo autorização humana explícita e específica.
 
 **Governança futura para Node-RED (regra permanente, reafirmada):**
 `GET` para auditoria · `PUT /flow/<tab_id>` quando aplicável · `PUT /flow/global` somente quando necessário para subflow (tabs não endereçam subflows individualmente neste runtime) · `POST /flows` proibido para alterações normais · snapshot/hash antes · diff estrutural pós-escrita · zero retry · leitura pós-escrita · segredo nunca em log/repositório.
+
+### 9.4 Correção de `output_config.effort` condicional por modelo — CONCLUÍDA E AUDITADA
+
+**Causa raiz (comprovada por resposta HTTP real da Anthropic, não presumida):** `gate53b_sf_fn_build_real_request` montava `output_config: { effort: 'medium', format: {...} }` de forma **incondicional**, para qualquer modelo. Uma tentativa real de chamada Haiku (pós-integração da Seção 9.3, antes desta correção) foi rejeitada com **HTTP 400**, corpo: `{"type":"invalid_request_error","message":"This model does not support the effort parameter."}` — capturado via `global.get('gate53b_trace')`, `request_id` real `req_011Cebxy7MVKPUBaV3eTuqBv`. Zero retry; DARK restaurado imediatamente.
+
+**Correção aplicada:**
+```js
+const outputConfig = { format: { type: 'json_schema', schema: SCHEMA } };
+if (modeloResolvido === 'claude-sonnet-5') {
+  outputConfig.effort = 'medium';
+}
+```
+- Haiku: **não envia** `output_config.effort`.
+- Sonnet: continua enviando `output_config.effort = 'medium'` (comportamento já homologado na Fase 6, preservado).
+- `output_config.format`/`json_schema` preservado, incondicional, para os dois modelos.
+- Escopo: **1 nó** (`gate53b_sf_fn_build_real_request`), **1 campo** (`func`). Endpoint: `PUT /flow/global`, exatamente 1, zero retry.
+- Diff estrutural pós-escrita confirmou: nenhum outro nó/wire/config alterado. Zero segredo exposto.
+- Validação local prévia (zero chamada externa): Haiku sem `effort`/com `format`; Sonnet com `effort=medium`/com `format`; modelo fora da whitelist bloqueado antes de qualquer montagem de request.
+
+### 9.5 Primeira chamada real Haiku — HOMOLOGADA COM SUCESSO
+
+Após a correção da Seção 9.4, autorizada exatamente **1** nova chamada real Haiku (protocolo de sempre: pré-voo somente-leitura, armar `mock_mode: 'real_anthropic'` cirurgicamente, disparar via botão manual, capturar evidências, restaurar DARK, zero retry).
+
+| Campo | Valor real observado |
+|---|---|
+| `execution_id` | `hc-mti44lq0-pimyz4c9` |
+| HTTP status | **200** |
+| `request_id` | `req_011Cec1v22XEzL2HRX5aTM4i` |
+| `modelo`/`modelo_retornado` | `claude-haiku-4-5-20251001` (versionado, retornado pela própria Anthropic) |
+| `contrato_ok` | `true` (9 chaves validadas) |
+| `duracao_segundos` | `21.125` |
+| `contagem_execucoes_total` / `manual` | `29 → 30` / `11 → 12` |
+
+Pipeline restaurado para DARK/MOCK imediatamente após a captura de evidências; `hc_em_andamento` confirmado `false`; scheduler confirmado `Desativado`; helper confirmado inalterado (`Claude Haiku 4.5 — Econômico`). Zero segunda chamada.
+
+### 9.6 Correção de precificação por model ID versionado — CONCLUÍDA E AUDITADA
+
+**Causa raiz (comprovada, não presumida):** a chamada da Seção 9.5 retornou `custo_usd = null` apesar de tokens presentes (`input_tokens=5709`, `output_tokens=2450` nesse teste específico). `gate53b_fn_finalize` indexava `TABELA_PRECOS_POR_MTOK[msg.modelo_usado]` diretamente — mas `msg.modelo_usado` carrega o model ID **real/versionado** retornado pela Anthropic (`claude-haiku-4-5-20251001`), que não bate com a chave curta `'claude-haiku-4-5'` da tabela. `precos` ficava `undefined`; o guard de `custoPorTokens` (que nunca fabrica custo) retornava `null` corretamente, mas o custo real não era persistido.
+
+**Correção aplicada** (dentro de `gate53b_fn_finalize`, sem tocar `msg.modelo_usado` nem a telemetria real):
+```js
+const CHAVE_PRECIFICACAO_POR_MODELO_REAL = {
+  'claude-haiku-4-5': 'claude-haiku-4-5',
+  'claude-haiku-4-5-20251001': 'claude-haiku-4-5',
+  'claude-sonnet-5': 'claude-sonnet-5'
+  // whitelist explicita, sem regex/startsWith; nenhum ID de Sonnet versionado
+  // foi observado ate o momento, entao nao foi adicionado por precaucao.
+};
+const chavePrecificacao = CHAVE_PRECIFICACAO_POR_MODELO_REAL[msg.modelo_usado];
+const precos = chavePrecificacao ? TABELA_PRECOS_POR_MTOK[chavePrecificacao] : undefined;
+```
+- Telemetria do model ID real (`modelo`, `modelo_retornado`) **preservada integralmente** — nunca substituída pela chave curta.
+- Modelo fora da whitelist continua produzindo `custo_usd: null` — nunca `US$ 0,00` fabricado.
+- Escopo: **1 nó** (`gate53b_fn_finalize`), **1 campo** (`func`). Endpoint: `PUT /flow/gate53b_tab`, exatamente 1, zero retry. Diff estrutural confirmou byte-a-byte que nada mais mudou.
+- **Validação real, nova chamada Haiku, pós-correção:**
+
+| Campo | Valor |
+|---|---|
+| `input_tokens` / `output_tokens` | `5711` / `1792` |
+| `custo_usd` persistido | `US$ 0,014671` |
+| `custo_usd` recalculado independentemente ((5711/1e6×1)+(1792/1e6×5)) | `US$ 0,014671` |
+| Resultado | **MATCH exato** |
+
+### 9.7 Camada determinística — publicação real substituindo o fixture `gate3_test`
+
+**Achado (auditoria dedicada, não relacionada ao pipeline analítico):** `sensor.saude_sistema_status` (Gate 3, AT-HC-01, Seção 2) permanecia travado desde 2026-08-25 em um payload **sintético de teste** (`source: gate3_test`, `summary` explicitamente marcado como teste), porque o mecanismo que o alimenta (evento `saude_sistema_diagnostico_publicado`, "publicado por Claude + HA-MCP") nunca havia sido operacionalizado além do teste inicial — confirmado por grep exaustivo: nenhum automation/script/Node-RED dispara esse evento automaticamente. Isso é **arquiteturalmente correto** (a camada analítica/IA nunca deveria alimentar esse sensor diretamente — princípio da Seção 1 preservado), mas o mecanismo humano-supervisionado nunca foi de fato exercido em produção.
+
+**Ação realizada:** uma publicação real, via o mesmo evento já contratado, coletando evidências reais do runtime (uptime de núcleo/host, CPU/memória/disco, backups, conectividade, atualização pendente) e aplicando classificação determinística (pior-domínio-prevalece, sem forçar VERDE).
+
+| Campo | Valor |
+|---|---|
+| `source` | `claude_hamcp_manual` (distinto de `gate3_test`) |
+| `checked_at` | `2026-09-01T01:01:25-03:00` |
+| `status` (naquele instante, ver nota abaixo) | `degraded` |
+| `red_count` / `yellow_count` / `indeterminate_count` | `0` / `1` / `0` |
+| `watchdog` | `sem_execucao → ok` |
+
+**Nota importante:** `degraded` reflete a **classificação correspondente às evidências observadas naquele instante específico** (internet primária degradada de forma real e contínua há ~23,7h, backup 4G disponível mas sem uso ativo confirmado) — **não é um estado permanente do sistema**, apenas o resultado determinístico do payload publicado. Domínios avaliados: `home_assistant` (healthy — uptime núcleo ~192h/host ~800h sem restart, CPU/memória/disco nominais), `backups` (healthy), `conectividade` (degraded — motivo acima), `atualizacoes` (informational — update HA Core pendente há 8 dias, não tratado como degradação). Zero chamada Anthropic nesta publicação — mecanismo inteiramente determinístico/observacional.
+
+### 9.8 Acabamentos do dashboard — CONCLUÍDOS E AUDITADOS
+
+- **Horário local (2 cards)**: cards "Última execução concluída em" (Estado da Execução) e "Resultado da última análise" corrigidos com o filtro nativo `as_local` do Home Assistant, inserido entre `as_datetime()` e `.strftime()`. **Timestamp bruto UTC preservado sem alteração** — a conversão é aplicada **somente na apresentação**, nunca no dado persistido, e usa a timezone configurada no HA (`America/Sao_Paulo`), **sem offset `-03:00` hardcoded**. Exemplo real validado: `2026-09-01T03:34:03.390Z` (UTC, bruto) → `01/09/2026 00:34:03` (renderizado). Formato `DD/MM/YYYY HH:MM:SS` preservado.
+- **Texto obsoleto do seletor de modelo**: o card que dizia *"Modelo analítico (em preparação): esta seleção ainda não está conectada ao executor real..."* foi substituído por texto factual: *"Modelo analítico: seleção conectada ao executor real do Health Check. Opções disponíveis: Claude Haiku 4.5 — Econômico / Claude Sonnet 5 — Avançado, ambas homologadas com chamada real à Anthropic."*
+- Escopo: **3 cards** alterados no total (2 de horário + 1 de texto), todos em `.storage/lovelace.sistema_casa`, via `ha_config_set_dashboard`/`python_transform` protegido por `config_hash`. Diff estrutural confirmou que somente o campo `content` desses 3 cards mudou.
+
+### 9.9 Auditoria Health Check → evento semântico → Timeline — NÃO IMPLEMENTADA (adiada para Gate dedicado)
+
+Avaliação read-only de como o Health Check poderia publicar conclusões na Timeline/Event Feed central. **Confirmado por leitura de código, não presumido: nenhum produtor publica diretamente na Timeline** — tudo passa por `sensor.casa_evento_publicavel_v20` (`packages/motor_timeline_v20.yaml`), que hoje só aceita, para produtores externos, um contrato fechado (`packages/contrato_publicacao_timeline_v20.yaml`, V20.1O) com **exatamente 3 fontes autorizadas** (`csmr_v20_2c`, `carro_presenca`, `lavadora`) e **9 `event_code`/mensagem fixos**, sem suporte a mensagem variável.
+
+- **Produtor semântico já existente**: `health_check_state_changed` (disparado por `gate53b_fn_finalize` → `gate53b_fire_event`) já carrega tudo que seria necessário (`estado`, `origem`, `modelo`, `contrato_ok`, `duracao_segundos`, `custo_usd`) — nenhuma alteração necessária aqui.
+- **Caminho para a Timeline** exigiria estender a whitelist do contrato V20.1O já existente (novo `source`, ex. `saude_sistema`, + 1-2 novos `event_code` com mensagem fixa) em **2 arquivos centrais**: `contrato_publicacao_timeline_v20.yaml` e `motor_timeline_v20.yaml` — ambos compartilhados com o CSMR.
+- **Esforço classificado: MODERADO** (extensão de padrão já existente, não mecanismo novo).
+- **Recomendação registrada**: tratar como Gate dedicado e separado, por tocar arquivos centrais compartilhados com o CSMR (área historicamente protegida nesta base, ver `packages/v20_2c_protect_csmr.yaml`) — **não implementado nesta rodada**.
+- **Zero alteração em `motor_timeline_v20.yaml`, `contrato_publicacao_timeline_v20.yaml` ou qualquer arquivo CSMR.** Apenas leitura.
 
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
