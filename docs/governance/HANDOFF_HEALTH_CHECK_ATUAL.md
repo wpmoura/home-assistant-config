@@ -519,7 +519,7 @@ Toggle MOCK `off`, scheduler `Desativado`, lock livre, modelo selecionado inalte
 1. Classificação `billing` depende de correspondência de texto no `message` real — se a Anthropic mudar a redação da mensagem, pode cair em `desconhecido` (seguro por design: nunca falha silenciosamente, o erro original continua sempre visível).
 2. Push nunca testado sob lock realmente ocupado (limitação do harness, não da implementação).
 
-## 12. GATE — Scheduler habilitado (1x/dia) — HOMOLOGAÇÃO AUTOMÁTICA PENDENTE
+## 12. GATE — Scheduler habilitado (1x/dia) — HOMOLOGADO — PASS (~~HOMOLOGAÇÃO AUTOMÁTICA PENDENTE~~ — SUPERADO, ver Seção 12.5/12.7)
 
 **Consolidação para troca de sessão — auditado por leitura direta de runtime e Git/GitHub em 2026-09-02, não por memória.**
 
@@ -619,8 +619,10 @@ homologação da Seção 12.5 original está satisfeito**, com uma ressalva hone
 lock Node-RED não pôde ser confirmado por leitura direta (limitação de acesso desta sessão, não um
 achado negativo).
 
-**Pendência remanescente:** nenhuma funcional. Nenhuma ação corretiva foi necessária. Documentação
-desta auditoria ainda não commitada/PR'd — ver Seção 12.6.
+**Pendência remanescente:** nenhuma funcional. Nenhuma ação corretiva foi necessária. ~~Documentação
+desta auditoria ainda não commitada/PR'd — ver Seção 12.6.~~ — **SUPERADO**: commitada (`75dbe15`),
+PR #12 aberto e **mergeado** em `main` (merge commit `1a810ed9a8d9306f7ce191e914894da8c435142a`) —
+ver Seção 12.6 e fechamento factual na Seção 12.7.
 
 ### 12.6 Governança/Git — marcos protegidos em `main` (auditados nesta atividade via `gh pr view`)
 
@@ -628,12 +630,33 @@ desta auditoria ainda não commitada/PR'd — ver Seção 12.6.
 |---|---|---|---|
 | #10 | **MERGED** | `fbda93366a9e3bc42bc9e4d21ac0bf6f7613a3a8` | Seção 10 — entrada em operação normal |
 | #11 | **MERGED** | `7fae4e2dc34eb37a1b946f8b8eeaecd02a926688` | Seção 11 — diagnóstico billing/créditos Anthropic |
-| *(a abrir)* | **NÃO CRIADO** | — | Seção 12.5 — auditoria somente-leitura da 1ª execução automática (2026-09-02) |
+| #12 | **MERGED** | `1a810ed9a8d9306f7ce191e914894da8c435142a` | Seção 12.5 — auditoria somente-leitura da 1ª execução automática (2026-09-02) |
+
+### 12.7 Fechamento — entrada em operação normal CONCLUÍDA
+
+Consolidação factual, sem novos dados além dos já registrados na Seção 12.5 (nenhum valor inventado):
+
+| Campo | Valor |
+|---|---|
+| Data | `2026-09-02` |
+| Primeira execução automática normal | **HOMOLOGADA — PASS** |
+| Frequência | `1x por dia` |
+| Horário | `08:00 America/Sao_Paulo` (execução real observada às 08:04:38, dentro da janela de checagem de 15 min do scheduler) |
+| Caminho | REAL |
+| MOCK | OFF |
+| Intervenção manual para provocar a execução | NÃO |
+| Resultado operacional | Sucesso (`contrato_ok=true`, custo persistido = recalculado, contadores coerentes, zero indício de retry ou duplicidade — ver tabela completa na Seção 12.5) |
+| Health Check | **ENTRADA EM OPERAÇÃO NORMAL CONCLUÍDA** |
+
+**Ressalva preservada da Seção 12.5** (honestidade metodológica, não invalida o PASS acima): o estado
+final do lock Node-RED (`hc_em_andamento`) não pôde ser confirmado por leitura direta nesta sessão
+(sem MCP dedicado ao Node-RED disponível) — apenas por inferência indireta via estado terminal
+estável do sensor.
 
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
-- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-12); Node-RED/HA podem ter mudado desde então. **Em especial**: a Seção 12 registra o scheduler habilitado (`1x por dia`, 08:00 America/Sao_Paulo) mas com a **primeira execução automática ainda não confirmada por evidência de runtime** — comece por aí.
+- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-12); Node-RED/HA podem ter mudado desde então. ~~**Em especial**: a Seção 12 registra o scheduler habilitado (`1x por dia`, 08:00 America/Sao_Paulo) mas com a **primeira execução automática ainda não confirmada por evidência de runtime** — comece por aí.~~ — **SUPERADO**: a primeira execução automática já foi auditada e homologada (Seções 12.5/12.7, PR #12 mergeado em `main`). Não há pendência aberta nesta frente; qualquer nova sessão deve validar o runtime apenas por rotina, não por pendência conhecida.
 - **Não confie apenas em memória conversacional** (nem a de sessões anteriores, nem eventual resumo automático) — reconstrua a partir de `main`, runtime e Git/GitHub, nessa ordem.
 - **Regra de autorização para chamada Anthropic — atualizada pela Seção 10**: durante a fase de homologação (Seções 1-9), toda chamada real exigia autorização humana explícita e específica por chamada. **A partir da Seção 10, o Health Check está em operação normal** — botão manual e scheduler (quando habilitado) fazem chamadas reais **sem exigir uma nova autorização a cada disparo**, pois essa é agora a operação padrão pretendida e homologada. Isso não dispensa autorização humana para **alterar** esse comportamento (voltar a MOCK por padrão, mudar o mecanismo, etc.) — apenas para o uso normal já homologado.
 - ~~Não habilitar o scheduler automaticamente — ele é Desativado por padrão~~ — **SUPERADO pela Seção 12**: o scheduler foi habilitado para `1x por dia` em 2026-09-02 por autorização humana explícita. A regra permanente que continua valendo é outra: **não alterar a frequência/toggle MOCK/modelo sem autorização humana explícita** — a habilitação já feita não deve ser revertida ou alterada sem uma nova decisão humana igualmente explícita.
