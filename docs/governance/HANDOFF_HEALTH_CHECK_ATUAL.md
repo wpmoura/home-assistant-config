@@ -386,12 +386,82 @@ Avaliação read-only de como o Health Check poderia publicar conclusões na Tim
 - **Recomendação registrada**: tratar como Gate dedicado e separado, por tocar arquivos centrais compartilhados com o CSMR (área historicamente protegida nesta base, ver `packages/v20_2c_protect_csmr.yaml`) — **não implementado nesta rodada**.
 - **Zero alteração em `motor_timeline_v20.yaml`, `contrato_publicacao_timeline_v20.yaml` ou qualquer arquivo CSMR.** Apenas leitura.
 
+## 10. GATE — Entrada em operação normal — CONCLUÍDO E HOMOLOGADO
+
+**Objetivo:** eliminar a dependência de Terminal/Claude Code para cada execução — fazer o botão manual e o scheduler operarem REAL por padrão, usando o modelo selecionado no dashboard, mantendo MOCK disponível apenas como capacidade administrativa/teste, sem duplicar executor nem criar pipeline paralelo.
+
+### 10.1 Achado da auditoria (antes desta implementação)
+
+Confirmado por leitura direta do runtime: **tanto o botão manual (`gate53c_fn_prep_manual`) quanto o scheduler (`gate53d_fn_marcar_checkpoint`) tinham `mock_mode: 'success'` hardcoded** diretamente no literal do payload — nenhum dos dois jamais alcançava o ramo REAL do executor. A única forma histórica de obter uma execução real era uma edição cirúrgica temporária do próprio código Node-RED, revertida logo em seguida — sem nenhum controle de UI. Isso significava, na prática, que **a seleção de modelo (Haiku/Sonnet) não tinha efeito algum** em uso normal, apesar de já estar corretamente implementada (Seção 9).
+
+### 10.2 Implementação (A — Home Assistant)
+
+Novo helper, `packages/saude_sistema_analitico.yaml`, sibling de `gate53b1_teste_disparo_ha` sob a chave `input_boolean:` já existente:
+```yaml
+saude_sistema_health_check_modo_mock:
+  name: "Saúde do Sistema - Health Check - Modo MOCK"
+  icon: mdi:test-tube
+  initial: false
+```
+`OFF` (padrão) = operação REAL · `ON` = MOCK (administrativo/teste). Implantado via `input_boolean.reload`; confirmado `state=off` após criação.
+
+### 10.3 Implementação (B — Node-RED)
+
+**Escopo mínimo, ponto único de convergência, sem duplicar executor:**
+- `gate53c_fn_prep_manual` e `gate53d_fn_marcar_checkpoint`: removido o literal `mock_mode: 'success'` de seus payloads (mantêm apenas `origem`/`mock_duration_ms`/demais campos próprios).
+- **2 nós novos**, inseridos entre os dois pontos de disparo e o lock (`gate53b_fn_lock_check`), reaproveitando exatamente o padrão já usado por `gate53d_st_frequencia`/`gate53b_sf_st_modelo_analitico` (não inventado):
+  - `gate53_st_modo_mock_admin` (`api-current-state`, lê `input_boolean.saude_sistema_health_check_modo_mock` em `msg.modoMockSelecionado`, nunca em `msg.payload` — evita colisão).
+  - `gate53_fn_aplicar_modo_mock` (function): `msg.payload.mock_mode = (msg.modoMockSelecionado === 'on') ? 'success' : 'real_anthropic'`.
+- Manual e scheduled **continuam convergindo exatamente no mesmo `gate53b_fn_lock_check`** — nenhum pipeline paralelo criado.
+- Escopo confirmado por diff estrutural: **2 nós existentes alterados** (`func`+`wires`) + **2 nós novos criados**, nenhum outro nó tocado. `PUT /flow/gate53b_tab`, exatamente 1, zero retry, hash pós-escrita idêntico ao proposto.
+
+### 10.4 Implementação (dashboard)
+
+Adicionados 2 cards ao final da seção "Health Check Analítico (IA)": tile do novo toggle + markdown explicativo inequívoco ("Desligado (OFF) = operação REAL... Ligado (ON) = modo MOCK... controle administrativo/teste — não é uso normal"). Nenhum outro card alterado.
+
+### 10.5 Validação sem Anthropic (pré-homologação)
+
+Simulação local do código exatamente implantado, 4 casos, zero chamada externa: toggle ON (manual e scheduled) → roteia para MOCK; toggle OFF (manual e scheduled) → roteia para REAL, parado deliberadamente antes do HTTP Anthropic (simulação, não execução).
+
+### 10.6 Homologação MOCK (toggle ON, execução real do runtime)
+
+Com o toggle ligado, 1 execução manual real disparada: `modelo="mock"`, `contrato_ok=true`, `custo_usd=null`, `request_id_ultima_chamada=null`, `contagem_execucoes_total` 30→31, lock liberado ao final. Confirmou que o novo gate preserva MOCK integralmente quando solicitado. Toggle devolvido a `OFF` em seguida.
+
+### 10.7 Homologação final — execução REAL pelo caminho normal do usuário
+
+Com o toggle já em `OFF` (sem nenhuma intervenção administrativa), 1 execução manual disparada **exclusivamente via `input_button.press`** — o mesmo mecanismo disponível ao usuário no dashboard. Zero `PUT` ao Node-RED, zero edição de `mock_mode`, zero chamada `curl` direta à Anthropic nesta homologação.
+
+| Campo | Valor real observado |
+|---|---|
+| `execution_id` | `hc-mtje33ra-soqejvq9` |
+| HTTP status | **200** |
+| `request_id` | `req_011Cedi2Cf4nAhaDrzw3xDzR` |
+| `modelo`/`modelo_retornado` | `claude-haiku-4-5-20251001` (versionado, família Haiku selecionada respeitada) |
+| `contrato_ok` | `true` |
+| `input_tokens` / `output_tokens` | `6100` / `2155` |
+| `custo_usd` persistido | `US$ 0,016875` |
+| `custo_usd` recalculado ((6100/1e6×1)+(2155/1e6×5)) | `US$ 0,016875` — **MATCH exato**, confirma zero fallback para preço Sonnet |
+| `stop_reason` | `end_turn` |
+| `contagem_execucoes_total` / `manual` | `31 → 32` / `13 → 14` |
+| `hc_em_andamento` final | `false` |
+
+Toggle MOCK permaneceu `OFF`, scheduler permaneceu `Desativado`, modelo selecionado permaneceu `Claude Haiku 4.5 — Econômico` — nenhum dos três precisou ser tocado para que a execução real acontecesse pelo caminho normal.
+
+### 10.8 Estado final — HEALTH CHECK OPERACIONAL PARA USO NORMAL
+
+- Botão manual: **REAL por padrão**.
+- Scheduler: **REAL por padrão quando habilitado** (mesmo executor, mesmo ponto de convergência do manual).
+- MOCK: disponível **somente** via `input_boolean.saude_sistema_health_check_modo_mock` (toggle administrativo no dashboard).
+- Nenhuma dependência de Terminal/Claude Code para uso normal — modelo, botão, frequência e o novo toggle administrativo são todos controláveis pela UI do HA.
+- **Pendência não resolvida nesta atividade** (fora de escopo, ver Seção 9.9): a camada determinística (`sensor.saude_sistema_status`) continua sem renovação automática a partir do pipeline analítico — o watchdog pode voltar a `sem_execucao` mesmo com o Health Check operando normalmente em produção. Candidato a Gate dedicado futuro.
+- Timeline/CSMR, camada determinística, credenciais: **não tocados** nesta atividade.
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
-- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31; Node-RED/HA podem ter mudado desde então.
+- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-10); Node-RED/HA podem ter mudado desde então.
 - **Não confie apenas em memória conversacional** (nem a de sessões anteriores, nem eventual resumo automático) — reconstrua a partir de `main`, runtime e Git/GitHub, nessa ordem.
-- **Nenhuma chamada Anthropic sem autorização humana explícita e específica** (formato "GATE X — AUTORIZAÇÃO EXPLÍCITA", como em todas as fases anteriores desta frente) — mesmo para "apenas testar a credencial".
+- **Regra de autorização para chamada Anthropic — atualizada pela Seção 10**: durante a fase de homologação (Seções 1-9), toda chamada real exigia autorização humana explícita e específica por chamada. **A partir da Seção 10, o Health Check está em operação normal** — botão manual e scheduler (quando habilitado) fazem chamadas reais **sem exigir uma nova autorização a cada disparo**, pois essa é agora a operação padrão pretendida e homologada. Isso não dispensa autorização humana para **alterar** esse comportamento (voltar a MOCK por padrão, mudar o mecanismo, etc.) — apenas para o uso normal já homologado.
 - **Não habilitar o scheduler automaticamente** — ele é `Desativado` por padrão, e essa é uma escolha deliberada até uma decisão humana explícita em contrário.
 - **Não expor, imprimir, logar ou tentar ler a credencial Anthropic** em nenhuma circunstância.
 - **Não executar nenhuma ação física** a partir de uma saída da camada analítica — ela produz apenas recomendações.
