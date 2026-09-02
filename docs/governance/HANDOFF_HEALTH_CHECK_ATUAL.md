@@ -1,7 +1,7 @@
 ## Handoff — Health Check / Saúde do Sistema (pós-merge PR #2)
 
 **Data deste handoff:** 2026-08-31
-**Última atualização de conteúdo:** 2026-09-01 (Seções 5, 7, 8 e 9.4-9.9 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard e auditoria Health Check → Timeline). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.
+**Última atualização de conteúdo:** 2026-09-02 (Seções 5, 7, 8, 9.4-9.9, 10 e 11 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard, auditoria Health Check → Timeline, entrada em operação normal e diagnóstico de billing/créditos Anthropic). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.
 **Autor:** sessão Claude Code anterior (compactada múltiplas vezes) — este documento existe exatamente para que uma NOVA sessão, sem esse contexto, não precise reconstruir nada por memória.
 
 **Regra de ouro deste documento:** tudo aqui foi verificado por leitura direta (Git/GitHub, runtime HA/Node-RED, arquivos versionados) no momento em que foi escrito. Runtime muda; releia antes de agir. Ver "REGRAS PARA A PRÓXIMA SESSÃO" no final.
@@ -456,10 +456,73 @@ Toggle MOCK permaneceu `OFF`, scheduler permaneceu `Desativado`, modelo selecion
 - **Pendência não resolvida nesta atividade** (fora de escopo, ver Seção 9.9): a camada determinística (`sensor.saude_sistema_status`) continua sem renovação automática a partir do pipeline analítico — o watchdog pode voltar a `sem_execucao` mesmo com o Health Check operando normalmente em produção. Candidato a Gate dedicado futuro.
 - Timeline/CSMR, camada determinística, credenciais: **não tocados** nesta atividade.
 
+## 11. GATE — Diagnóstico de billing/créditos Anthropic — CONCLUÍDO E HOMOLOGADO SEM CUSTO
+
+**Objetivo:** antes de habilitar o scheduler, dar visibilidade operacional a falhas reais de billing/limite/autenticação/indisponibilidade da API Anthropic — preservando sempre o HTTP status e o corpo de erro originais, nunca afirmando causa não comprovada (ex.: nunca "créditos acabaram" a menos que a própria resposta permita essa afirmação).
+
+### 11.1 Achado da auditoria
+
+`gate53b_sf_fn_parse_real_response` já capturava `status_http`/`corpo_erro` (JSON truncado a 500 chars) em erros HTTP reais, mas **esse dado nunca chegava ao HA** — `gate53b_fn_finalize` nunca o repassava. Erros de **transporte** (timeout/DNS/conexão, capturados em `gate53b_sf_fn_real_error`) não tinham nenhum dado estruturado capturado. Nenhum mecanismo de Push desacoplado de Timeline/CSMR existia para esse propósito.
+
+### 11.2 Classificação implementada (dado real, nunca inferido)
+
+Nova função `classificarErroAnthropic` em `gate53b_fn_finalize`, aplicada **somente** quando `motivo` começa com `http_error_real_` (nunca em MOCK nem em falhas de pipeline como `credencial_ausente`):
+
+| Categoria | Gatilho | Push? |
+|---|---|---|
+| `billing` | palavras-chave reais no `message` (credit balance/billing/payment method/insufficient credit/purchase credits) | Sim |
+| `limite` | HTTP 429 ou `type=rate_limit_error` | Sim |
+| `autenticacao` | HTTP 401/403 ou `type=authentication_error/permission_error` | Sim |
+| `temporario` | HTTP ≥500 ou `type=api_error/overloaded_error` | Não (evita spam de instabilidade transitória) |
+| `transporte` | sem HTTP status (timeout/DNS/conexão) | Não |
+| `desconhecido` | nenhum dos anteriores — **nunca inventa causa** | Não |
+
+`erro_status_http`/`erro_tipo`/`erro_mensagem` (dado bruto original, nunca descartado, mesmo se o corpo truncado em 500 chars não for JSON válido) + `erro_categoria`/`erro_diagnostico` (rótulo operacional) persistidos em `sensor.saude_sistema_analitico_status` — 5 novos atributos, `packages/saude_sistema_analitico.yaml` (mesmo padrão de `custo_usd` etc.), `template.reload`.
+
+### 11.3 Node-RED (2 PUTs distintos)
+
+- `gate53b_sf_fn_real_error` (subflow, `PUT /flow/global`): passa a capturar `telemetria_real` também em falha de transporte.
+- `gate53b_fn_finalize` (tab, `PUT /flow/gate53b_tab`): classificação + `outputs` 1→2 (novo output dedicado a Push).
+- `gate53f61_fn_build_test_msg`: casos **F-J** adicionados (mesmo harness de 5.3F.6.1, zero rede) — billing/limite/autenticação/5xx/desconhecido sintéticos, injetados direto em `gate53b_fn_finalize`.
+- **1 nó novo**: `gate53_call_push_billing` (`api-call-service`, `notify.mobile_app_iphonewm`).
+
+**Push**: dedup via `flow.get/set('gate_billing_ultima_categoria_pushed')` — só reenvia quando a categoria muda; reseta no primeiro sucesso real. Independente de Timeline/CSMR. Zero ação física.
+
+### 11.4 Achado da própria homologação, corrigido em tempo real
+
+O primeiro teste (caso F/billing) revelou que os 5 novos campos, embora corretamente publicados por Node-RED no evento `health_check_state_changed`, não chegavam ao sensor HA — gap idêntico ao já documentado historicamente para `custo_usd` (Seção 7/9.6). Corrigido estendendo o template YAML (5 novos blocos `evt.*` seguindo o padrão idêntico já existente) + `template.reload`; reconfirmado com sucesso no reteste.
+
+### 11.5 Homologação (matriz completa, zero chamada Anthropic)
+
+Todos os 6 testes via harness `gate53f61_fn_build_test_msg` (mesmo mecanismo já auditado desde 5.3F.6.1 — zero rede, injeção direta em `gate53b_fn_finalize`, ignora lock/coleta/HTTP real):
+
+| Caso | Resultado |
+|---|---|
+| billing (F) | `erro_categoria=billing`, push disparado |
+| limite (G) | `erro_categoria=limite`, push disparado (categoria mudou) |
+| auth (H) | `erro_categoria=autenticacao`, push disparado |
+| 5xx (I) | `erro_categoria=temporario`, **push não disparado** |
+| desconhecido (J) | `erro_categoria=desconhecido`, sem falsa afirmação, push não disparado |
+| success MOCK (A) | `custo_usd` normal (Sonnet, US$0,037), 5 campos novos `null`, dedup resetado para `null` |
+
+Lock liberado em todos os casos (ressalva: harness bypassa o lock por design, nunca exercitado sob contenção real). Zero retry, zero segunda tentativa em cada caso. Scheduler e toggle MOCK permaneceram inalterados durante toda a homologação.
+
+### 11.6 Acabamento visual do dashboard
+
+Card "Estado da Execução" (`.storage/lovelace.sistema_casa`) estendido — **1 card alterado**, nenhum outro tocado. Novo bloco: categoria traduzida (billing/pagamento, limite de uso/gasto/rate limit, autenticação/autorização, indisponibilidade temporária/API, desconhecido), HTTP status e tipo Anthropic quando disponíveis, diagnóstico+ação recomendada (`erro_diagnostico`, único campo existente — não foi inventado um campo separado de "ação recomendada"), mensagem original da API preservada e legível, horário via `as_local` (reaproveita `fin_fmt` já calculado no mesmo card, sem offset hardcoded). Quando não há erro classificado e a última execução foi `success`, mostra "✅ Anthropic: operacional" — nunca fabricado quando não há evidência (`idle`/outros estados sem erro não mostram nada). Validado com o motor Jinja real do HA (`ha_eval_template`) para os 6 cenários + estado neutro, e confirmado ao vivo contra o sensor real (estado `success` → "Anthropic: operacional").
+
+### 11.7 Estado final
+
+Toggle MOCK `off`, scheduler `Desativado`, lock livre, modelo selecionado inalterado, Timeline/CSMR/SmallTV não tocados, zero chamada Anthropic em toda a atividade (auditoria + implementação + homologação + acabamento visual).
+
+**Riscos/pendências residuais:**
+1. Classificação `billing` depende de correspondência de texto no `message` real — se a Anthropic mudar a redação da mensagem, pode cair em `desconhecido` (seguro por design: nunca falha silenciosamente, o erro original continua sempre visível).
+2. Push nunca testado sob lock realmente ocupado (limitação do harness, não da implementação).
+
 ## REGRAS PARA A PRÓXIMA SESSÃO
 
 - **Leia este handoff primeiro**, antes de qualquer ação na frente Health Check.
-- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-10); Node-RED/HA podem ter mudado desde então.
+- **Valide o runtime atual antes de qualquer escrita** — o estado descrito aqui é uma fotografia de 2026-08-31 (Seções 1-8) e 2026-09-01/02 (Seções 9-11); Node-RED/HA podem ter mudado desde então.
 - **Não confie apenas em memória conversacional** (nem a de sessões anteriores, nem eventual resumo automático) — reconstrua a partir de `main`, runtime e Git/GitHub, nessa ordem.
 - **Regra de autorização para chamada Anthropic — atualizada pela Seção 10**: durante a fase de homologação (Seções 1-9), toda chamada real exigia autorização humana explícita e específica por chamada. **A partir da Seção 10, o Health Check está em operação normal** — botão manual e scheduler (quando habilitado) fazem chamadas reais **sem exigir uma nova autorização a cada disparo**, pois essa é agora a operação padrão pretendida e homologada. Isso não dispensa autorização humana para **alterar** esse comportamento (voltar a MOCK por padrão, mudar o mecanismo, etc.) — apenas para o uso normal já homologado.
 - **Não habilitar o scheduler automaticamente** — ele é `Desativado` por padrão, e essa é uma escolha deliberada até uma decisão humana explícita em contrário.
