@@ -271,6 +271,7 @@ O Gate I4A fechou a integração temporal dos consumidores pelo commit funcional
 - [x] `return_pending` persistente bloqueia consumidores durante retorno e D1.
 - [x] Fronteira persistente `consumer_authorized_since` vinculada ao `session_id`.
 - [x] Autorização exige `active`, `return_pending=false`, sessão correspondente e `occurred_at > consumer_authorized_since`.
+- [ ] Test mode end-to-end isolado IMPLEMENTADO NO WORKING TREE (não commitado): canal/helpers próprios, publicações `validated_test`, C1.2 Harness sem notify e consumidores produtivos bloqueados; checkpoint restaurável, processador idempotente e reconciliador preservam saída real preemptada. Revisão independente concluída em 19/08/2026 com resultado GO COM RESSALVAS (nenhum blocker; os três achados de saneamento pré-reload — divergência de `structural_errors`, tom documental e encerramento silencioso — já foram corrigidos no próprio working tree). Ainda NÃO VALIDADO EM RUNTIME nem PROMOVIDO/CONCLUÍDO: `check_config`, reload controlado, Harness dedicado, decisão explícita de religar reconciliador/processador e recuperação administrativa da sessão travada `2f4c70bf` permanecem pendentes.
 - [x] C1.2 usa `trigger.to_state.last_changed` e permanece reativa à abertura física da porta.
 - [x] Harness exige `occurred_at` explícito.
 - [x] Fronteira invalidada em `idle`, `starting`, `ending`, `failed` e retorno pendente.
@@ -410,3 +411,63 @@ I4B.2 permanece exclusivamente como evidência operacional futura e não bloquea
 - Changelog/checkpoint e Roadmap atualizados.
 - Legado preservado ou tratado somente por fase propria.
 - Nenhuma edicao manual de `.storage`.
+
+## Decisões de governança — Canal SmallTV (2026-08-22)
+
+Registradas no fechamento documental do baseline operacional do canal SmallTV (`packages/smalltv_publicacao_v20.yaml`), sem nenhuma alteração funcional associada a este registro:
+
+- **A.** O CSMR não é bloqueador global para evoluções arquiteturalmente isoladas. Uma frente nova pode prosseguir independentemente do estado de homologação do CSMR quando comprovadamente não depende dele.
+- **B.** Uma frente somente deve ser bloqueada pelo CSMR quando tocar diretamente sua FSM, seu contrato, suas transições, ou quando seu comportamento funcional depender dele para operar corretamente. Observar passivamente um evento já publicado pelo CSMR (sem escrever de volta, sem consultar seu estado interno) não configura esse tipo de dependência.
+- **C.** O canal SmallTV permanece desacoplado do CSMR — confirmado por auditoria de código: nenhuma leitura de estado do CSMR, nenhuma escrita, nenhuma dependência de FSM/checkpoint/reconciliador.
+- **D.** A migração futura do gatilho do consumidor SmallTV do evento interno do contrato canônico (`casa_timeline_publicar_canonico_v20`) para o evento ACK (`casa_timeline_contrato_ack_v20`) permanece como **backlog técnico**, não como requisito da implementação atual — a implementação atual já opera de forma segura e isolada sem essa migração.
+- **E.** "Internet degradada" permanece fora da whitelist do canal SmallTV até que haja observação de produção e decisão específica — não é um bloqueio permanente, apenas uma etapa ainda não autorizada.
+- **F.** `sensor.casa_wan_evento_dominante_v20` passou a ter, pela primeira vez, um consumidor real em produção através do canal SmallTV. Recomenda-se observação desse sensor antes de autorizar novas expansões que dependam dele.
+- **G.** A discordância conhecida entre a camada legada de Internet (`sensor.internet_estado_operacional`, sem amortecimento) e a camada V20 consolidada (`sensor.casa_wan_evento_dominante_v20`, amortecida) é registrada como pendência independente do canal SmallTV — não bloqueia esta frente e não foi tratada neste ou em nenhum Gate anterior do canal SmallTV.
+
+## SmallTV — Baseline Operacional
+
+**Status:** EM PRODUÇÃO / HOMOLOGADA NO ESCOPO ATUAL.
+
+Source/event_code/estados reais autorizados (nomes exatamente como existem no código, sem nomes conceituais):
+
+| Fonte real | Identidade real | Cobertura |
+|---|---|---|
+| `casa_timeline_publicar_canonico_v20` (evento), `source: lavadora` | `event_code`: `washing_started`, `washing_finished` | Início e término de lavagem |
+| `sensor.casa_porta_sala_estado_v20` (estado) | `aberta` | Somente abertura |
+| `casa_recovery_4g_central` (evento) | `fato`: `recuperacao_validada`, `tentativas_esgotadas`, `ciclo_encerrado_sem_validacao` | Somente sucesso/falha final |
+| `sensor.casa_chuva_estado_v20` (estado) | `ativa`, `inativa` (com `for: 2min` local ao consumidor) | Início e fim de chuva |
+| `sensor.casa_wan_evento_dominante_v20` (estado) | `internet_indisponivel`, `failover_4g`, `sem_evento` (somente vindo de estado de problema) | Indisponibilidade, failover e restauração |
+
+Explicitamente fora: `carro_presenca` (`car_use_started`/`car_use_ended`), qualquer `event_code` de `csmr_v20_2c`, `internet_degradada`, estados técnicos/intermediários de qualquer domínio, e qualquer evento não listado acima.
+
+## Heartbeat HA → Timeline → SmallTV (Gate de implementação, 2026-09-02)
+
+Implementado no working tree (não commitado): novo produtor `ha_uptime` no contrato canônico, a partir da automação já existente derivada do Blueprint `wmoura/Uptime_HA_Hostv2.yaml` ("Notificações HA - Uptime HA + Host (Intervalo Configurável) v2"). Decisão de Discovery preservada: **manter o Blueprint**, sem migração para package.
+
+- **Produtor novo:** `source: ha_uptime`, `event_code: heartbeat`, mensagem fixa `"🟢 HA ativo"` (preferida a "HA operacional" — o heartbeat comprova que a cadeia automação → sensores de uptime → contrato canônico executou, não a saúde integral de todos os subsistemas).
+- **Origem única da execução:** a mesma automação/trigger/condição (`time_pattern minutes:"0"` + `now().hour % intervalo_horas == 0`) que já envia a notificação Watch/iPhone. `intervalo_horas` continua sendo o único parâmetro de periodicidade (input do Blueprint, sem hardcode e sem segundo helper concorrente) — isso elimina por construção qualquer risco de dessincronia entre os dois canais.
+- **Independência dos canais:** a ação de notificação pessoal (canal Watch/iPhone, texto inalterado) é a primeira ação da sequência; a publicação na Timeline (canal operacional) é uma segunda ação independente, via `script.turn_on` fire-and-forget (mesmo padrão de `lavadora_sessao.yaml`/`carro_presenca.yaml`) com `continue_on_error: true` — uma falha na publicação da Timeline nunca impede, atrasa ou reverte a notificação pessoal, que já foi enviada antes.
+- **Identidade transacional:** `request_id` e `session_id` gerados por `md5(context.id ~ ':ha_uptime:heartbeat:<request|session>')`, formatados como UUIDv4-like — mesma convenção já validada em produção por `lavadora_sessao.yaml`/`carro_presenca.yaml`. Cada execução do heartbeat gera identidade nova (nunca reaproveitada), independentemente do texto exibido.
+- **Allowlist sincronizada** (dívida técnica de allowlist triplicada, já registrada no Discovery, mantida — não refatorada neste Gate): `ha_uptime`/`heartbeat`/`"🟢 HA ativo"` adicionado em `packages/contrato_publicacao_timeline_v20.yaml` (validação + `sources_autorizadas`), replicado em `packages/motor_timeline_v20.yaml` (`canonico_eventos_por_source`/`canonico_mensagens`) e em `packages/smalltv_publicacao_v20.yaml` (`whitelist_smalltv_v20`).
+- **Correção da deduplicação por texto (achado do Discovery):** o sensor `Casa Timeline V20` deduplicava por `evento_base == anterior_base` (texto sem o prefixo `HH:MM`), o que faria heartbeats consecutivos idênticos (ex.: 12:00/15:00/18:00 sem nenhum outro evento entre eles) nunca materializarem e o contrato esgotar os 3 retries com ACK `failed`/`publication_timeout_after_retries` — falso negativo, não indicativo de falha real. Corrigido com uma **exceção explicitamente governada, escopada exclusivamente a `source=ha_uptime`/`event_code=heartbeat`**: um novo atributo persistente `ultimo_request_id_heartbeat_v20` guarda o `request_id` do último heartbeat materializado; a supressão por texto só se aplica quando o `request_id` da execução atual é igual a esse valor (ou seja, é um retry da mesma transação) — nunca com base em mensagem ou horário. Para todos os demais `source`/`event_code`, a dedução por texto permanece exatamente como era. Validado localmente via `ha_eval_template` (sem tocar a Timeline real): heartbeats com `request_id` distintos e texto idêntico materializam; um retry com o mesmo `request_id` é suprimido; o comportamento de um evento não-heartbeat repetido (ex.: `lavadora`/`washing_started`) permanece suprimido como antes.
+- **SmallTV como consumidora indireta:** `packages/smalltv_publicacao_v20.yaml` passou a aceitar `source=ha_uptime`/`event_code=heartbeat` na whitelist mínima, usando o mecanismo de deduplicação por `request_id` já existente (protege retries do produtor sem qualquer tratamento especial). O Blueprint não chama `geekmagic.notify` e não conhece a SmallTV; o fluxo permanece `Blueprint uptime → script.casa_publicar_evento_timeline_v20 → contrato → motor Timeline → sensor.casa_timeline_v20 → pipeline SmallTV → GeekMagic`.
+- **Não executado neste Gate:** `test_mode:false`, disparo manual da automação real, push real para Watch/iPhone, chamada real a GeekMagic, reload, restart. Validação de contrato (`test_mode:true` → `validated_test`) e da lógica de deduplicação foram feitas de forma determinística e local via `ha_eval_template`, sem publicar nenhum evento real. Homologação runtime permanece pendente de autorização.
+
+### Carga runtime e homologação real (2026-09-03)
+
+Carga controlada executada por reload específico — **`script.reload`**, **`template.reload`** e **`automation.reload`**, todos `success: true`; `homeassistant.check_config` já havia passado antes. **Restart não foi necessário nem executado.** `automation.note_ha_uptime` permaneceu `on` antes e depois, com o mesmo `use_blueprint` e sem overrides. Antes da carga, foi verificado que o próximo disparo elegível (`hora % intervalo_horas == 0`) só ocorreria às 15:00, fora da janela real de carga — risco comunicado e execução autorizada explicitamente pelo operador, inclusive para usar o ciclo natural das 15:00 como primeira homologação funcional (sem disparo manual).
+
+**Duas execuções reais, naturais, sem qualquer disparo manual:**
+
+| Execução | `request_id` | `session_id` | ACK | SmallTV disparada |
+|---|---|---|---|---|
+| 15:00:00 | `dc591f96-7ec7-4314-8dc0-9bc4e209771a` | `39d56655-f50a-46d0-8425-56ecdb7cc521` | `published`, `reason=""` | sim, `15:00:03.197` (mesma cadeia causal do trigger da automação) |
+| 18:00:00 | `ea9bc680-55ba-4179-874b-50484a01ba06` | `291909bf-8e47-453d-8cdb-082acdfec8cb` | `published`, `reason=""` | sim, `18:00:04.662` (evento raw `casa_timeline_publicar_canonico_v20`, ~17ms antes do `ack_at`, coerente com a arquitetura documentada) |
+
+Ambas materializaram `🟢 HA ativo` em `sensor.casa_timeline_v20` (`linha_1`), e `ultimo_request_id_heartbeat_v20` acompanhou corretamente cada uma (`dc591f96...` após as 15:00, `ea9bc680...` após as 18:00). `request_id`/`session_id` distintos em cada execução, confirmando a geração `md5(context.id ~ salt)` funcionando como projetado. Nenhum erro em log para `ha_uptime`, `heartbeat`, `smalltv`, `Uptime_HA_Hostv2`, `timeline_v20` ou `casa_publicar_evento_timeline` em nenhuma das duas janelas.
+
+**Confirmação humana registrada pelo operador:** Watch OK, iPhone OK, Timeline OK, GeekMagic OK.
+
+**Limitação explícita da evidência runtime:** entre as duas execuções reais ocorreram outros eventos genuínos na Timeline (`17:59 🧺 Lavagem iniciada`, entre outros) — ou seja, o cenário real observado **não** foi "dois heartbeats imediatamente consecutivos sem nenhum evento entre eles". A exceção governada de deduplicação (`heartbeat_excecao`) permanece validada apenas por lógica/simulação determinística (`ha_eval_template`, Gate de implementação) — **ainda não foi exercitada por um caso real** em que o texto anterior imediato também fosse `"🟢 HA ativo"`. Nenhum teste artificial foi criado para forçar esse cenário. Fica registrado como validação pendente de observação natural futura, não como bloqueio.
+
+**Dívida técnica residual confirmada como ainda existente:** a allowlist `source`/`event_code`/`message` permanece triplicada em `contrato_publicacao_timeline_v20.yaml`, `motor_timeline_v20.yaml` e `smalltv_publicacao_v20.yaml` — não refatorada neste Gate, por decisão explícita de escopo.

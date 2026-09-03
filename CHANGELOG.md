@@ -1,5 +1,30 @@
 # Changelog
 
+## [heartbeat-ha-timeline-homologacao] - 2026-09-03
+
+- Carga runtime executada por reload específico (`script.reload`, `template.reload`, `automation.reload`, todos `success: true`); `homeassistant.check_config` já havia passado antes. Restart não foi necessário. `automation.note_ha_uptime` permaneceu `on`, sem overrides, antes e depois.
+- Duas execuções reais e naturais do heartbeat homologadas, sem nenhum disparo manual: 15:00 (`request_id dc591f96-7ec7-4314-8dc0-9bc4e209771a`) e 18:00 (`request_id ea9bc680-55ba-4179-874b-50484a01ba06`), ambas com ACK `published`, materializadas em `sensor.casa_timeline_v20` (`🟢 HA ativo`), `ultimo_request_id_heartbeat_v20` atualizado corretamente em cada uma, SmallTV disparada em ambas na mesma cadeia causal do evento. Zero erros em log relacionados a `ha_uptime`/`heartbeat`/`smalltv`/`Uptime_HA_Hostv2`/`timeline_v20`.
+- Confirmação humana do operador: Watch OK, iPhone OK, Timeline OK, GeekMagic OK.
+- Limitação registrada: entre as duas execuções reais houve outros eventos genuínos na Timeline (ex.: início de lavagem às 17:59) — o cenário "dois heartbeats imediatamente consecutivos sem nenhum evento entre eles" segue validado apenas por simulação determinística (Gate de implementação), não por observação real; nenhum teste artificial foi criado para forçar esse cenário.
+- Dívida técnica da allowlist triplicada (contrato/motor Timeline/SmallTV) confirmada como ainda existente, não tratada neste Gate.
+
+## [heartbeat-ha-timeline-implementacao] - 2026-09-02
+
+- Implementado no working tree (não commitado) o Gate de implementação Heartbeat HA → Timeline → SmallTV: novo produtor `source: ha_uptime`, `event_code: heartbeat`, mensagem fixa `"🟢 HA ativo"`, publicado pela automação já existente derivada do Blueprint `wmoura/Uptime_HA_Hostv2.yaml` — decisão do Discovery preservada, sem migração para package.
+- A mesma execução/trigger/condição que já envia a notificação Watch/iPhone (`intervalo_horas`, único parâmetro de periodicidade, sem hardcode) agora também publica, como segunda ação independente (`script.turn_on` fire-and-forget, `continue_on_error: true`), o heartbeat pelo contrato canônico `script.casa_publicar_evento_timeline_v20`. A notificação pessoal ao Watch/iPhone permanece byte-a-byte inalterada e não depende do sucesso da publicação na Timeline.
+- `request_id`/`session_id` gerados por `md5(context.id ~ ':ha_uptime:heartbeat:...')` (UUIDv4-like), mesma convenção já usada por `lavadora_sessao.yaml`/`carro_presenca.yaml` — nunca a partir de mensagem ou horário.
+- Allowlist sincronizada nas três cópias existentes (`packages/contrato_publicacao_timeline_v20.yaml`, `packages/motor_timeline_v20.yaml`, `packages/smalltv_publicacao_v20.yaml`); a triplicação em si é dívida técnica pré-existente, registrada no Discovery e mantida — não refatorada neste Gate.
+- Corrigida, com uma exceção explicitamente governada e escopada apenas a `source=ha_uptime`/`event_code=heartbeat` (novo atributo `ultimo_request_id_heartbeat_v20` em `sensor.casa_timeline_v20`), a deduplicação por texto que faria heartbeats consecutivos idênticos sem nenhum outro evento entre eles nunca materializar e o contrato esgotar retries com ACK `failed`/`publication_timeout_after_retries`. A deduplicação por texto de todos os demais produtores permanece inalterada; retries da mesma transação (`request_id` repetido) continuam suprimidos.
+- SmallTV passa a aceitar o heartbeat como consumidora indireta e desacoplada, via whitelist mínima e a deduplicação por `request_id` já existente no canal — sem chamada direta a `geekmagic.notify` pelo Blueprint.
+- Validação feita de forma determinística e local via `ha_eval_template` (contrato em `test_mode:true` → `validated_test`; lógica de deduplicação simulada com múltiplos cenários), sem publicar nenhum evento real, sem reload/restart e sem notificação real. Homologação runtime pendente de autorização — ver `docs/governance/gates_v20.md`.
+
+## [smalltv-geekmagic-baseline-operacional] - 2026-08-22
+
+- Fechamento documental do canal SmallTV (GeekMagic): consumidor único (`automation.casa_smalltv_publicar_evento_v20`, `packages/smalltv_publicacao_v20.yaml`), independente do CSMR, do contrato canônico, da Timeline e do Push — observa eventos/estados já existentes e publicados por pipelines já homologados, sem escrever de volta em nenhum deles.
+- Domínios autorizados no baseline atual: lavadora (`washing_started`/`washing_finished`, via contrato canônico), porta da sala (`sensor.casa_porta_sala_estado_v20` = `aberta`), Recovery 4G (`casa_recovery_4g_central`, campo `fato` em `recuperacao_validada`/`tentativas_esgotadas`/`ciclo_encerrado_sem_validacao`), chuva (`sensor.casa_chuva_estado_v20` = `ativa`/`inativa`, com `for: 2 minutos` local ao consumidor) e Internet/Failover 4G exclusivamente via `sensor.casa_wan_evento_dominante_v20` (`internet_indisponivel`/`failover_4g`/`sem_evento` vindo de estado de problema) — a única fonte já consolidada e amortecida (30-120s) do motor WAN/4G. Carro, CSMR, internet degradada e estados técnicos/intermediários permanecem explicitamente fora.
+- Kill-switch (`input_boolean.casa_smalltv_habilitado_v20`) e deduplicação local (por `request_id` nos domínios que o possuem; por `last_changed` do próprio trigger de estado nos demais) permanecem como únicos mecanismos de controle, sem ledger complexo. Toda chamada a `geekmagic.notify` roda com `continue_on_error`, isolando falha do canal de qualquer efeito sobre Timeline, Push, CSMR, Recovery ou o motor WAN/4G.
+- Documentação consolidada em `docs/ARCHITECTURE.md` (posição arquitetural, diagrama, limitações, riscos e critérios de expansão) e em `docs/governance/gates_v20.md` (decisões de governança sobre a não-dependência do CSMR). Nenhuma alteração funcional foi feita nesta entrada — apenas registro documental do AS-BUILT já implementado nos Gates anteriores.
+
 ## [lavadora-homologacao-fisica-fechamento] - 2026-08-19
 
 - A Homologação Física Pós-Cutover foi concluída com resultado HOMOLOGADO — SEM RESSALVAS, auditando o primeiro ciclo físico real pós-M5 (`session_id 211c29bd-b0bb-474f-87f7-9a818e5f0fa1`, 18/08/2026): exatamente 1 `washing_started`, 1 `spinning_detected` e 1 `washing_finished`, mesmo `session_id` nas três publicações, correspondência 1:1 entre as 3 chamadas do publicador canônico e o ledger de produção, sem `rejected`/`duplicate` e sem nenhuma mensagem no padrão legado.
@@ -12,6 +37,12 @@
 - O classificador bruto legado foi neutralizado (`input_boolean.atividade_maquina_lavar_habilitada=off`) como parte do mesmo cutover, sem alterar thresholds, TV, micro-ondas ou banho.
 - O hardening de startup (M5.1/M5.2) adicionou um guard `homeassistant.start` que força esse kill-switch de volta a `off` a cada boot e removeu `initial: true` da declaração original do helper, eliminando na origem a janela de boot que poderia religar o classificador bruto; restart real ainda não foi exercitado empiricamente.
 - A homologação física pós-cutover permanece pendente — depende da próxima lavagem física real confirmando exatamente uma publicação de início, no máximo uma de centrifugação, uma de término e ausência de spam legado.
+
+## [v20.2c-c1.2-harness-push-isolation] - 2026-08-11
+
+- O Harness C1.2 preserva os mesmos guards e a evidência em Logbook, mas somente o trigger físico `physical_door` pode chamar `notify.mobile_app_iphonewm`; CSMR, fronteira temporal e caminho produtivo permanecem inalterados.
+- O Harness dispatcher passa a fixar `test_mode: true`, reutilizar I2 e o ledger técnico do publicador, autorizar apenas o canal C1.2 de teste e manter C1.1, C1.3, Protect, Timeline, ledger produtivo e efeitos físicos isolados. Sessão/fronteira de teste são separadas e invalidadas governadamente; triggers reais permanecem produtivos e preemptam teste somente após fechamento confirmado.
+- A borda real é capturada antes da preempção com `cycle_id`, instante, graça e requests imutáveis. Processador serial e reconciliador por wake-up retomam uma etapa por vez após reload/restart; conflito de identidade permanece bloqueado e pending só termina após autorização produtiva ou cancelamento seguro anterior a `active`.
 
 ## [v20.2e-publicar-timeline-type] - 2026-08-11
 

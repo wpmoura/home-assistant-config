@@ -88,7 +88,7 @@ template:
           contrato: >
             {{ {
               'source_autorizada': 'csmr_v20_2c',
-              'sources_autorizadas': ['csmr_v20_2c', 'carro_presenca', 'lavadora'],
+              'sources_autorizadas': ['csmr_v20_2c', 'carro_presenca', 'lavadora', 'ha_uptime'],
               'schema_version': 1,
               'identidade_transacional': 'request_id',
               'identidade_logica': 'source+session_id+event_code',
@@ -168,6 +168,7 @@ script:
             washing_started: "🧺 Lavagem iniciada"
             spinning_detected: "🌀 Centrifugação detectada"
             washing_finished: "✅ Lavagem finalizada"
+            heartbeat: "🟢 HA ativo"
           eventos_por_source:
             csmr_v20_2c:
               - wilson_left_home
@@ -181,6 +182,8 @@ script:
               - washing_started
               - spinning_detected
               - washing_finished
+            ha_uptime:
+              - heartbeat
           validacao_reason: >-
             {% if request_id is not defined %}missing_request_id
             {% elif request_id is not string %}invalid_request_id_type
