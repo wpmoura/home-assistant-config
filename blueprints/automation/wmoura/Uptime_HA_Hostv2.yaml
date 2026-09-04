@@ -3,6 +3,10 @@ blueprint:
   description: >
     Envia notificações com o uptime do Home Assistant e do host,
     em formato leve para iPhone e Apple Watch, com intervalo configurável.
+    Adicionalmente, na mesma execução, publica um heartbeat "HA ativo" na
+    Timeline canônica (script.casa_publicar_evento_timeline_v20), como
+    segunda saída independente do canal pessoal — ver comentário V20.2C
+    abaixo.
   domain: automation
   input:
     prefixo_mensagem:
@@ -46,6 +50,45 @@ blueprint:
           step: 1
           mode: slider
 
+    publicar_timeline_heartbeat:
+      name: "Publicar heartbeat na Timeline"
+      description: >-
+        Habilita a segunda saída (Timeline canônica). Não afeta a
+        notificação pessoal do Watch/iPhone, que continua sempre ativa.
+      default: true
+      selector:
+        boolean: {}
+
+###############################################################################
+# V20.2C — Heartbeat HA → Timeline (Gate de implementação)
+#
+# A automação mantém, intocada, sua única responsabilidade original: o
+# CANAL PESSOAL (notificação Watch/iPhone com o uptime formatado). A
+# frequência continua determinada exclusivamente pelo input
+# "intervalo_horas" acima — não há segundo parâmetro de periodicidade em
+# lugar nenhum, evitando dessincronia entre os dois canais.
+#
+# Uma segunda ação, o CANAL OPERACIONAL, publica um heartbeat na Timeline
+# exclusivamente pelo contrato canônico (script.casa_publicar_evento_
+# timeline_v20, via script.turn_on fire-and-forget — mesmo padrão já usado
+# por lavadora_sessao.yaml e carro_presenca.yaml). Este blueprint NÃO chama
+# geekmagic.notify e não conhece a SmallTV — a Timeline é a única
+# consumidora direta desta ação; a SmallTV, se vier a exibir o heartbeat,
+# o fará como consumidora indireta e desacoplada do pipeline já existente.
+#
+# request_id e session_id são gerados a partir de context.id (único por
+# execução) via md5, no mesmo formato UUIDv4-like já validado em produção
+# por lavadora_sessao.yaml e carro_presenca.yaml — nunca a partir de
+# mensagem ou horário. Isso garante que toda execução do heartbeat carregue
+# uma identidade transacional (request_id) e lógica (session_id) novas,
+# distintas da execução anterior, mesmo que o texto exibido seja idêntico.
+#
+# Uma falha na publicação da Timeline (script indisponível, timeout, etc.)
+# nunca impede nem atrasa a notificação pessoal: esta é a primeira ação da
+# sequência, já concluída antes de a segunda ação sequer começar, e a
+# segunda ação roda com continue_on_error.
+###############################################################################
+
 trigger:
   - platform: time_pattern
     minutes: "0"
@@ -55,6 +98,7 @@ variables:
   ha_uptime_entity: !input ha_uptime_entity
   host_uptime_entity: !input host_uptime_entity
   intervalo_horas: !input intervalo_horas
+  publicar_timeline_heartbeat: !input publicar_timeline_heartbeat
 
 condition:
   - condition: template
@@ -62,6 +106,8 @@ condition:
       {{ (now().hour % (intervalo_horas | int(1))) == 0 }}
 
 action:
+  # CANAL PESSOAL — inalterado: mesmo trigger, mesma condição, mesma
+  # mensagem enviada ao Watch/iPhone.
   - service: !input notify_service
     data:
       message: >-
@@ -88,5 +134,30 @@ action:
 
         {{ prefixo_mensagem }}
         🏠 {{ format(ha) }} | 🖥 {{ format(host) }}
+
+  # CANAL OPERACIONAL — heartbeat na Timeline canônica, isolado do canal
+  # pessoal acima. Fire-and-forget: não bloqueia nem cancela a notificação
+  # já enviada.
+  - if:
+      - condition: template
+        value_template: "{{ publicar_timeline_heartbeat }}"
+    then:
+      - service: script.turn_on
+        continue_on_error: true
+        target:
+          entity_id: script.casa_publicar_evento_timeline_v20
+        data:
+          variables:
+            request_id: >-
+              {% set h = md5(context.id ~ ':ha_uptime:heartbeat:request') %}
+              {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+            source: ha_uptime
+            session_id: >-
+              {% set h = md5(context.id ~ ':ha_uptime:heartbeat:session') %}
+              {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+            event_code: heartbeat
+            message: "🟢 HA ativo"
+            schema_version: 1
+            test_mode: false
 
 mode: single
