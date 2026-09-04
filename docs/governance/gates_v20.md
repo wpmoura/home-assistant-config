@@ -9,6 +9,115 @@ Definir criterios obrigatorios para encerramento de fases da Central Operacional
 
 Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
 
+## Gate de Enquadramento — SOC x AT
+
+Obrigatório antes do primeiro prompt de implementação e novamente quando o escopo mudar. Deve ser curto e baseado em evidências já existentes.
+
+Responder somente:
+
+1. A melhoria apenas consome interfaces existentes?
+2. Modifica contrato, motor ou componente central?
+3. O impacto é local ou alcança outros domínios?
+4. O rollback é simples e imediato?
+5. Existem dúvidas ou dependências não auditadas?
+
+Registro mínimo:
+
+```text
+GATE DE ENQUADRAMENTO
+
+Iniciativa:
+Consome:
+Modifica:
+Impacto:
+Rollback:
+Incertezas:
+
+Decisão: GO AT | GO SOC | NO-GO
+Motivo:
+Evidência principal:
+```
+
+### Decisão
+
+- `GO AT`: melhoria pequena e delimitada, apenas consome interfaces existentes, possui impacto local e rollback simples.
+- `GO SOC`: cria ou altera contrato, allowlist, deduplicação, persistência, idempotência, motor, componente central ou autoridade operacional; ou possui impacto sistêmico.
+- `NO-GO`: faltam evidências ou existem conflitos. Bloqueia implementação e autoriza somente a auditoria do ponto incerto.
+
+Usar um publicador canônico não significa alterar a Timeline. Modificar seu contrato, suas fontes/eventos autorizados ou o motor da Timeline significa alterá-la.
+
+Não repetir fatos já comprovados. Referenciar documento, commit, PR ou evidência existente. Não criar arquivo novo para cada enquadramento quando o roadmap ou o documento da iniciativa puder registrar a decisão.
+
+## Proporcionalidade dos prompts e Gates
+
+O enquadramento `SOC x AT` decide onde a iniciativa será gerida. O nível do prompt decide quanto controle a atividade concreta exige. As decisões são independentes: uma atividade AT pode exigir prompt crítico e uma atividade documental do SOC pode usar prompt simples.
+
+### Triagem do nível do prompt
+
+Antes de gerar o prompt, responder apenas:
+
+1. Haverá escrita ou somente leitura?
+2. O efeito alcança apenas um artefato isolado, o runtime controlado ou componentes centrais/múltiplos domínios?
+3. O rollback é imediato e comprovado?
+4. Há incerteza relevante, ação física, segredo, custo externo, operação Git sensível ou risco de indisponibilidade?
+
+Não existe pontuação. Aplica-se o nível mais alto identificado:
+
+| Nível | Usar quando | Conteúdo mínimo |
+| --- | --- | --- |
+| `P1 — Simples` | leitura, consulta, auditoria pequena ou ação local facilmente reversível, sem impacto em runtime | objetivo; limite; evidência esperada; condição de parada |
+| `P2 — Operacional controlado` | escrita delimitada, commit documental, push/PR isolado, reload parcial ou mudança pequena com rollback conhecido | objetivo; estado de entrada; escopo; limites; PASS/NO-GO; evidências; rollback; parada |
+| `P3 — Crítico` | contrato ou motor central, múltiplos domínios, restart, ação física, segurança/segredo, custo externo relevante, indisponibilidade possível, Git destrutivo/divergente ou rollback complexo | objetivo; estado de entrada; invariantes; escopo e exclusões; sequência controlada; autorizações; PASS/NO-GO; evidências; rollback; paradas imediatas |
+
+### Regras de decisão
+
+- Em dúvida entre dois níveis, usar o maior somente até auditar a dúvida; depois simplificar se a evidência permitir.
+- Se a execução revelar risco, dependência ou blast radius maior, parar e reclassificar o prompt antes de continuar.
+- Atividade longa pode ser dividida em operações com níveis diferentes; não elevar automaticamente todas as etapas ao nível crítico.
+- Reutilizar evidências já comprovadas e não reauditar fatos sem razão objetiva.
+- Não criar Gate para aprovar o nível do próprio Gate; a triagem deve caber no cabeçalho do prompt ou no documento da iniciativa.
+- Autorização humana é exigida no ponto que produz efeito externo, físico, financeiro, irreversível ou de publicação; leitura e preparação podem avançar dentro do escopo já autorizado.
+
+Registro mínimo:
+
+```text
+NÍVEL DO PROMPT: P1 | P2 | P3
+Motivo:
+Efeito máximo previsto:
+Parar se:
+```
+
+### Exemplos
+
+- Consultar documentação ou comparar branches sem escrita: `P1`.
+- Editar documentação local e validar o diff, sem commit: `P1` quando o escopo for inequívoco e totalmente reversível.
+- Criar commit, push ou PR isolado: `P2`.
+- Reload parcial com rollback conhecido: `P2`.
+- Alterar contrato ou deduplicação da Timeline: `P3`.
+- Restart do Home Assistant, ação física no Recovery 4G ou Git destrutivo/divergente: `P3`.
+
+Em resumo, o detalhamento deve acompanhar risco, reversibilidade, incerteza e blast radius:
+
+- Gate simples: consulta read-only, auditoria pequena ou operação reversível de baixo impacto;
+- Gate operacional controlado: commit documental, push de branch isolada, PR, reload controlado ou alteração pequena com impacto delimitado;
+- Gate crítico: alteração funcional ou arquitetural relevante, runtime de alto impacto, histórico Git divergente, merge complexo, rebase, reset ou risco de contaminar outras frentes.
+
+Todo Gate deve conter apenas o necessário entre objetivo, limites, critérios PASS/NO-GO, evidências, rollback e condição de parada. Mais texto não significa mais segurança.
+
+Autorização humana deve ser inequívoca. Texto exibido após o prompt `❯` pelo Claude Code pode ser sugestão da própria ferramenta e não deve ser tratado como autorização de Wilson sem confirmação humana fora daquele output.
+
+## Status comuns dos roadmaps
+
+- `Concluído`: implementado, homologado, documentado e publicado; sem pendência bloqueante.
+- `Em fechamento`: funcionalidade pronta e homologada, faltando documentação, publicação, limpeza controlada ou encerramento formal.
+- `Em andamento`: trabalho iniciado ainda incompleto.
+- `Backlog priorizado`: iniciativa aprovada, desejada e ainda não iniciada.
+- `Dívida técnica`: problema técnico conhecido que não impede a operação atual.
+- `Dívida de governança`: problema de documentação, branching, processo, classificação, autorização ou fonte da verdade.
+- `Futuro / ideias`: possibilidade ainda não aprovada.
+
+`Bloqueado` e `Homologação suspensa` são condições adicionais, não status principais. Código ou documento existente, isoladamente, não comprova conclusão.
+
 ## Gate corretivo V20.1Q — Recovery 4G
 
 - [x] Tentativas genéricas e snapshot do máximo implementados estaticamente.

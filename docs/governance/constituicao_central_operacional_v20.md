@@ -71,6 +71,32 @@ Limpeza de legado, automacoes, dashboards, helpers ou entidades residuais deve o
 
 Documentos grandes, historicos ou em expansao nao autorizam criacao automatica de novos arquivos, extracao automatica, mudanca de canonicidade ou decisao arquitetural implicita.
 
+### 12. Dois roadmaps permanentes
+
+A Central Operacional possui dois roadmaps canônicos e complementares:
+
+- Sistema Operacional Casa (SOC): desenvolvimentos complexos, arquitetura, contratos, motores e componentes centrais;
+- Automações Táticas (AT): melhorias pequenas, delimitadas e rápidas que apenas consomem interfaces e entidades existentes.
+
+O enquadramento não é determinado por prefixo histórico. Toda iniciativa deve passar por Gate de Enquadramento antes da implementação e sempre que seu escopo crescer.
+
+Consumir uma interface canônica existente não equivale a alterar o componente. Criar ou modificar contrato, allowlist, deduplicação, persistência, idempotência, motor ou autoridade operacional exige enquadramento SOC.
+
+Os roadmaps canônicos são:
+
+- `docs/roadmap/roadmap_v20_consolidado.md` — SOC;
+- `docs/governance/automacoes_taticas.md` — AT.
+
+`docs/ROADMAP.md` permanece como índice executivo e não deve duplicar o conteúdo detalhado dos dois roadmaps.
+
+### 13. Handoffs são auxiliares de continuidade
+
+Handoffs transportam contexto entre sessões, agentes e ferramentas. Não são fonte canônica, não alteram roadmap ou arquitetura, não homologam funcionalidade e não autorizam commit, push, PR, merge, reload, restart, chamada paga ou ação física.
+
+Deve existir no máximo um handoff ativo por frente. Um substituto torna o anterior `SUPERADO`; uma frente incorporada às fontes oficiais torna o handoff `ENCERRADO`. O agente que retoma deve revalidar Git e runtime quando o estado puder ter mudado.
+
+Novos handoffs devem usar Markdown UTF-8 comum, sem formato proprietário, segredo ou dependência de transcrição interna de agente. O local preferencial é `docs/handoffs/`; arquivos existentes em `docs/governance/` permanecem onde estão até saneamento controlado.
+
 ## Politica Constitucional de Crescimento Documental
 
 ### Principios gerais
