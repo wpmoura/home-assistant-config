@@ -9,6 +9,31 @@ Registrar debitos tecnicos iniciais a partir do inventario resumido e do gap de 
 
 Este backlog nao autoriza implementacao, limpeza ou remocao. Cada item exige fase propria e gates.
 
+## Checkpoint de consolidação — 2026-09-04
+
+Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos abaixo não devem ser tratados automaticamente como estado atual sem confronto com os roadmaps SOC e AT.
+
+### Dívidas técnicas confirmadas
+
+| Dívida | Situação | Tratamento |
+| --- | --- | --- |
+| Allowlist de eventos replicada em contrato, motor Timeline e SmallTV | Aberta | Não refatorar automaticamente; abrir fase própria quando priorizada |
+| Lógica principal do Health Check no Node-RED fora do Git | Aberta | Avaliar export/versionamento seguro sem expor credenciais |
+| Temporalidade da Timeline (`occurred_at` x confirmação) | Aberta | Tratar em lote arquitetural próprio; não retropublicar eventos históricos |
+| Ordenação e correlação de eventos | Aberta | Preservar baseline atual até desenho e Gate específicos |
+| Cobertura residual do Recovery 4G | Aberta, homologação suspensa | Retomar somente cenários ainda sem evidência, sem repetir testes comprovados |
+| V20.2E — guard, concorrência e matriz completa de push | Aberta | Cobertura runtime complementar antes do encerramento formal |
+
+### Dívidas de governança confirmadas
+
+| Dívida | Situação | Tratamento |
+| --- | --- | --- |
+| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Aberta | Discovery e consolidação seletiva; proibir rebase/reset/force-push automático |
+| Oito alterações locais CSMR não auditadas | Aberta | NO-GO para publicação até inspeção do working tree original |
+| Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-04 prevalece nos roadmaps; preservar histórico |
+| Handoff do Health Check isolado em `main` | Aberta | Incorporar seletivamente durante consolidação Git |
+| Aplicação prática da política P1/P2/P3 | Em observação | Ajustar somente com evidência de excesso ou insuficiência |
+
 ## Debitos iniciais
 
 | ID | Titulo | Origem | Classificacao | Status | Dependencia |

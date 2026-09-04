@@ -24,13 +24,15 @@ Ele nao possui autoridade superior a Constituicao, nao substitui automaticamente
    - `architecture.md`, `docs/ARCHITECTURE.md` e documentos tecnicos de arquitetura.
 
 5. Roadmap
-   - `docs/ROADMAP.md`, `docs/roadmap/roadmap_v20_consolidado.md` e planejamentos subordinados.
+   - `docs/ROADMAP.md` — índice executivo dos dois roadmaps;
+   - `docs/roadmap/roadmap_v20_consolidado.md` — roadmap SOC;
+   - `docs/governance/automacoes_taticas.md` — roadmap AT.
 
 6. Auditorias
    - documentos de auditoria, investigacao, validacao e impacto.
 
 7. Artefatos auxiliares
-   - releases, checklists, discovery, technical debt e historicos.
+   - handoffs, releases, checklists, discovery, technical debt e historicos.
 
 Documentos complementares dentro de `docs/governance/`, como `docs/governance/gates_v20.md`, permanecem subordinados a Constituicao e devem ser interpretados conforme esta hierarquia.
 
@@ -61,6 +63,7 @@ Os documentos abaixo continuam ativos como origem historica ou detalhamento, mas
 - Nenhum arquivo markdown criado durante execucao torna-se fonte de verdade automaticamente.
 - Documentos operacionais e releases sao transitorios por padrao.
 - Antes de criar novo arquivo, reutilizar documento existente quando houver categoria compativel.
+- Handoff transporta contexto; roadmap declara situacao; Gate registra decisao; Changelog registra historia; implementacao e homologacao comprovam entrega.
 
 ## Politica constitucional de crescimento documental
 
@@ -74,13 +77,49 @@ Este indice apenas define a precedencia: a Constituicao governa criacao de arqui
 
 Concentra regras ativas, fonte da verdade, gates e constituicao operacional.
 
+- `docs/governance/automacoes_taticas.md`
+  - Classificacao: roadmap canonico da Vertical AT.
+  - Finalidade: registrar melhorias pequenas e locais sob fluxo reduzido.
+  - Autoridade: subordinado a Constituicao, ao Source of Truth e ao Gate de Enquadramento.
+
 ### roadmap
 
 Concentra planejamento, fases futuras, dependencias e relacao com debitos tecnicos.
 
+- `docs/ROADMAP.md`: indice executivo e roteador; nao duplica os roadmaps detalhados.
+- `docs/roadmap/roadmap_v20_consolidado.md`: roadmap canonico SOC.
+- `docs/governance/automacoes_taticas.md`: roadmap canonico AT, mantido em governance por tambem registrar seu fluxo reduzido.
+- `docs/roadmap_central_operacional_semantic_house_v_26.md`: visao estrategica conceitual subordinada; nao e roadmap canonico e nao declara status operacional.
+
+### releases congelados
+
+- `docs/release_central_operacional_v20.md`: baseline historica V20.0 congelada em 2026-05-13; nao deve absorver evolucoes V20.1/V20.2 posteriores.
+
 ### technical_debt
 
 Concentra pendencias, riscos, inconsistencias e candidatos a saneamento.
+
+### pendencias operacionais
+
+- `docs/pendencias_atuais_central_operacional.md`
+  - Classificacao: fila canonica de acoes e decisoes concretas ainda necessarias.
+  - Limite: nao substitui roadmap, backlog tecnico ou Gate; nao recebe ideias futuras sem aprovacao.
+  - Estados: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NAO COMPROVADA`.
+
+### handoffs
+
+Concentra contexto auxiliar de continuidade entre sessoes, agentes e ferramentas.
+
+- Local preferencial para novos arquivos: `docs/handoffs/`.
+- Autoridade: auxiliar; nunca substitui Constituicao, Source of Truth, arquitetura, roadmap, Gates, Changelog, implementacao ou homologacao.
+- Estados permitidos: `ATIVO`, `SUPERADO` e `ENCERRADO`.
+- Limite: no maximo um handoff ativo por frente.
+- Criar somente quando houver troca de sessao/agente/ferramenta, interrupcao de atividade complexa, working tree nao publicado, bloqueio relevante ou proximo passo sensivel ainda nao executado.
+- Nao criar apos toda conversa ou Gate, nem para repetir roadmap ou Changelog.
+- Conteudo minimo: frente, data/hora, status do handoff, roadmap, branch/HEAD, estado do working tree, ultimo fato comprovado, pendencias, riscos/bloqueios, proximo passo seguro, acoes nao autorizadas e referencias canonicas.
+- Autorizações passadas não permanecem automaticamente válidas em nova sessão.
+- Handoffs existentes em `docs/governance/` permanecem validos como auxiliares ate saneamento controlado; sua localizacao ou titulo nao lhes concede canonicidade.
+- Transcricoes internas de agentes, incluindo `.jsonl` do Claude Code, nao sao handoffs do projeto.
 
 ### auditorias
 

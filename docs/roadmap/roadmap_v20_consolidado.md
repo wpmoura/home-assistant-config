@@ -1,15 +1,75 @@
-# Roadmap V20 Consolidado
+# Roadmap SOC — Sistema Operacional Casa
 
-Data: 2026-05-20
+Data de consolidação: 2026-09-04
 Status: ATIVO
 
 ## Objetivo
 
-Consolidar o roadmap documental da Central Operacional V20 e explicitar dependencias com o backlog tecnico.
+Consolidar o roadmap de desenvolvimentos complexos da Central Operacional e explicitar dependencias com o backlog tecnico.
 
 Este documento nao altera contratos, nao implementa funcionalidades e nao substitui gates.
 
-## Estado consolidado
+Iniciativas pequenas e delimitadas pertencem ao roadmap AT em `docs/governance/automacoes_taticas.md`. O enquadramento obrigatório está em `docs/governance/gates_v20.md`.
+
+## Estado operacional auditado
+
+### Concluído
+
+| Frente | Evidência consolidada | Pendência não bloqueante ou dívida separada |
+| --- | --- | --- |
+| Health Check | Implementado, homologado, documentado e mergeado em `main`; entrada em operação normal e scheduler diário homologados | Node-RED não versionado; integração semântica com Timeline adiada |
+| CSMR — baseline publicada | Gates até I5B homologados; V20.2C funcionalmente concluída | I4B.2: evidência operacional natural não bloqueante |
+| Lavadora/FSM | FSM, Harness, contrato, cutover, restart e ciclo físico real homologados sem ressalvas | Destino do watcher pós-cutover |
+| Heartbeat HA → Timeline → SmallTV | PRs funcional e documental mergeados; runtime homologado | Allowlist replicada em três pontos |
+| Gestão do Carro — baseline AT-GC | AT-GC-00 a AT-GC-08 homologada; histórico AT preservado | Domínio transferido ao SOC e ainda possui backlog funcional |
+
+### Em fechamento
+
+Nenhuma frente identificada neste checkpoint.
+
+### Em andamento
+
+| Frente | Condição | Próxima necessidade |
+| --- | --- | --- |
+| Recovery 4G | Homologação suspensa por decisão operacional; implementação permanece válida | Retomar somente os cenários pendentes definidos no Gate V20.1Q |
+| CSMR — alterações locais posteriores | NO-GO para publicação | Auditar os oito arquivos locais preservados no working tree original |
+| V20.2E — Uso do carro na Timeline | Implementação e correções existentes; núcleo do contrato e ciclo real possuem evidências, mas o Gate ainda registra homologação runtime complementar pendente | Auditar estado local/publicado e executar somente a cobertura residual necessária |
+| V20.2 shadow — motores contextuais | Implementação parcial em paralelo, sem promoção geral para produção | Consolidar quais lotes continuam ativos e quais são apenas experimentais antes de novo avanço |
+
+### Backlog priorizado
+
+| Frente | Escopo conhecido | Próximo Gate |
+| --- | --- | --- |
+| Gestão do Carro — entrada/saída em zonas conhecidas | Casa da Fernanda, Casa da Camila e demais zonas cadastradas; zona Casa permanece com o CSMR | Auditar entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
+
+### Dívida técnica
+
+- Allowlist de eventos replicada no contrato, motor Timeline e SmallTV.
+- Lógica principal do Health Check no Node-RED não está versionada no Git.
+- Pendências residuais da homologação Recovery 4G permanecem registradas no Gate próprio.
+
+### Dívida de governança
+
+- Branches `main` e `feature/v20-2c-contextual-automations` possuem histórias e documentação divergentes.
+- O working tree original possui oito alterações CSMR ainda sem classificação.
+- Política de handoffs definida; permanece pendente incorporar seletivamente o handoff do Health Check existente em `main` e sanear os títulos/localizações históricos sem migração em massa.
+- Status antigos conflitantes precisam de saneamento controlado sem apagar evidências históricas.
+- A política de prompts `P1/P2/P3` está definida; acompanhar sua aplicação prática e ajustar somente quando houver evidência de excesso ou insuficiência.
+
+### Futuro / ideias
+
+Itens estratégicos ainda não aprovados permanecem nas seções de planejamento deste documento e em `docs/ROADMAP.md`; não constituem autorização de execução.
+
+- Radar de Movimento sob demanda e fases posteriores de mapa/histórico.
+- V21 — Criticidade Contextual Dinâmica.
+- V22 — Motor Semântico.
+- V23 — Observabilidade Operacional ampliada.
+- V24 — IA/LLM e Contexto Adaptativo.
+- Gestão inteligente de energia/UPS e Home Assistant principal/backup.
+
+## Estado consolidado histórico de 2026-05-20
+
+Esta tabela preserva o checkpoint original. Quando houver divergência, prevalece o estado operacional auditado de 2026-09-04 acima.
 
 | Fase | Estado | Dependencia tecnica |
 | --- | --- | --- |

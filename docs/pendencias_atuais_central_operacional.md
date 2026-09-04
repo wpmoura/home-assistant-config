@@ -1,6 +1,61 @@
 # Pendências Atuais - Central Operacional Home Assistant
 
-Data do levantamento: 2026-05-16
+Data do levantamento original: 2026-05-16
+Última reconciliação: 2026-09-04
+
+Este arquivo é a fila canônica de pendências concretas da Central Operacional. Roadmaps declaram situação e prioridade; `docs/technical_debt/backlog_tecnico.md` registra dívidas estruturais; Gates registram critérios e evidências. O conteúdo original de maio permanece abaixo como snapshot histórico não saneado.
+
+## Fila operacional atual — reconciliada em 2026-09-04
+
+Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVADA`.
+
+### Pendências abertas ou não comprovadas
+
+| ID | Frente | Roadmap | Pendência | Tipo | Bloqueante | Classificação | Próxima ação / evidência necessária |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| PEND-001 | CSMR pós-baseline | SOC | Auditar os oito arquivos modificados no working tree original | publicação | Sim, para publicar esses arquivos | ABERTA | Inspecionar `/Volumes/config` sem alterar ou limpar o working tree |
+| PEND-002 | Recovery 4G | SOC | Cancelamento em ciclo ativo, retorno antes do esgotamento e estabilização igual a zero | teste | Sim, para encerramento integral | ABERTA | Retomar somente os cenários sem evidência definidos no Gate V20.1Q |
+| PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
+| PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
+| PEND-005 | Lavadora | SOC | Decidir destino do watcher pós-cutover | decisão | Não | ABERTA | Verificar primeiro se o arquivo ainda existe no working tree; remover ou promover somente por decisão própria |
+| PEND-006 | Health Check | SOC | Incorporar seletivamente o handoff existente em `main` | documentação | Não para operação; sim para consolidação | ABERTA | Comparar conteúdo e trazer apenas o artefato auxiliar, sem merge indiscriminado |
+| PEND-007 | Governança Git | SOC | Consolidar divergência entre `main` e `feature/v20-2c-contextual-automations` | publicação | Sim para unificar a fonte publicada | ABERTA | Discovery Git e estratégia seletiva; proibir rebase/reset/force-push automático |
+| PEND-008 | Governança documental | SOC | Publicar no GitHub o checkpoint documental já protegido em commit local nesta branch | publicação | Sim para persistência no GitHub | ABERTA | Commit local concluído; realizar push e PR somente após Discovery Git e autorização humana específica |
+| PEND-009 | V20.2 shadow | SOC | Concluir ou reclassificar testes ainda pendentes da Fase 1A | teste | Sim para promoção geral; não para manter shadow | ABERTA | Usar `docs/execucao_testes_reais_v20_2_fase_1a.md`; preservar os 7 OK, 1 parcial e 2 bloqueados já registrados |
+| PEND-010 | V20.1A | SOC | Evidências completas dos helpers, painel administrativo, limite da Timeline e persistência pós-reload/restart | teste | Não comprovado | NÃO COMPROVADA | Localizar evidência posterior específica; não repetir testes já comprovados por outras frentes |
+| PEND-011 | V20.1B/legado | SOC | Side-effects, consumidores e duplicidades externas ainda não possuem encerramento integral comprovado | auditoria | Sim para decommission | ABERTA | Reutilizar auditorias V20.1C/D/E e investigar somente lacunas reais |
+| PEND-012 | V20.1C/decommission | SOC | Definir e autorizar lotes pequenos de desativação com rollback | decisão | Sim para qualquer remoção | ABERTA | Manter decommission bloqueado até Gate específico; diagnóstico/governança já concluídos |
+| PEND-014 | Dashboards/debug | SOC | Confirmar navegação oficial e ausência de consumo produtivo indevido de sensores experimentais | auditoria | Não comprovado | NÃO COMPROVADA | Auditar estado atual da Lovelace; não usar fotografia de maio como evidência atual |
+
+### Itens antigos resolvidos ou superados
+
+| Item do snapshot de maio | Classificação | Evidência / destino |
+| --- | --- | --- |
+| V20.1C descrita como “planejada” | SUPERADA | `V20.1C_FECHAMENTO` registra diagnóstico e governança concluídos; somente decommission continua aberto em PEND-012 |
+| Afirmação de que todos os testes V20.2 Fase 1A estavam pendentes | SUPERADA | Execução posterior registra 10 executados: 7 OK, 1 parcial e 2 bloqueados; saldo permanece em PEND-009 |
+| Destino do dashboard legado `teste-4` | RESOLVIDA | Removido pela UI/fluxo suportado e registrado em AGENTS, arquitetura e Changelog |
+| Bloqueadores iniciais de implantação da V20.2E | RESOLVIDA | `md5`, carregamento das automações, bootstrap fail-closed e consumidor canônico foram corrigidos; cobertura residual permanece em PEND-003 |
+| V20.2F mantida fechada até autorização formal | SUPERADA | Necessidade de zonas confirmada e elevada a backlog priorizado; implementação continua condicionada a Gate próprio em PEND-004 |
+| Radar de Movimento listado como “implementado mas não validado” | SUPERADA | Existe apenas como planejamento futuro, sem implementação autorizada |
+| V20.1C listada como “ainda sem execução” | SUPERADA | Auditoria/diagnóstico executados; remoção do legado permanece bloqueada em PEND-012 |
+| Dashboard V19 `teste-4` como risco de navegação | RESOLVIDA | Remoção suportada confirmada; referências antigas permanecem apenas históricas |
+| PEND-013 — destino de `docs/release_central_operacional_v20.md` | RESOLVIDA | O próprio documento registra “Release Baseline”, congelamento em 2026-05-13 e status de baseline V20.0 congelada; permanece histórico e não recebe evoluções posteriores |
+| PEND-015 — autoridade de `docs/roadmap_central_operacional_semantic_house_v_26.md` | RESOLVIDA | Classificado como visão estratégica conceitual subordinada; não é roadmap canônico nem declara status operacional |
+
+### Regras de manutenção
+
+- Usar identificadores estáveis no formato `PEND-XXX`; eles servem somente para rastreabilidade e não substituem as classificações `SOC`/`AT`, os níveis `P1`/`P2`/`P3` nem o estado da pendência.
+- Não reutilizar nem renumerar um identificador já atribuído, inclusive depois da resolução do item.
+- Registrar aqui somente ação ou decisão concreta ainda necessária.
+- Dívida estrutural sem ação priorizada pertence a `docs/technical_debt/backlog_tecnico.md`.
+- Futuro/ideia sem aprovação pertence ao roadmap, não a esta fila.
+- Ao resolver uma pendência, registrar evidência, atualizar o roadmap/Gate aplicável e mover a linha para “resolvidos ou superados”.
+- Não considerar pendência resolvida por idade, existência de código ou documento posterior genérico.
+- Handoffs podem referenciar IDs desta fila, mas não criar pendência oficial paralela.
+
+## Snapshot histórico original — levantamento de 2026-05-16
+
+O conteúdo abaixo é preservado para rastreabilidade. Seus títulos e estados não prevalecem sobre a fila reconciliada acima.
 
 ## Escopo do Diagnóstico
 

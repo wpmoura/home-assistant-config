@@ -1,6 +1,64 @@
 # Roadmap da Central Operacional
 
-## Estado Atual
+Data do checkpoint de consolidação: 2026-09-04
+Função: índice executivo dos roadmaps SOC e AT
+
+## Organização canônica
+
+A Central Operacional possui dois roadmaps permanentes:
+
+| Roadmap | Finalidade | Documento canônico |
+| --- | --- | --- |
+| SOC — Sistema Operacional Casa | Desenvolvimentos complexos, arquitetura, contratos, motores e componentes centrais | `docs/roadmap/roadmap_v20_consolidado.md` |
+| AT — Automações Táticas | Melhorias pequenas e delimitadas que consomem interfaces e entidades existentes | `docs/governance/automacoes_taticas.md` |
+
+O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SOC` ou `NO-GO`. Prefixos históricos não determinam pertencimento atual.
+
+## Resumo executivo auditado em 2026-09-04
+
+| Frente | Roadmap | Status principal | Condição ou pendência |
+| --- | --- | --- | --- |
+| Health Check | SOC | Concluído | Dívida separada: lógica principal Node-RED fora do Git; integração semântica com Timeline adiada |
+| Recovery 4G | SOC | Em andamento | Homologação suspensa por decisão operacional; implementação existente e válida |
+| CSMR — baseline publicada | SOC | Concluído | I4B.2 permanece como evidência operacional natural não bloqueante |
+| CSMR — alterações locais posteriores | SOC | Em andamento | NO-GO para publicação até auditar os oito arquivos locais registrados no handoff |
+| Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
+| Heartbeat HA → Timeline → SmallTV | SOC | Concluído | Dívida técnica: allowlist replicada em contrato, motor e SmallTV |
+| Gestão do Carro — baseline AT-GC | SOC atual; origem AT | Concluído somente para a baseline AT-GC-00 a AT-GC-08 | Domínio não está integralmente concluído; zonas permanecem pendentes |
+| Entrada/saída em zonas conhecidas | SOC | Backlog priorizado | Não iniciada; inclui Casa da Fernanda, Casa da Camila e demais zonas cadastradas |
+| V20.2E — Uso do carro na Timeline | SOC | Em andamento | Núcleo funcional recuperado e evidenciado; homologação runtime complementar e estado local/publicação ainda precisam de consolidação |
+| V20.2 shadow — motores contextuais | SOC | Em andamento | Implementação parcial em paralelo; promoção produtiva não autorizada como conjunto |
+| AT-001 Dell/Time Machine | AT | Concluído | Validação com carga real permanece não bloqueante |
+
+### Nota sobre Gestão do Carro
+
+A execução histórica AT-GC permanece preservada e homologada. O crescimento do domínio motivou seu reenquadramento para SOC. Odômetro, abastecimentos, ingestão por imagens, manutenção e dashboard compõem a baseline concluída; o domínio não deve ser declarado integralmente encerrado enquanto o registro de entrada e saída nas zonas conhecidas permanecer pendente.
+
+A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semântica. O desenho das demais zonas deve decidir contrato, idempotência, oscilações de GPS, troca direta, sobreposição e mudanças cadastrais antes da implementação.
+
+### Dívidas de governança prioritárias
+
+- Divergência estrutural entre `main`, `feature/v20-2c-contextual-automations` e a branch histórica de governança AT.
+- Oito alterações locais da frente CSMR ainda não auditadas no working tree original.
+- Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; incorporação seletiva do handoff do Health Check a partir de `main` permanece pendente da consolidação Git.
+- Documentos antigos mantêm status superados e precisam ser interpretados por este checkpoint até saneamento controlado.
+- A política de prompts proporcionais foi definida em `docs/governance/gates_v20.md` com níveis `P1`, `P2` e `P3`; sua aplicação deve ser auditada nas próximas atividades antes de qualquer refinamento.
+- A fila operacional canônica foi reconciliada em `docs/pendencias_atuais_central_operacional.md`; o conteúdo de maio permanece como snapshot histórico e não implica resolução automática.
+
+### Futuro / ideias sem autorização de execução
+
+- Radar de Movimento sob demanda e suas fases posteriores de mapa/histórico.
+- V21 — Criticidade Contextual Dinâmica.
+- V22 — Motor Semântico.
+- V23 — Observabilidade Operacional ampliada.
+- V24 — IA/LLM e Contexto Adaptativo.
+- Gestão inteligente de energia/UPS e Home Assistant principal/backup.
+
+Esses itens permanecem visíveis para planejamento, mas não constituem backlog priorizado nem autorização de implementação.
+
+## Estado histórico anterior ao checkpoint de 2026-09-04
+
+Esta seção é preservada como memória do planejamento acumulado. Quando houver divergência de status, prevalece o resumo executivo auditado acima até o saneamento controlado do conteúdo histórico.
 
 - V20.0 = concluída e congelada
 - V20.1A = concluída
@@ -86,15 +144,15 @@ Fluxo oficial de processamento:
 - House Exposure Engine
 - IA contextual opcional
 
-### Candidata V20.2F — Registro de entrada e saída das zonas cadastradas
+### Backlog priorizado V20.2F — Registro de entrada e saída das zonas cadastradas
 
-Status: backlog futuro — não aberta.
+Status: backlog priorizado SOC — não iniciado.
 
 Finalidade funcional preliminar: registrar na Timeline a entrada e a saída de Wilson das zonas cadastradas no Home Assistant.
 
 Premissa preliminar: a zona Casa permanece sob responsabilidade do CSMR, evitando duplicidade semântica com os eventos homologados de saída e retorno de casa.
 
-Este registro não constitui lote aberto, fase ativa ou Gate próprio; não autoriza desenho técnico, alteração de contrato ou implementação e não integra o escopo da V20.2E.
+Este registro não constitui fase ativa nem autoriza implementação sem Gate próprio. A necessidade pertence à continuidade da Gestão do Carro no SOC e não integra a baseline concluída AT-GC nem o escopo histórico da V20.2E.
 
 Decisões pendentes de análise formal:
 

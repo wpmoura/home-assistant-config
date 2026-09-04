@@ -1,8 +1,12 @@
-# Handoff Canônico — Heartbeat HA → Timeline → SmallTV/GeekMagic
+# Handoff Auxiliar — Heartbeat HA → Timeline → SmallTV/GeekMagic
 
-**Status: IMPLEMENTADA · HOMOLOGADA · DOCUMENTADA · MERGEADA · ENCERRADA.**
+**Status do handoff: ENCERRADO.**
 
-Este documento consolida o estado final da frente, pós-merge, para continuidade futura. Não substitui o histórico detalhado já registrado em `docs/governance/gates_v20.md` (seções "V20.2C — Heartbeat HA → Timeline (Gate de implementação)" e "Carga runtime e homologação real (2026-09-03)") e em `CHANGELOG.md` (entradas `[heartbeat-ha-timeline-implementacao]` e `[heartbeat-ha-timeline-homologacao]`) — é um resumo de handoff, o histórico completo permanece nesses dois arquivos.
+**Status da frente nas fontes oficiais: IMPLEMENTADA · HOMOLOGADA · DOCUMENTADA · MERGEADA · CONCLUÍDA.**
+
+**Classificação documental: artefato auxiliar de continuidade; não canônico.**
+
+Este documento transporta o contexto final da frente, pós-merge, para consulta futura. Não substitui o histórico detalhado já registrado em `docs/governance/gates_v20.md` (seções "V20.2C — Heartbeat HA → Timeline (Gate de implementação)" e "Carga runtime e homologação real (2026-09-03)") e em `CHANGELOG.md` (entradas `[heartbeat-ha-timeline-implementacao]` e `[heartbeat-ha-timeline-homologacao]`). Não autoriza reabertura, implementação ou publicação.
 
 ## 1. Objetivo da funcionalidade
 
