@@ -52,7 +52,7 @@ Nenhuma frente identificada neste checkpoint.
 
 - Branches `main` e `feature/v20-2c-contextual-automations` possuem histórias e documentação divergentes.
 - O working tree original possui oito alterações CSMR ainda sem classificação.
-- Política de handoffs definida; permanece pendente incorporar seletivamente o handoff do Health Check existente em `main` e sanear os títulos/localizações históricos sem migração em massa.
+- Política de handoffs definida; handoff do Health Check incorporado seletivamente em `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`. O saneamento de outros títulos/localizações históricos permanece gradual, sem migração em massa.
 - Status antigos conflitantes precisam de saneamento controlado sem apagar evidências históricas.
 - A política de prompts `P1/P2/P3` está definida; acompanhar sua aplicação prática e ajustar somente quando houver evidência de excesso ou insuficiência.
 

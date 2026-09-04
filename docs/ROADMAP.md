@@ -40,7 +40,7 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 - Divergência estrutural entre `main`, `feature/v20-2c-contextual-automations` e a branch histórica de governança AT.
 - Oito alterações locais da frente CSMR ainda não auditadas no working tree original.
-- Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; incorporação seletiva do handoff do Health Check a partir de `main` permanece pendente da consolidação Git.
+- Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado, preservando o original em `main`.
 - Documentos antigos mantêm status superados e precisam ser interpretados por este checkpoint até saneamento controlado.
 - A política de prompts proporcionais foi definida em `docs/governance/gates_v20.md` com níveis `P1`, `P2` e `P3`; sua aplicação deve ser auditada nas próximas atividades antes de qualquer refinamento.
 - A fila operacional canônica foi reconciliada em `docs/pendencias_atuais_central_operacional.md`; o conteúdo de maio permanece como snapshot histórico e não implica resolução automática.

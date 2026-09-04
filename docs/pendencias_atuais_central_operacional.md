@@ -18,9 +18,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
 | PEND-005 | Lavadora | SOC | Decidir destino do watcher pós-cutover | decisão | Não | ABERTA | Verificar primeiro se o arquivo ainda existe no working tree; remover ou promover somente por decisão própria |
-| PEND-006 | Health Check | SOC | Incorporar seletivamente o handoff existente em `main` | documentação | Não para operação; sim para consolidação | ABERTA | Comparar conteúdo e trazer apenas o artefato auxiliar, sem merge indiscriminado |
 | PEND-007 | Governança Git | SOC | Consolidar divergência entre `main` e `feature/v20-2c-contextual-automations` | publicação | Sim para unificar a fonte publicada | ABERTA | Discovery Git e estratégia seletiva; proibir rebase/reset/force-push automático |
-| PEND-008 | Governança documental | SOC | Publicar no GitHub o checkpoint documental já protegido em commit local nesta branch | publicação | Sim para persistência no GitHub | ABERTA | Commit local concluído; realizar push e PR somente após Discovery Git e autorização humana específica |
 | PEND-009 | V20.2 shadow | SOC | Concluir ou reclassificar testes ainda pendentes da Fase 1A | teste | Sim para promoção geral; não para manter shadow | ABERTA | Usar `docs/execucao_testes_reais_v20_2_fase_1a.md`; preservar os 7 OK, 1 parcial e 2 bloqueados já registrados |
 | PEND-010 | V20.1A | SOC | Evidências completas dos helpers, painel administrativo, limite da Timeline e persistência pós-reload/restart | teste | Não comprovado | NÃO COMPROVADA | Localizar evidência posterior específica; não repetir testes já comprovados por outras frentes |
 | PEND-011 | V20.1B/legado | SOC | Side-effects, consumidores e duplicidades externas ainda não possuem encerramento integral comprovado | auditoria | Sim para decommission | ABERTA | Reutilizar auditorias V20.1C/D/E e investigar somente lacunas reais |
@@ -41,6 +39,8 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | Dashboard V19 `teste-4` como risco de navegação | RESOLVIDA | Remoção suportada confirmada; referências antigas permanecem apenas históricas |
 | PEND-013 — destino de `docs/release_central_operacional_v20.md` | RESOLVIDA | O próprio documento registra “Release Baseline”, congelamento em 2026-05-13 e status de baseline V20.0 congelada; permanece histórico e não recebe evoluções posteriores |
 | PEND-015 — autoridade de `docs/roadmap_central_operacional_semantic_house_v_26.md` | RESOLVIDA | Classificado como visão estratégica conceitual subordinada; não é roadmap canônico nem declara status operacional |
+| PEND-006 — handoff do Health Check | RESOLVIDA | Conteúdo de `main` incorporado seletivamente como `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`; original preservado, artefato auxiliar e nenhuma autorização histórica transportada |
+| PEND-008 — publicação da consolidação documental | RESOLVIDA | PR #16 mergeado em `feature/v20-2c-contextual-automations` pelo merge commit `4a0f63b` |
 
 ### Regras de manutenção
 
