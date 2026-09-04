@@ -120,6 +120,7 @@ Concentra contexto auxiliar de continuidade entre sessoes, agentes e ferramentas
 - Autorizações passadas não permanecem automaticamente válidas em nova sessão.
 - Handoffs existentes em `docs/governance/` permanecem validos como auxiliares ate saneamento controlado; sua localizacao ou titulo nao lhes concede canonicidade.
 - Transcricoes internas de agentes, incluindo `.jsonl` do Claude Code, nao sao handoffs do projeto.
+- `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`: incorporação seletiva e encerrada do handoff de Health Check preservado em `main`; não reabre a frente nem transporta autorizações históricas.
 
 ### auditorias
 
