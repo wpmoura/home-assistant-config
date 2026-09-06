@@ -1882,11 +1882,11 @@
   - service: alarm_control_panel.alarm_arm_home
     data:
       entity_id: alarm_control_panel.home_alarm
-      code: '1234'
+      code: !secret home_alarm_code
   - service: input_boolean.turn_on
     target:
       entity_id: input_boolean.alarme_ativado_automaticamente
-- id: '1748207300000'
+- id: alarme_desativar_automaticamente_ao_acordar_v1
   alias: Desativar alarme ao acordar
   trigger:
   - platform: state
@@ -1900,7 +1900,7 @@
   - service: alarm_control_panel.alarm_disarm
     data:
       entity_id: alarm_control_panel.home_alarm
-      code: '1234'
+      code: !secret home_alarm_code
 - id: '1775945739999'
   alias: Note HA uptime
   description: ''

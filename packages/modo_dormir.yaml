@@ -199,7 +199,7 @@ automation:
         target:
           entity_id: alarm_control_panel.alarme
         data:
-          code: !secret alarm_code
+          code: !secret home_alarm_code
 
       - service: input_boolean.turn_off
         target:
