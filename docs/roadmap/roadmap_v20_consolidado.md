@@ -32,7 +32,7 @@ Nenhuma frente identificada neste checkpoint.
 | Frente | Condição | Próxima necessidade |
 | --- | --- | --- |
 | Recovery 4G | Homologação suspensa por decisão operacional; implementação permanece válida | Retomar somente os cenários pendentes definidos no Gate V20.1Q |
-| CSMR — alterações locais posteriores | NO-GO para publicação | Auditar os oito arquivos locais preservados no working tree original |
+| Working tree local — alterações posteriores | NO-GO para publicação ou sincronização | Auditar nove arquivos de frentes mistas preservados em backup local antes de reconciliar `/Volumes/config` |
 | V20.2E — Uso do carro na Timeline | Implementação e correções existentes; núcleo do contrato e ciclo real possuem evidências, mas o Gate ainda registra homologação runtime complementar pendente | Auditar estado local/publicado e executar somente a cobertura residual necessária |
 | V20.2 shadow — motores contextuais | Implementação parcial em paralelo, sem promoção geral para produção | Consolidar quais lotes continuam ativos e quais são apenas experimentais antes de novo avanço |
 
@@ -50,8 +50,8 @@ Nenhuma frente identificada neste checkpoint.
 
 ### Dívida de governança
 
-- Branches `main` e `feature/v20-2c-contextual-automations` possuem histórias e documentação divergentes.
-- O working tree original possui oito alterações CSMR ainda sem classificação.
+- Histórias de `main` e `feature/v20-2c-contextual-automations` reconciliadas; `main` definida como branch canônica.
+- O working tree original possui nove alterações de frentes mistas ainda sem classificação e permanece bloqueado apesar do backup validado.
 - Política de handoffs definida; handoff do Health Check incorporado seletivamente em `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`. O saneamento de outros títulos/localizações históricos permanece gradual, sem migração em massa.
 - Status antigos conflitantes precisam de saneamento controlado sem apagar evidências históricas.
 - A política de prompts `P1/P2/P3` está definida; acompanhar sua aplicação prática e ajustar somente quando houver evidência de excesso ou insuficiência.

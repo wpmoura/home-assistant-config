@@ -28,10 +28,10 @@ Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos aba
 
 | Dívida | Situação | Tratamento |
 | --- | --- | --- |
-| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Aberta | Discovery e consolidação seletiva; proibir rebase/reset/force-push automático |
-| Oito alterações locais CSMR não auditadas | Aberta | NO-GO para publicação até inspeção do working tree original |
+| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Resolvida | Histórias preservadas por merge controlado; `main` é a branch canônica e referências de segurança preservam as pontas anteriores |
+| Nove alterações locais de frentes mistas não auditadas | Aberta | Backup validado em 2026-09-05; NO-GO para publicação ou sincronização de `/Volumes/config` até classificação e reconciliação arquivo a arquivo |
 | Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-04 prevalece nos roadmaps; preservar histórico |
-| Handoff do Health Check isolado em `main` | Aberta | Incorporar seletivamente durante consolidação Git |
+| Handoff do Health Check isolado em `main` | Resolvida | Resumo encerrado preservado em `docs/handoffs/`; conteúdo detalhado marcado como histórico superado |
 | Aplicação prática da política P1/P2/P3 | Em observação | Ajustar somente com evidência de excesso ou insuficiência |
 
 ## Debitos iniciais

@@ -57,6 +57,8 @@ Registrar regras operacionais resumidas. A hierarquia canônica permanece em `do
 - Tratar handoff como contexto auxiliar: no máximo um ativo por frente; revalidar estado mutável; nunca extrair dele autorização, homologação ou mudança de roadmap
 - Preferir `docs/handoffs/` para novos handoffs; Markdown comum, sem segredos ou dependência de transcrição `.jsonl`; não mover os existentes sem saneamento próprio
 - Registrar ações e decisões concretas pendentes somente em `docs/pendencias_atuais_central_operacional.md`; dívidas ficam no backlog técnico e ideias futuras no roadmap
+- Usar `main` como branch canônica do repositório; branches de feature são transitórias e não redefinem a fonte publicada
+- Não sincronizar `/Volumes/config` enquanto as nove alterações locais de frentes mistas não forem auditadas e reconciliadas contra `main`
 
 ## Gate obrigatório - conhecimento prévio
 

@@ -13,12 +13,11 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 
 | ID | Frente | Roadmap | Pendência | Tipo | Bloqueante | Classificação | Próxima ação / evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PEND-001 | CSMR pós-baseline | SOC | Auditar os oito arquivos modificados no working tree original | publicação | Sim, para publicar esses arquivos | ABERTA | Inspecionar `/Volumes/config` sem alterar ou limpar o working tree |
+| PEND-001 | Working tree local — frentes mistas | SOC | Auditar e reconciliar nove arquivos locais sobre o HEAD `4ef2362`: oito rastreados e um não rastreado | publicação e sincronização | Sim | ABERTA | Usar o backup validado de 2026-09-05; classificar arquivo e trecho por frente, com atenção a Health Check, `automations.yaml` e CSMR; não sincronizar `/Volumes/config` |
 | PEND-002 | Recovery 4G | SOC | Cancelamento em ciclo ativo, retorno antes do esgotamento e estabilização igual a zero | teste | Sim, para encerramento integral | ABERTA | Retomar somente os cenários sem evidência definidos no Gate V20.1Q |
 | PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
 | PEND-005 | Lavadora | SOC | Decidir destino do watcher pós-cutover | decisão | Não | ABERTA | Verificar primeiro se o arquivo ainda existe no working tree; remover ou promover somente por decisão própria |
-| PEND-007 | Governança Git | SOC | Consolidar divergência entre `main` e `feature/v20-2c-contextual-automations` | publicação | Sim para unificar a fonte publicada | ABERTA | Discovery Git e estratégia seletiva; proibir rebase/reset/force-push automático |
 | PEND-009 | V20.2 shadow | SOC | Concluir ou reclassificar testes ainda pendentes da Fase 1A | teste | Sim para promoção geral; não para manter shadow | ABERTA | Usar `docs/execucao_testes_reais_v20_2_fase_1a.md`; preservar os 7 OK, 1 parcial e 2 bloqueados já registrados |
 | PEND-010 | V20.1A | SOC | Evidências completas dos helpers, painel administrativo, limite da Timeline e persistência pós-reload/restart | teste | Não comprovado | NÃO COMPROVADA | Localizar evidência posterior específica; não repetir testes já comprovados por outras frentes |
 | PEND-011 | V20.1B/legado | SOC | Side-effects, consumidores e duplicidades externas ainda não possuem encerramento integral comprovado | auditoria | Sim para decommission | ABERTA | Reutilizar auditorias V20.1C/D/E e investigar somente lacunas reais |
@@ -41,6 +40,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-015 — autoridade de `docs/roadmap_central_operacional_semantic_house_v_26.md` | RESOLVIDA | Classificado como visão estratégica conceitual subordinada; não é roadmap canônico nem declara status operacional |
 | PEND-006 — handoff do Health Check | RESOLVIDA | Conteúdo de `main` incorporado seletivamente como `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`; original preservado, artefato auxiliar e nenhuma autorização histórica transportada |
 | PEND-008 — publicação da consolidação documental | RESOLVIDA | PR #16 mergeado em `feature/v20-2c-contextual-automations` pelo merge commit `4a0f63b` |
+| PEND-007 — divergência entre `main` e a feature | RESOLVIDA | Histórias reconciliadas por merge controlado com referências de segurança `safety/pre-reconcile-main-20260905` e `safety/pre-reconcile-feature-20260905`; `main` definida como branch canônica. A sincronização local permanece separada e bloqueada pela PEND-001 |
 
 ### Regras de manutenção
 

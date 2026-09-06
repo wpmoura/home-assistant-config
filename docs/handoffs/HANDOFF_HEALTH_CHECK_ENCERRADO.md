@@ -8,7 +8,7 @@ Roadmap: `SOC`
 
 Este é um artefato auxiliar de continuidade. Não é fonte canônica, não autoriza execução e não substitui Constituição, Source of Truth, roadmap, Gates, Changelog, implementação ou evidência de runtime.
 
-Foi produzido pela incorporação seletiva de `docs/governance/HANDOFF_HEALTH_CHECK_ATUAL.md`, existente em `main`. O original extenso permanece preservado naquela história Git. Ele não foi copiado integralmente porque contém instruções e fotografias operacionais de sessões anteriores que poderiam ser confundidas com estado ou autorização atuais.
+Foi produzido pela incorporação seletiva de `docs/governance/HANDOFF_HEALTH_CHECK_ATUAL.md`, anteriormente existente em `main`. O conteúdo original extenso permanece preservado no histórico Git e, para consulta explícita, em `docs/handoffs/archive/HANDOFF_HEALTH_CHECK_HISTORICO.md`, marcado como superado. Suas instruções e fotografias operacionais não constituem estado ou autorização atuais.
 
 ## Último estado comprovado no handoff de origem
 

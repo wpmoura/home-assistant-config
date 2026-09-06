@@ -9,6 +9,12 @@ Este documento atua como indice e roteador documental da Central Operacional V20
 
 Ele nao possui autoridade superior a Constituicao, nao substitui automaticamente documentos historicos, auditorias ou checkpoints e nao altera regras permanentes. Em caso de conflito, a Constituicao prevalece.
 
+## Fonte Git canônica
+
+`main` é a branch canônica publicada do repositório. Branches de feature e integração são transitórias e somente alteram a fonte canônica depois de revisão e merge controlado em `main`.
+
+A reconciliação da antiga linha `feature/v20-2c-contextual-automations` preservou as duas histórias Git e o conteúdo mais recente do Health Check. Isso não autoriza sincronizar o working tree operacional `/Volumes/config`, que permanece bloqueado até auditoria e reconciliação próprias das nove alterações locais de frentes mistas.
+
 ## Hierarquia oficial
 
 1. `docs/governance/constituicao_central_operacional_v20.md`
@@ -120,7 +126,8 @@ Concentra contexto auxiliar de continuidade entre sessoes, agentes e ferramentas
 - Autorizações passadas não permanecem automaticamente válidas em nova sessão.
 - Handoffs existentes em `docs/governance/` permanecem validos como auxiliares ate saneamento controlado; sua localizacao ou titulo nao lhes concede canonicidade.
 - Transcricoes internas de agentes, incluindo `.jsonl` do Claude Code, nao sao handoffs do projeto.
-- `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`: incorporação seletiva e encerrada do handoff de Health Check preservado em `main`; não reabre a frente nem transporta autorizações históricas.
+- `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`: incorporação seletiva e encerrada do handoff de Health Check; não reabre a frente nem transporta autorizações históricas.
+- `docs/handoffs/archive/HANDOFF_HEALTH_CHECK_HISTORICO.md`: conteúdo detalhado anterior preservado como `SUPERADO — HISTÓRICO`; nenhuma instrução ou autorização nele registrada permanece válida.
 
 ### auditorias
 

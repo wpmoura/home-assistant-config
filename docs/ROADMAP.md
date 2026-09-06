@@ -21,7 +21,7 @@ O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SO
 | Health Check | SOC | Concluído | Dívida separada: lógica principal Node-RED fora do Git; integração semântica com Timeline adiada |
 | Recovery 4G | SOC | Em andamento | Homologação suspensa por decisão operacional; implementação existente e válida |
 | CSMR — baseline publicada | SOC | Concluído | I4B.2 permanece como evidência operacional natural não bloqueante |
-| CSMR — alterações locais posteriores | SOC | Em andamento | NO-GO para publicação até auditar os oito arquivos locais registrados no handoff |
+| Working tree local — alterações posteriores | SOC | Em andamento | NO-GO para publicação ou sincronização até auditar nove arquivos de frentes mistas protegidos por backup local |
 | Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
 | Heartbeat HA → Timeline → SmallTV | SOC | Concluído | Dívida técnica: allowlist replicada em contrato, motor e SmallTV |
 | Gestão do Carro — baseline AT-GC | SOC atual; origem AT | Concluído somente para a baseline AT-GC-00 a AT-GC-08 | Domínio não está integralmente concluído; zonas permanecem pendentes |
@@ -38,9 +38,9 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 ### Dívidas de governança prioritárias
 
-- Divergência estrutural entre `main`, `feature/v20-2c-contextual-automations` e a branch histórica de governança AT.
-- Oito alterações locais da frente CSMR ainda não auditadas no working tree original.
-- Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado, preservando o original em `main`.
+- Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` reconciliada; `main` é a branch canônica publicada.
+- Nove alterações locais de frentes mistas ainda não auditadas no working tree original; backup local validado, sincronização bloqueada pela PEND-001.
+- Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado e conteúdo detalhado anterior preservado em arquivo histórico superado.
 - Documentos antigos mantêm status superados e precisam ser interpretados por este checkpoint até saneamento controlado.
 - A política de prompts proporcionais foi definida em `docs/governance/gates_v20.md` com níveis `P1`, `P2` e `P3`; sua aplicação deve ser auditada nas próximas atividades antes de qualquer refinamento.
 - A fila operacional canônica foi reconciliada em `docs/pendencias_atuais_central_operacional.md`; o conteúdo de maio permanece como snapshot histórico e não implica resolução automática.
