@@ -1,0 +1,557 @@
+# Changelog
+
+## [heartbeat-ha-timeline-homologacao] - 2026-09-03
+
+- Carga runtime executada por reload específico (`script.reload`, `template.reload`, `automation.reload`, todos `success: true`); `homeassistant.check_config` já havia passado antes. Restart não foi necessário. `automation.note_ha_uptime` permaneceu `on`, sem overrides, antes e depois.
+- Duas execuções reais e naturais do heartbeat homologadas, sem nenhum disparo manual: 15:00 (`request_id dc591f96-7ec7-4314-8dc0-9bc4e209771a`) e 18:00 (`request_id ea9bc680-55ba-4179-874b-50484a01ba06`), ambas com ACK `published`, materializadas em `sensor.casa_timeline_v20` (`🟢 HA ativo`), `ultimo_request_id_heartbeat_v20` atualizado corretamente em cada uma, SmallTV disparada em ambas na mesma cadeia causal do evento. Zero erros em log relacionados a `ha_uptime`/`heartbeat`/`smalltv`/`Uptime_HA_Hostv2`/`timeline_v20`.
+- Confirmação humana do operador: Watch OK, iPhone OK, Timeline OK, GeekMagic OK.
+- Limitação registrada: entre as duas execuções reais houve outros eventos genuínos na Timeline (ex.: início de lavagem às 17:59) — o cenário "dois heartbeats imediatamente consecutivos sem nenhum evento entre eles" segue validado apenas por simulação determinística (Gate de implementação), não por observação real; nenhum teste artificial foi criado para forçar esse cenário.
+- Dívida técnica da allowlist triplicada (contrato/motor Timeline/SmallTV) confirmada como ainda existente, não tratada neste Gate.
+
+## [heartbeat-ha-timeline-implementacao] - 2026-09-02
+
+- Implementado no working tree (não commitado) o Gate de implementação Heartbeat HA → Timeline → SmallTV: novo produtor `source: ha_uptime`, `event_code: heartbeat`, mensagem fixa `"🟢 HA ativo"`, publicado pela automação já existente derivada do Blueprint `wmoura/Uptime_HA_Hostv2.yaml` — decisão do Discovery preservada, sem migração para package.
+- A mesma execução/trigger/condição que já envia a notificação Watch/iPhone (`intervalo_horas`, único parâmetro de periodicidade, sem hardcode) agora também publica, como segunda ação independente (`script.turn_on` fire-and-forget, `continue_on_error: true`), o heartbeat pelo contrato canônico `script.casa_publicar_evento_timeline_v20`. A notificação pessoal ao Watch/iPhone permanece byte-a-byte inalterada e não depende do sucesso da publicação na Timeline.
+- `request_id`/`session_id` gerados por `md5(context.id ~ ':ha_uptime:heartbeat:...')` (UUIDv4-like), mesma convenção já usada por `lavadora_sessao.yaml`/`carro_presenca.yaml` — nunca a partir de mensagem ou horário.
+- Allowlist sincronizada nas três cópias existentes (`packages/contrato_publicacao_timeline_v20.yaml`, `packages/motor_timeline_v20.yaml`, `packages/smalltv_publicacao_v20.yaml`); a triplicação em si é dívida técnica pré-existente, registrada no Discovery e mantida — não refatorada neste Gate.
+- Corrigida, com uma exceção explicitamente governada e escopada apenas a `source=ha_uptime`/`event_code=heartbeat` (novo atributo `ultimo_request_id_heartbeat_v20` em `sensor.casa_timeline_v20`), a deduplicação por texto que faria heartbeats consecutivos idênticos sem nenhum outro evento entre eles nunca materializar e o contrato esgotar retries com ACK `failed`/`publication_timeout_after_retries`. A deduplicação por texto de todos os demais produtores permanece inalterada; retries da mesma transação (`request_id` repetido) continuam suprimidos.
+- SmallTV passa a aceitar o heartbeat como consumidora indireta e desacoplada, via whitelist mínima e a deduplicação por `request_id` já existente no canal — sem chamada direta a `geekmagic.notify` pelo Blueprint.
+- Validação feita de forma determinística e local via `ha_eval_template` (contrato em `test_mode:true` → `validated_test`; lógica de deduplicação simulada com múltiplos cenários), sem publicar nenhum evento real, sem reload/restart e sem notificação real. Homologação runtime pendente de autorização — ver `docs/governance/gates_v20.md`.
+
+## [smalltv-geekmagic-baseline-operacional] - 2026-08-22
+
+- Fechamento documental do canal SmallTV (GeekMagic): consumidor único (`automation.casa_smalltv_publicar_evento_v20`, `packages/smalltv_publicacao_v20.yaml`), independente do CSMR, do contrato canônico, da Timeline e do Push — observa eventos/estados já existentes e publicados por pipelines já homologados, sem escrever de volta em nenhum deles.
+- Domínios autorizados no baseline atual: lavadora (`washing_started`/`washing_finished`, via contrato canônico), porta da sala (`sensor.casa_porta_sala_estado_v20` = `aberta`), Recovery 4G (`casa_recovery_4g_central`, campo `fato` em `recuperacao_validada`/`tentativas_esgotadas`/`ciclo_encerrado_sem_validacao`), chuva (`sensor.casa_chuva_estado_v20` = `ativa`/`inativa`, com `for: 2 minutos` local ao consumidor) e Internet/Failover 4G exclusivamente via `sensor.casa_wan_evento_dominante_v20` (`internet_indisponivel`/`failover_4g`/`sem_evento` vindo de estado de problema) — a única fonte já consolidada e amortecida (30-120s) do motor WAN/4G. Carro, CSMR, internet degradada e estados técnicos/intermediários permanecem explicitamente fora.
+- Kill-switch (`input_boolean.casa_smalltv_habilitado_v20`) e deduplicação local (por `request_id` nos domínios que o possuem; por `last_changed` do próprio trigger de estado nos demais) permanecem como únicos mecanismos de controle, sem ledger complexo. Toda chamada a `geekmagic.notify` roda com `continue_on_error`, isolando falha do canal de qualquer efeito sobre Timeline, Push, CSMR, Recovery ou o motor WAN/4G.
+- Documentação consolidada em `docs/ARCHITECTURE.md` (posição arquitetural, diagrama, limitações, riscos e critérios de expansão) e em `docs/governance/gates_v20.md` (decisões de governança sobre a não-dependência do CSMR). Nenhuma alteração funcional foi feita nesta entrada — apenas registro documental do AS-BUILT já implementado nos Gates anteriores.
+
+## [lavadora-homologacao-fisica-fechamento] - 2026-08-19
+
+- A Homologação Física Pós-Cutover foi concluída com resultado HOMOLOGADO — SEM RESSALVAS, auditando o primeiro ciclo físico real pós-M5 (`session_id 211c29bd-b0bb-474f-87f7-9a818e5f0fa1`, 18/08/2026): exatamente 1 `washing_started`, 1 `spinning_detected` e 1 `washing_finished`, mesmo `session_id` nas três publicações, correspondência 1:1 entre as 3 chamadas do publicador canônico e o ledger de produção, sem `rejected`/`duplicate` e sem nenhuma mensagem no padrão legado.
+- Um restart real do Home Assistant ocorreu nesse intervalo e `input_boolean.atividade_maquina_lavar_habilitada` permaneceu `off` ininterruptamente desde o cutover, inclusive através desse restart — encerrando empiricamente a ressalva de que o hardening M5.1/M5.2 era apenas estruturalmente validado.
+- Nenhuma regressão foi observada em outros domínios (TV, micro-ondas, banho); a frente da Lavadora está formalmente encerrada nesta baseline, registrada em `docs/governance/despacho_lavadora_homologacao_fisica_fechamento.md`. O watcher de detecção (`packages/lavadora_homologacao_pos_cutover_watch.yaml`) permanece temporário, pendente de decisão operacional sobre remoção ou permanência.
+
+## [lavadora-m5-cutover-hardening] - 2026-08-16
+
+- O cutover (M5) conectou a FSM semântica (`packages/lavadora_sessao.yaml`) ao publicador canônico da Timeline, que passa a ser a autoridade produtiva da lavadora; `source=lavadora` publica `washing_started`, `spinning_detected` e `washing_finished` pelo mesmo contrato canônico já usado por `csmr_v20_2c`/`carro_presenca`, com `session_id`, idempotência e ACK/retry preservados.
+- O classificador bruto legado foi neutralizado (`input_boolean.atividade_maquina_lavar_habilitada=off`) como parte do mesmo cutover, sem alterar thresholds, TV, micro-ondas ou banho.
+- O hardening de startup (M5.1/M5.2) adicionou um guard `homeassistant.start` que força esse kill-switch de volta a `off` a cada boot e removeu `initial: true` da declaração original do helper, eliminando na origem a janela de boot que poderia religar o classificador bruto; restart real ainda não foi exercitado empiricamente.
+- A homologação física pós-cutover permanece pendente — depende da próxima lavagem física real confirmando exatamente uma publicação de início, no máximo uma de centrifugação, uma de término e ausência de spam legado.
+
+## [v20.2c-c1.2-harness-push-isolation] - 2026-08-11
+
+- O Harness C1.2 preserva os mesmos guards e a evidência em Logbook, mas somente o trigger físico `physical_door` pode chamar `notify.mobile_app_iphonewm`; CSMR, fronteira temporal e caminho produtivo permanecem inalterados.
+- O Harness dispatcher passa a fixar `test_mode: true`, reutilizar I2 e o ledger técnico do publicador, autorizar apenas o canal C1.2 de teste e manter C1.1, C1.3, Protect, Timeline, ledger produtivo e efeitos físicos isolados. Sessão/fronteira de teste são separadas e invalidadas governadamente; triggers reais permanecem produtivos e preemptam teste somente após fechamento confirmado.
+- A borda real é capturada antes da preempção com `cycle_id`, instante, graça e requests imutáveis. Processador serial e reconciliador por wake-up retomam uma etapa por vez após reload/restart; conflito de identidade permanece bloqueado e pending só termina após autorização produtiva ou cancelamento seguro anterior a `active`.
+
+## [v20.2e-publicar-timeline-type] - 2026-08-11
+
+- Diagnóstico da saída real confirmou que snapshots do Core 2026.7.1 podem materializar `publicar_timeline` como string `"true"`, bloqueando o consumidor que exigia booleano nativo e preservando corretamente ledger, ACK e checkpoints diante do timeout.
+- Consumidor da Timeline normaliza de forma restritiva apenas `true` nativo ou string exatamente `true` após `trim` e normalização de caixa; valores falsos, ausentes, ambíguos ou incompatíveis permanecem fail-closed em estado, histórico, ledger e linhas visíveis.
+- `check_config`, `template.reload` e homologação runtime aprovaram `"true"` textual, Timeline, `eventos_json`, `request_ids_json`, ledger, ACK `published`, Harness `validated_test` e ausência de falso `published`.
+- O ciclo real do carro foi reconciliado em ordem com a sessão e os dois requests originais; cada evento foi publicado uma vez e os checkpoints foram limpos automaticamente somente após o ACK `published` do término.
+- A sessão CSMR real de 11/08/2026 foi auditada: apenas `wilson_left_home` ocorreu e falhou na publicação; o monitoramento nunca chegou a `active`, e chegada/encerramento não foram criados. Nenhum desses eventos será retropublicado.
+- A Timeline V20 não possui `occurred_at`, usa `now()` no prefixo visual e faz prepend sem ordenação temporal. A ocorrência permanece documentada; temporalidade histórica é evolução separada.
+
+## [v20.2e-pendencias-v20.2f-backlog] - 2026-08-10
+
+- Pendências remanescentes e sequência de continuidade da V20.2E consolidadas em `docs/pendencias_atuais_central_operacional.md`.
+- Critérios ainda não atendidos refletidos no Gate V20.2E sem alterar seu estado de homologação.
+- Candidata V20.2F registrada exclusivamente no Roadmap como backlog futuro não aberto.
+- Nenhuma alteração funcional, contratual ou de runtime realizada nesta organização documental.
+
+## [v20.2e-carro-timeline] - 2026-08-10
+
+- Lote V20.2E aberto para autorizar, de forma estritamente aditiva, `source: carro_presenca` e os códigos `car_use_started`/`car_use_ended` no publicador canônico V20.1O.
+- Integração implementada estaticamente sobre as automações existentes de `packages/carro_presenca.yaml`, preservando detecção, textos e destinatário dos pushes.
+- Ciclo correlacionado por `input_text.carro_session_id`; pushes de início e término parametrizados independentemente da Timeline.
+- `input_text.carro_inicio_request_id` preserva o retry idempotente do início; o término somente publica após ACK canônico de sucesso e limpa os checkpoints após ACK seguro do fim.
+- Dashboard Storage `Parâmetros` recebeu card `Uso do carro` com os dois controles de push; após a correção dos bloqueadores, ambos nascem `off` na primeira criação e exigem ativação manual única na futura implantação caso os pushes devam iniciar habilitados.
+- Validação estática aprovada por parser YAML/JSON, referências, unicidade de IDs e `git diff --check`; `check_config`/homologação runtime permanecem pendentes porque o Home Assistant não está disponível no ambiente de edição.
+- Contratos e quatro eventos homologados do CSMR permanecem inalterados; homologação runtime da V20.2E permanece pendente.
+- Correção estática dos bloqueadores: `input_text.carro_termino_request_id` persiste o UUID de `car_use_ended`; `script.carro_reconciliar_termino_pendente` reutiliza os três checkpoints de forma serializada e controlada, inclusive após restart, sem retry automático de `rejected`.
+- Novo ciclo é bloqueado enquanto qualquer checkpoint anterior existir, evitando sobrescrita ou mistura semântica; checkpoints são limpos somente após ACK terminal de sucesso do término.
+- `initial: true` removido dos dois controles de push para permitir restauração nativa da escolha do usuário; ativação inicial única permanece procedimento da futura implantação, não executado nesta etapa.
+- Checkpoint de término endurecido: UUID novo é criado somente quando vazio; valor inválido não vazio e combinações parciais são preservados e interrompem o fluxo antes de estado, timestamp, push ou publicação.
+- Bloqueio persistente de `rejected` adicionado para `car_use_started` e `car_use_ended`, associado a `event_code`, `request_id` e `reason`; qualquer metadado parcial bloqueia reconciliação e novo ciclo.
+- `script.carro_liberar_bloqueio_rejected` exige correspondência com o request bloqueado e limpa somente os metadados da rejeição, sem alterar o ciclo ou publicar; reconciliação posterior permanece separada. Nova revisão estática e homologação runtime continuam pendentes.
+- Recuperação administrativa ampliada para bloqueios `rejected` completos ou parcialmente gravados: operador informa evento e request, ambos são validados contra sessão e checkpoint, valores persistidos divergentes ou inválidos são recusados e `reason` vazio é aceito somente no caso parcial.
+- A liberação recusa execução concorrente com os escritores de `rejected`, limpa exclusivamente os quatro metadados e mantém reconciliação como ação posterior separada; nova revisão estática e homologação runtime permanecem pendentes.
+- Guard de concorrência corrigido para fail-closed: existência, disponibilidade, presença e validade numérica de `current` são verificadas nos dois executores, sem conversão ou default zero; somente ambos exatamente em zero permitem a liberação administrativa.
+- Compatibilidade do guard corrigida com a remoção de `states.get`: `has_value` valida existência/disponibilidade e `state_attr` preserva atributo ausente como `none`; validação numérica estrita continua anterior a qualquer comparação e sem fallback zero.
+- Revisão estática final independente aprovou a compatibilidade do guard e a consolidação da V20.2E para atualização do Gate e commit; implantação e homologação runtime permanecem não autorizadas e pendentes, e a candidata V20.2F continua fechada.
+- Bloqueador adicional identificado antes da implantação: o consumidor canônico ainda restringia eventos aos quatro códigos CSMR e podia registrar `request_id` sem mensagem visível. A correção estática adiciona `car_use_started`/`car_use_ended` às combinações autorizadas e condiciona `request_ids_json` à materialização efetiva no histórico, preservando integralmente o CSMR. A revisão estática independente aprovou a correção para commit e push; implantação e homologação runtime permanecem pendentes.
+- Ajuste final do consumidor usa exclusivamente o snapshot `trigger.to_state` para correlacionar evento, request e atributos; `publicar_timeline` passou a exigir booleano nativo exatamente `true`, em modo fail-closed e sem fallback permissivo. A mesma decisão material governa histórico visível e ledger de requests.
+- A homologação runtime deverá observar eventos consecutivos com a mesma mensagem: o segundo deve ser deduplicado visualmente, seu `request_id` não deve entrar no ledger e não pode receber ACK `published` falso.
+- Primeira implantação da V20.2E interrompida porque o Core 2026.7.1 não oferece o filtro Jinja `hash` e materializou os sete novos checkpoints `input_text` como `unknown`; nenhuma publicação ou push de teste foi executado.
+- Correção estática localizada substitui `hash` por `md5`, já suportado e usado pelo CSMR, e adiciona bootstrap administrativo único, persistente e fail-closed para converter somente a primeira criação vazia/`unknown` em vazio. Evidência inválida, parcial, `unavailable` ou rejeitada permanece bloqueada. Revisão independente e nova implantação continuam pendentes.
+
+## [v20.2c-i3b-promocao-operacional] - 2026-08-07
+
+### Changed
+
+- As quatro chamadas I1 do dispatcher CSMR foram promovidas de `test_mode: true` para `test_mode: false`, sem qualquer outra mudança funcional.
+
+### Validated
+
+- Ciclo produtivo único publicado pela V20.1O com sessão `37c7be2f-4da1-46b4-8a4d-217ce73f4d14` e ACK `published` para `wilson_left_home`, `remote_monitoring_started`, `wilson_arrived_home` e `remote_monitoring_ended`.
+- Timeline e Event Feed registraram os quatro textos oficiais na ordem correta; cada evento usou request ID distinto e a mesma sessão.
+- Reload parcial pós-ciclo não republicou eventos, não reabriu sessão e preservou o ledger produtivo.
+- Parser YAML, `homeassistant.check_config`, traces e `git diff --check` aprovados.
+
+### Notes
+
+- Commit funcional: `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37`.
+- CSMR terminou `idle`, sem reserva; presença permaneceu `home`.
+- V20.1Q, Recovery 4G, contrato I1, I2/I2A, C1.x, UniFi Protect, dashboards e helper de graça permaneceram inalterados.
+- Consumidores continuam fora do escopo e dependem de Gates próprios.
+
+## [v20.2c-i3a-integracao-logica-homologada] - 2026-08-07
+
+### Added
+
+- Dispatcher lógico integrando presença oficial, graça, revalidação, reserva I2A, estado CSMR e contrato I1 em Harness.
+- Observabilidade do ciclo, sessão, request IDs e ACKs no `sensor.casa_csmr_dispatcher_estado_v20_2c`.
+
+### Validated
+
+- Ciclo nominal, retorno durante graça, política D1 durante `starting`, concorrência e reload com um único `session_id` por ciclo.
+- Quatro ACKs `validated_test` correlacionados e ordenados, com `request_id` distinto por evento.
+- Timeout/retry/falha de publicação referenciados ao I1; duplicate, reserva, falhas transacionais e recuperação referenciados ao I2/I2A.
+- Parser YAML, `config_check`, reload parcial, traces e `git diff --check` aprovados.
+
+### Notes
+
+- Commit funcional homologado: `b11309bf20985a9385fb7918e82883dff4c8867e`.
+- Nenhuma publicação produtiva ocorreu; Timeline e Event Feed não receberam os quatro textos CSMR.
+- V20.1Q, Recovery 4G, C1.x, UniFi Protect, dashboards e consumidores permaneceram inalterados.
+- Próximo Gate autorizado: V20.2C-I3B, exclusivamente para promover as quatro chamadas I1 de `test_mode: true` para `test_mode: false` e homologar operacionalmente.
+
+## [v20.2c-i2a-reserva-operacional-csmr] - 2026-08-06
+
+### Added
+
+- Operações `reserve` e `cancel_reservation` no estado transacional do CSMR, mantendo `idle` e geração exclusiva do UUID pelo coordenador.
+- Checkpoint persistente da reserva, vínculo de consumo pelo `open` e origem operacional fechada `csmr_dispatcher_v20_2c`.
+
+### Changed
+
+- I2 passa a aceitar `test_mode: false` somente para a origem operacional canônica e com reserva correspondente; Harness legado permanece compatível.
+- Política D1 reafirmada para retorno durante `starting`: concluir abertura sem consumidores e encerrar a mesma sessão em seguida.
+
+### Notes
+
+- Homologação I2A executada sem presença, contrato I1, Timeline, Event Feed, consumidores, Recovery 4G ou Protect.
+
+## [v20.2c-i2-estado-transacional-csmr] - 2026-08-06
+
+### Added
+
+- `sensor.casa_csmr_estado_v20_2c` como checkpoint persistente e observável do estado transacional isolado.
+- `script.casa_csmr_transicionar_v20_2c` como Harness serial, restrito a `test_mode`, com abertura, encerramento, falha simulada, recuperação explícita e resposta correlacionada.
+- Estados mínimos `idle`, `starting`, `active`, `ending` e `failed`, UUID próprio de sessão e ledger técnico das últimas 16 transições concluídas.
+
+### Notes
+
+- Homologados idempotência, concorrência, falhas, recuperação e persistência após reload.
+- Não há integração com presença, Timeline, Event Feed, contrato I1, C1.x, Recovery 4G, UniFi Protect ou dispositivos físicos.
+
+## [v20.2c-i1-contrato-publicacao-canonico] - 2026-08-06
+
+### Added
+
+- `script.casa_publicar_evento_timeline_v20` como entrada canônica V20.1O para payload versionado e source restrita `csmr_v20_2c`.
+- ACK correlacionado em `sensor.casa_timeline_publicacao_ack_v20`, ledger persistente separado entre produção e teste, idempotência por request e identidade lógica, timeout/retry e `test_mode` sem publicação pública.
+
+### Changed
+
+- Motor V20.1O estendido internamente para aceitar somente os quatro códigos autorizados e confirmar publicação por `request_id`, sem alterar aliases ou fontes existentes.
+- Contrato V20.2C evoluído formalmente: `csmr` foi substituído por `csmr_v20_2c`; `wilson_left`/`wilson_arrived` por `wilson_left_home`/`wilson_arrived_home`; `message` passou a ser obrigatório.
+
+### Notes
+
+- Homologação executada exclusivamente com `test_mode: true`; nenhum dos quatro textos foi publicado na Timeline ou Event Feed.
+- CSMR, sessão, dispatcher, C1.1, C1.2, C1.3, V20.1Q e UniFi Protect não foram alterados.
+
+## [v20.1q-teste3-repeticao-e-revisao-metodologica] - 2026-07-20
+
+### Added
+
+- Monitor de homologação por assinatura de eventos (WebSocket `subscribe_events`) implementado, validado formalmente (6/6 critérios: conexão, autenticação, estabilidade ≥2min, recepção de `state_changed`, registro de mudança real, encerramento limpo) e usado com sucesso na repetição do Teste 3.
+- Repetição completa do Teste 3 (`request_id=r4g-20260720163819459330`, parâmetros 5/45/0) documentada em `docs/releases/implementation_plan_v20_1q.md`: 5 tentativas exatas, timeouts de 45s exatos, esgotamento correto.
+- Achado arquitetural novo: guard rail `tomada_ja_desligada` no orquestrador, que bloqueia início de ciclo se a tomada já estiver desligada no momento da solicitação.
+- Helper `input_boolean.casa_comunicacao_modo_manutencao`, com estado inicial desligado, para bloquear novas solicitações automáticas de Recovery durante manutenção da comunicação.
+
+### Changed
+
+- Revisão metodológica: a hipótese de que o padrão de "retorno real segundos após o esgotamento" seria "quase estrutural" foi reclassificada como hipótese não comprovada, com separação explícita entre fatos comprovados e inferências em `docs/releases/implementation_plan_v20_1q.md` e `docs/governance/gates_v20.md`.
+- `docs/governance/gates_v20.md`: Gate corretivo V20.1Q atualizado com os achados desta rodada e a nota de rigor metodológico.
+- `automation.central_recovery_4g_solicitar` passa a exigir o modo manutenção desligado antes de aceitar uma nova solicitação; ciclos já iniciados e o religamento de segurança permanecem fora desse bloqueio.
+
+### Notes
+
+- Cancelamento pelo operador, retorno em índice intermediário e janela de estabilização zero continuam pendentes — não exercitados nesta repetição (execução mantida estritamente passiva por instrução explícita).
+- A consolidação posterior adicionou somente o helper de manutenção e a condição preventiva de novas solicitações; não alterou o orquestrador, o Executor, ciclos ativos, religamento de segurança, dashboard ou arquitetura.
+
+## [v20.1q-homologacao-runtime-suspensa] - 2026-07-18
+
+### Added
+
+- Ata de Homologação Runtime V20.1Q em `docs/releases/implementation_plan_v20_1q.md`, cobrindo três testes reais e controlados de power cycle (Teste 1: esgotamento mínimo max=1 + cooldown; Teste 2: cenário max=10 + integridade do snapshot; Teste 3: cenário max=5 + achado de erro técnico seguro).
+
+### Changed
+
+- `docs/governance/gates_v20.md`: Gate corretivo V20.1Q atualizado para refletir itens homologados em runtime (cenários 1/5/10, snapshot, cooldown entrada/expiração, religamento de segurança, erro técnico seguro, restart, Timeline de 16 eventos) e itens que permanecem pendentes (cancelamento pelo operador, retorno em índice intermediário, janela de estabilização zero).
+- Status do `docs/releases/implementation_plan_v20_1q.md` alterado para "Homologação Runtime Parcial — Suspensa por decisão operacional".
+
+### Notes
+
+- Homologação **suspensa por decisão operacional**, sem bloqueio técnico conhecido; implementação permanece válida.
+- Cenário "2" isoladamente e interrupção por falta de energia em ciclo ativo classificados como não bloqueadores (cobertura por generalização de código e risco residual aceito, respectivamente).
+- Nenhum helper, script, automação, package, dashboard ou arquitetura foi alterado nesta atividade — apenas documentação.
+- Recomendação registrada para a retomada: monitoramento por assinatura de eventos (WebSocket/`subscribe_events`) em vez de polling.
+
+## [v20.1q-dashboard-parametros-recovery-4g-ux] - 2026-07-17
+
+### Changed
+
+- Seção "Recovery 4G" do dashboard `Parâmetros` reorganizada em três cards, conforme `docs/ux/espec_ux_param_recovery4g.md` (ESPEC-UX-PARAM-RECOVERY4G): **Operação** (Recuperação Automática, Máximo de Tentativas, Pausa após Esgotar Tentativas), **Ciclo de Recuperação** (numerado 1–5: Tempo para Confirmar a Queda, Tempo com a Tomada Desligada, Limite de Espera da Tomada, Limite de Espera do 4G, Tempo de Estabilização) e **Avisos** (Registrar na Timeline, Notificar no Celular).
+- Card de texto explicativo (markdown) removido da seção, por exceder o conteúdo exaustivo definido pela especificação.
+- Entrega anterior (entrada `v20.1q-dashboard-parametros-recovery-4g` acima) ficou parcial: havia corrigido os campos, mas não a estrutura de cards.
+
+### Method
+
+- Mesma via da entrega anterior: API/WebSocket oficial do Home Assistant (`lovelace/config` / `lovelace/config/save`), sem edição manual de `.storage`, sem alteração de helpers, automações, scripts ou arquitetura.
+
+### Notes
+
+- Validado contra os 15 critérios de aceitação da especificação (A1–A15); A8 (quebra de rótulo em celular) não verificável visualmente nesta sessão.
+- Homologação runtime do Recovery 4G continua pendente; Gate corretivo V20.1Q permanece aberto.
+
+## [v20.1q-dashboard-parametros-recovery-4g] - 2026-07-17
+
+### Changed
+
+- Seção "Recovery 4G" do dashboard `Parâmetros` (`.storage/lovelace.dashboard_lixo`) atualizada: card "Execução automática" passa a expor Tempo OFF único, Confirmação da queda e Estabilização do retorno; os dois campos legados numerados de Tempo OFF (tentativa 1 e 2) foram retirados da visualização.
+- Diagnóstico técnico, revisão de UX e resolução dos bloqueios técnicos registrados como aprovados pelo usuário para este item, conforme `docs/releases/implementation_plan_v20_1q.md`.
+
+### Method
+
+- Alteração aplicada exclusivamente via API/WebSocket oficial do Home Assistant (`lovelace/config` / `lovelace/config/save`) autenticada com `HA_TOKEN`, sem edição manual de `.storage`.
+- Backup do JSON do dashboard salvo antes e depois da escrita; leitura de confirmação executada após a gravação.
+
+### Notes
+
+- Nenhuma outra seção do dashboard, package, automação, script, entidade, alias final ou `sensor.status_casa` foi alterada.
+- Homologação runtime do Recovery 4G continua pendente; Gate corretivo V20.1Q permanece aberto.
+
+## [v20.1q-recovery-generico-corretivo] - 2026-07-17
+
+### Changed
+
+- Recovery automático passa a iniciar ligado após restart e Timeline passa a 16 eventos por padrão.
+- Orquestrador refatorado para tentativas genéricas com snapshot do máximo configurado.
+- Tempo OFF único, confirmação de queda própria e estabilização contínua do retorno.
+- Sucesso encerra em `ocioso`, sem cooldown; cooldown ocorre somente após esgotamento completo.
+- Cancelamentos por restart, energia e operador deixam de gravar `ultima_execucao`.
+- `ultima_execucao` passa a significar o último esgotamento completo que iniciou cooldown.
+- Dashboard “Parâmetros” identificado somente em `.storage`; ajuste visual ficou pendente para fluxo suportado pela UI.
+
+### Validation
+
+- Validação exclusivamente estática; homologação no Home Assistant permanece pendente.
+- Nenhum reload, restart, power cycle ou push executado.
+
+Este projeto segue uma adaptação do padrão [Keep a Changelog](https://keepachangelog.com/), com versões orientadas por baseline arquitetural da Central Operacional.
+
+## [v20.1q-formalizacao-documental] - 2026-07-13
+
+### Added
+
+- Auditoria operacional do recovery 4G em `docs/auditorias/auditoria_operacional_recovery_4g_v20_1q.md`.
+- Despacho arquitetural subordinado em `docs/arquitetura/despacho_arquitetural_v20_1q.md`.
+- Implementation Plan transitório em `docs/releases/implementation_plan_v20_1q.md`.
+- Gates específicos para documentação, pré-implementação, teste físico, homologação e encerramento da V20.1Q.
+
+### Changed
+
+- Roadmap registra a Fase 0 concluída, V20.1Q.1 como próxima fase e V20.1Q.2 como integração posterior.
+- Arquitetura e Source of Truth passam a indexar os artefatos subordinados da V20.1Q.
+- Marcador GIT-HYGIENE-01 atualizado como resolvido pelo commit `8e59a4be2e09ebb2706d4fc46a87a7258aa646b0`.
+
+### Notes
+
+- Formalização exclusivamente documental.
+- Implementação V20.1Q.1 não iniciada.
+- Nenhum YAML, helper, automação, script, dashboard ou `.storage` alterado.
+- Nenhum teste físico executado.
+- Defaults numéricos de cooldown e timeout de validação permanecem pendentes.
+
+## [v20.1o-politica-timeline-push-agregacao] - 2026-05-21
+
+### Frozen
+
+- V20.1O congelado formalmente como estável com débitos aceitos após validação operacional.
+- Política individual por evento implementada para timeline, push e agregação.
+- Timeline, push e agregação mantidos como controles independentes.
+- Banho/chuveiro habilitado por padrão, com encerramento fixo de 2 minutos.
+- Push passa a consumir somente evento canônico atual, sem reutilizar texto renderizado da timeline/feed.
+- Agregação passa a respeitar flags individuais e contexto operacional ativo.
+- Máquina de lavar passa a respeitar transições reais OFF->ON e ON->OFF, sem desligamento falso em reload/primeira leitura.
+- Falso positivo de Backup removido da agregação, exigindo falha real em `sensor.backup_google_status`.
+- UI existente integrada com controles Timeline / Push / Agrupar.
+
+### Governance
+
+- Arquivos criados: 0.
+- Package shadow: 0.
+- Documentação nova: 0.
+- Fontes de verdade novas: 0.
+- Alterações fora do escopo: 0.
+- Compatibilidade legada preservada.
+- Mudanças futuras devem abrir novo lote formal e citar dependências do V20.1O.
+
+### Validated
+
+- YAML OK.
+- `git diff --check` OK.
+
+### Accepted Debt
+
+- Categoria: UX / Narrativa contextual.
+- Sintoma: eventos agregados podem ocultar a saída individual de participantes.
+- Exemplo: TV + Microondas + Banho ativos, depois TV e Microondas desligam enquanto Banho continua ativo, mas a timeline pode mostrar apenas Banho encerrado.
+- Impacto: não afeta estado real, automações, push ou lógica operacional; afeta apenas interpretação humana da timeline.
+- Tratamento: reservado para V20.1P — Inteligência contextual da timeline.
+
+## [v20.1n-estabilizacao] - 2026-05-20
+
+### Added
+
+- Checkpoint documental de estabilização V20.1N em `docs/releases/v20.1n-estabilizacao.md`.
+- Registro dos marcos homologados: V20.1N.4.1 Motor operacional estabilizado, V20.1N.4.2 Timeline integrada, V20.1N.4.3 Pós-multiatividade e V20.1N.4.3a Consistência visual.
+- Decisão arquitetural de próximos passos para V20.2A - Evolução Contextual de Atividades.
+- Registro de que monitoramento de banho passa a ser ativo por padrão daqui para frente, inicialmente desacoplado do motor operacional V20.1N.
+
+### Validated
+
+- TV funcionando.
+- Multiatividade funcionando.
+- Timeline consistente.
+- Deduplicação OK.
+- Sem `unavailable`.
+- Sem spam.
+
+### Notes
+
+- Status: Homologado.
+- Checkpoint exclusivamente documental.
+- Nenhum YAML, package, automação, dashboard ou `.storage` foi alterado por esta etapa.
+- Nenhuma funcionalidade nova ou evolução funcional foi implementada.
+- Banho fica como futuro candidato a atividade formal (`🛁 banho`) após estabilização.
+
+## [v20.1c-legacy-audit] - 2026-05-20
+
+### Added
+
+- Início da auditoria de legado V20.1C com diagnóstico formal de dependências.
+- Documento de inventário criado em `docs/auditoria_legado_v20_1c.md`.
+- Identificação preliminar de `packages/_disabled/status_casa_v19.yaml`, `.storage` com registros V19 e motores V20.2 em shadow.
+- Confirmação inicial de que `ui-lovelace.yaml` não consome `_v20_2` no escopo desta busca.
+
+### Closed
+
+- `V20.1C_FECHAMENTO` registrado como fechamento formal de diagnóstico e governança.
+- Inventário concluído.
+- Dependências classificadas.
+- Impacto documentado.
+- Automações, scripts, blueprints e packages auditados.
+- Risco operacional classificado.
+- Quarentena controlada definida.
+
+### Notes
+
+- Decommission continua bloqueado.
+- V20.1O permanece congelada.
+- Nenhuma limpeza foi autorizada.
+- Nenhuma automação foi autorizada para desligamento automático.
+- Limpeza futura continua dependente de classificação de risco, consumidores conhecidos, side-effects mapeados, janela de observação e rollback obrigatório.
+- Sem alterações de YAML de produção nesta fase.
+
+## [v20.1d-legacy-dependencies] - 2026-05-20
+
+### Added
+
+- Início da análise de dependências do legado V20.1D.
+- Documento de dependências criado em `docs/dependencias_legado_v20_1d.md`.
+- Inventário detalhado de `_v19`, `_v20_2`, helpers antigos e uso por dashboards, packages, automações e scripts.
+
+### Notes
+
+- Análise documental iniciada; nenhuma alteração de produção foi realizada.
+- Esta etapa foca em mapear dependências reais antes de qualquer limpeza ou migração.
+
+## [v20.1i-disabled-package-isolation] - 2026-05-20
+
+### Added
+
+- Documentação da validação operacional V20.1F em `docs/validacao_operacional_v20_1f.md`.
+- Investigação da entidade ativa V19 em `docs/investigacao_casa_tv_ativa_v19.md`.
+- Investigação do carregamento efetivo de package V19 em `docs/investigacao_carregamento_v19.md`.
+- Arquivo histórico V19 arquivado em `archive/packages_disabled/status_casa_v19.yaml`.
+- Documento histórico de desativação V19 arquivado em `archive/packages_disabled/DESATIVACAO_V19.md`.
+
+### Changed
+
+- Artefatos históricos V19 foram movidos para fora da árvore `packages/`, impedindo carregamento por `homeassistant.packages: !include_dir_named packages/` após próximo restart/reload controlado.
+- O diretório `packages/_disabled/` foi removido por estar vazio.
+
+### Validated
+
+- Validação pós-isolamento V20.1J documentada em `docs/validacao_pos_isolamento_v20_1j.md`.
+- `binary_sensor.casa_tv_ativa_v19` permaneceu existente apenas como resíduo `unavailable`.
+- A entidade V19 não alternou após teste real da TV.
+- `sensor.status_casa` permaneceu funcional com valor `⚠️ Backup Google com falha`.
+- `sensor.casa_timeline` permaneceu funcional com valor `22:37 📺 TV desligada`.
+
+### Notes
+
+- Não houve edição de `.storage/core.entity_registry`.
+- Não houve edição de `.storage/core.restore_state`.
+- Nenhuma entidade foi removida manualmente.
+- Nenhuma lógica produtiva, dashboard ou automação foi alterada.
+- Limpeza futura de entidades residuais V19 deve ocorrer apenas em fase própria.
+
+## [v20.1k-v19-residue-documentation] - 2026-05-20
+
+### Added
+
+- Saneamento documental dos resíduos V19 pós-isolamento em `docs/saneamento_residuos_v20_1k.md`.
+- Classificação dos resíduos restantes em registry, restore_state, recorder, dashboard oculto e documentação.
+
+### Notes
+
+- Nenhum arquivo `.storage` foi editado.
+- Nenhuma entidade foi removida.
+- Nenhum YAML produtivo foi alterado.
+- Nenhum dashboard foi alterado.
+- Entidades V19 residuais foram tratadas como candidatas a limpeza futura, não como dependência ativa.
+- Dashboard oculto `teste-4` foi classificado inicialmente como não remover automaticamente e posteriormente removido pela UI/fluxo suportado na consolidação V20.2A.
+- A referência documental obsoleta em `packages/status_casa.yaml` foi fechada separadamente no commit `6cbfd18 docs: update archived V19 package reference`.
+
+## [v20.2-operational-residual-audit] - 2026-05-20
+
+### Changed
+
+- Roadmap consolidado para refletir o estado real após V20.1K e V20.2A.
+- Arquitetura e contexto operacional atualizados com o estado de V20.1B, V20.1K, V20.2A e V20.2B.
+- Registro de que a tag `V20.1K_FECHAMENTO` foi criada.
+- Registro de que o dashboard legado `teste-4` foi removido pela UI/fluxo suportado.
+
+### Notes
+
+- Não houve alteração em YAML funcional, packages, entidades, automações ou `.storage`.
+- Dashboards ativos não possuem resíduos V19 conhecidos.
+- Auditoria de automações identificou 21 órfãs; automações críticas não devem ser removidas automaticamente.
+- Próximas prioridades: energia/UPS, HA resiliente principal -> backup RPi5, internet/4G/failover, camada contextual futura e limpeza técnica futura.
+
+## [v20.2-shadow-phaseA] - 2026-05-19
+
+### Added
+
+- Checkpoint formal de homologação Fase A para V20.2 em modo shadow.
+- Registro de resultados executados: 10.
+- Registro de aprovados: 7.
+- Registro de bloqueados: 2.
+- Registro de parciais: 1.
+- Registro de falhas: 0.
+- Documento de checkpoint em `docs/releases/v20.2-shadow-phaseA.md`.
+- Achados importantes sobre isolamento, contexto de chuva, baseline contaminada, dashboards legados V19 e revisão de aliases.
+- Riscos identificados sobre baseline contaminada, dependências externas em testes de TV, dashboards legados V19 e aliases finais.
+
+### Notes
+
+- Checkpoint: Homologação Fase A concluída.
+- V20.2 permanece isolada em shadow e não deve ser promovida para produção nesta etapa.
+- Próximo passo: avançar para validação das próximas fases com foco em correlação e revisão de aliases.
+
+## [v20-central-operacional] - 2026-05-13
+
+### Added
+
+- Baseline congelada da Central Operacional V20.
+- Aliases finais sem versão para consumo oficial dos dashboards.
+- Motor canônico de evento dominante em `motor_eventos_v20.yaml`.
+- Timeline operacional V20 com 6 eventos recentes.
+- Feed operacional desacoplado do evento dominante.
+- Registro de eventos secundários coexistindo com incidente dominante.
+- Eventos de TV ligada/desligada com preservação de contexto semântico quando disponível.
+- Eventos de Porta da Sala aberta, fechada e aberta por timeout.
+- Timeout parametrizável por `input_number.casa_timeout_porta_aberta_minutos`.
+- Parâmetros operacionais complementares em `parametros_operacionais_v20.yaml`.
+- Documento formal de release em `docs/release_central_operacional_v20.md`.
+- Documentação de arquitetura, roadmap e estratégia Git.
+
+### Changed
+
+- Dashboards oficiais passam a depender preferencialmente de aliases finais sem versão.
+- `sensor.casa_timeline` e `sensor.casa_event_feed` passam a consumir a timeline/feed V20 quando disponíveis.
+- `sensor.atividade_relevante` passa a priorizar contexto semântico de TV quando disponível.
+- Dashboard de Parâmetros Operacionais passa a incluir temporizações V20.
+- A V20 passa a tratar `status_casa.yaml` como base de parâmetros/governança, não como motor principal.
+- Atualização de documentação para consolidar o contexto operacional, arquitetura e estado atual da Central Operacional.
+
+### Fixed
+
+- Regressão em que atividade relevante de TV exibia apenas `TV: Live TV`.
+- Dependências diretas de sensores V19 em dashboards oficiais.
+- Timeline limitada ao último evento textual.
+- Ausência de eventos secundários durante incidente dominante.
+- Exposição direta de estados inválidos como `unknown`, `unavailable`, `none` e vazio.
+- Risco de commit acidental de arquivos sensíveis do Home Assistant via `.gitignore`.
+
+### Notes
+
+- V19 permanece preservada e não reativada.
+- Entidades antigas não foram removidas do registry.
+- Automações antigas não foram alteradas.
+- A timeline V20 não reconstrói histórico antigo do Recorder; ela registra eventos a partir do reload/restart.
+- Mudanças futuras devem ser tratadas como V21 ou hotfix V20 documentado.
+## [v20.2c-i4a-consumer-integration] - 2026-08-07
+
+- Gate V20.2C-I4A homologado após eliminar a corrida entre eventos de consumidores e a transição para `active`.
+- C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR; `return_pending` persistente e fronteira temporal persistente vinculada ao `session_id` bloqueiam eventos ocorridos antes da autorização.
+- C1.2 usa `trigger.to_state.last_changed`; o Harness exige `occurred_at`; a regra temporal é estrita: `occurred_at > consumer_authorized_since`.
+- Starting, Ending, Failed, D1, Active nominal e reload com `return_pending=true` foram homologados sem consumidor indevido ou duplicação.
+- Nenhum restart ou componente protegido foi alterado. Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
+- Permanecem pendentes a promoção operacional real dos consumidores, ciclo real de saída/retorno, UniFi Protect e consumidores futuros. Próximo Gate: V20.2C-I4B.
+## [v20.2c-a2-i4b-governance] - 2026-08-07
+
+- Despacho V20.2C-A2 introduz a distinção entre Homologação Técnica por Harness e Evidência Operacional natural.
+- Gate I4B dividido em I4B.1 (Promoção Operacional Controlada) e I4B.2 (Evidência Operacional), sem alteração funcional.
+- I4B.1 pode liberar o Roadmap após homologação técnica; I4B.2 permanece pendente de oportunidade física e não bloqueia I5, I6, consumidores futuros ou UniFi Protect.
+## [v20.2c-i4b1-controlled-promotion] - 2026-08-07
+
+- V20.2C-I4B.1 homologado por Harness Dispatcher: graça, abertura, publicação canônica, sessão ativa, autorização temporal, C1.1, C1.2, C1.3, retorno, D1 e reload.
+- C1.1/C1.3 executaram uma vez; C1.2 executou uma vez após `occurred_at > consumer_authorized_since`; porta pós-retorno não gerou push.
+- Estado final reconciliado: CSMR/dispatcher `idle`, `return_pending=off`, fronteira inválida e IDs vazios. I4B.2 permanece pendente de evidência operacional física.
+- Nenhum código funcional foi alterado durante I4B.1; Protect, Recovery, I1, I2/I2A e pessoa permaneceram fora do escopo funcional.
+
+### V20.2C-I5A — Integração controlada do UniFi Protect (2026-08-07)
+
+- Homologado por Harness o package `packages/v20_2c_protect_csmr.yaml`, com intenção automática CSMR e override manual independentes.
+- Regra efetiva: `csmr_recording_requested OR manual_override`; `always` quando uma intenção está ativa e `detections` quando ambas estão inativas.
+- Validados os selects `select.g4_instant_recording_mode` e `select.g4_instant_recording_mode_2`, retorno pendente, failed, ending, reload, retorno com override manual preservado e idempotência.
+- Nenhum novo evento de Timeline/Event Feed e nenhuma alteração em CSMR, dispatcher, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos.
+
+### V20.2C-I5B — Promoção operacional controlada do UniFi Protect (2026-08-07)
+
+- **STATUS: HOMOLOGADO.** Harness executado no runtime real, sem depender de saída física.
+- Validados CSMR ativo, retorno, override manual, coexistência, `return_pending`, `failed`, reload, idempotência e divergência controlada.
+- Nenhum componente protegido ou contrato de Timeline/Event Feed foi alterado; estado final restaurado em `detections`.
+
+### V20.2D — Consolidação da baseline V20.2C (2026-08-07)
+
+- V20.2C registrada como **FUNCIONALMENTE CONCLUÍDA**.
+- Catálogo I1–I5, mapa arquitetural, auditoria estática e próximas evoluções elegíveis consolidados em `docs/v20_2c/baseline_v20_2d.md`.
+- I4B.2 permanece somente como evidência operacional física não bloqueante. Nenhuma alteração funcional ou runtime foi realizada.

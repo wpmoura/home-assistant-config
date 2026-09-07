@@ -1,0 +1,28 @@
+resources:
+  - url: /hacsfiles/button-card/button-card.js
+    type: module
+
+#
+#
+lovelace:
+  mode: yaml
+#
+#    
+views:
+  - title: Casa
+    cards:
+      - type: custom:button-card
+        entity: binary_sensor.sensor_movimento_quarto_grande_occupancy
+        name: "Movimento no Quarto Grande"
+        icon: mdi:motion-sensor
+        state:
+          - value: "on"
+            icon: mdi:run
+            styles:
+              icon:
+                - color: red
+          - value: "off"
+            icon: mdi:walk
+            styles:
+              icon:
+                - color: green

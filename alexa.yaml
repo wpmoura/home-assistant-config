@@ -1,0 +1,5 @@
+# alexa.yaml
+smart_home:
+  filter:
+    include_entities:
+      - climate.ar_condicionado

@@ -1,0 +1,120 @@
+- id: '1743567095387'
+  name: 'Liga luz quarto maior '
+  entities:
+    light.grupo_luzes_da_casa:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      effect_list:
+      - effect_pulse
+      - effect_stop
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      effect:
+      color_mode: color_temp
+      brightness: 204
+      color_temp_kelvin: 2450
+      color_temp: 408
+      hs_color:
+      - 29.009
+      - 74.364
+      rgb_color:
+      - 255
+      - 157
+      - 65
+      xy_color:
+      - 0.552
+      - 0.39
+      entity_id:
+      - light.banheiro
+      - light.cozinha1
+      - light.cozinha2
+      - light.smart_lampada_wifi_1
+      - light.quartogrande
+      - light.desktop_light
+      - light.tomada_smart_tomada_2
+      icon: mdi:lightbulb-group
+      friendly_name: Grupo Luzes da casa
+      supported_features: 44
+      state: 'on'
+  icon: mdi:ceiling-fan-light
+  metadata:
+    light.grupo_luzes_da_casa:
+      entity_only: true
+- id: '1744925487174'
+  name: Quarto maior dia a dia
+  entities:
+    light.quartogrande:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      min_mireds: 153
+      max_mireds: 500
+      supported_color_modes:
+      - color_temp
+      - xy
+      color_mode: color_temp
+      brightness: 204
+      color_temp_kelvin: 3257
+      color_temp: 307
+      hs_color:
+      - 27.45
+      - 50.328
+      rgb_color:
+      - 255
+      - 185
+      - 127
+      xy_color:
+      - 0.473
+      - 0.378
+      is_hue_group: true
+      hue_scenes:
+      - Pôr do sol na savana
+      - Luz noturna
+      - Energizar
+      - Aurora ártica
+      - Esmaecido
+      - Luz
+      - Relaxar
+      - Crepúsculo tropical
+      - Leitura
+      - Flores da primavera
+      - Concentrar
+      hue_type: zone
+      lights:
+      - Top1
+      - Top2
+      entity_id:
+      - light.top1
+      - light.hue_color_lamp_1
+      dynamics: false
+      icon: mdi:lightbulb-group
+      friendly_name: Quartogrande
+      supported_features: 40
+      state: 'on'
+  icon: mdi:lightbulb
+  metadata:
+    light.quartogrande:
+      entity_only: true
+- id: '1744925908537'
+  name: 'Luz boa '
+  entities:
+    switch.adaptive_lighting_adapt_color_quarto:
+      icon: mdi:sun-thermometer
+      friendly_name: 'Adaptive Lighting Adapt Color: quarto'
+      state: 'on'
+  metadata:
+    switch.adaptive_lighting_adapt_color_quarto:
+      entity_only: true
+#
+#
+- name: Boa Noite
+  entities:
+#    light.quarto: off
+    light.aqara_hub_2311_lightbulb_2311_2: off
+    switch.umidificador: off
+#    switch.ar_condicionado: on
+#
+#

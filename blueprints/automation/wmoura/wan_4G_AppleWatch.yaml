@@ -1,0 +1,275 @@
+blueprint:
+  name: WAN 4G - Monitoramento simples (Watch-first)
+  description: >
+    Monitora um binary_sensor que representa a conectividade do link 4G.
+    Quando o link fica offline por um tempo configurável, envia notificação,
+    reinicia automaticamente o modem via tomada inteligente e valida
+    se a conexão voltou. Caso não volte, pode repetir alertas adicionais.
+
+    Requisito:
+    - O sensor de conectividade deve ser um binary_sensor:
+      on = online
+      off = offline
+
+  domain: automation
+
+  input:
+    connectivity_sensor:
+      name: Sensor de conectividade 4G
+      description: Binary sensor do link 4G (on=online / off=offline)
+      selector:
+        entity:
+          domain: binary_sensor
+
+    modem_plug:
+      name: Tomada inteligente do modem 4G
+      description: Switch que energiza o modem 4G
+      selector:
+        entity:
+          domain: switch
+
+    notify_service:
+      name: Serviço de notificação
+      description: Exemplo notify.mobile_app_iphonewm
+      default: notify.notify
+      selector:
+        text:
+
+    offline_for_minutes:
+      name: Tempo offline para acionar recuperação
+      description: Quantos minutos o link deve permanecer offline antes de agir
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+          unit_of_measurement: min
+          mode: slider
+
+    power_off_seconds:
+      name: Tempo desligado da tomada
+      description: Quantos segundos a tomada ficará desligada antes de religar o modem
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 120
+          step: 1
+          unit_of_measurement: s
+          mode: slider
+
+    boot_wait_minutes:
+      name: Tempo para o modem subir
+      description: Quantos minutos aguardar após religar antes de validar o link
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 15
+          step: 1
+          unit_of_measurement: min
+          mode: slider
+
+    notify_on_initial_failure:
+      name: Notificar quando o link cair
+      default: true
+      selector:
+        boolean:
+
+    notify_on_recovery:
+      name: Notificar quando o link voltar
+      default: true
+      selector:
+        boolean:
+
+    notify_on_final_failure:
+      name: Notificar quando a conexão não voltar
+      default: true
+      selector:
+        boolean:
+
+    repeat_failure_alerts:
+      name: Repetir alertas se continuar offline
+      description: Quantidade de alertas adicionais após a tentativa de recuperação
+      default: 3
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 1
+          mode: slider
+
+    repeat_every_minutes:
+      name: Intervalo entre alertas adicionais
+      description: Intervalo entre os alertas caso continue offline
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: min
+          mode: slider
+
+    notification_title:
+      name: Título das notificações
+      default: "Linha 4G"
+      selector:
+        text:
+
+    create_persistent_notification:
+      name: Criar notificação persistente no HA
+      default: true
+      selector:
+        boolean:
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input connectivity_sensor
+    from: "on"
+    to: "off"
+    for:
+      minutes: !input offline_for_minutes
+
+variables:
+  connectivity_sensor: !input connectivity_sensor
+  modem_plug: !input modem_plug
+  notify_service: !input notify_service
+  notification_title: !input notification_title
+  create_persistent_notification: !input create_persistent_notification
+  notify_on_initial_failure: !input notify_on_initial_failure
+  notify_on_recovery: !input notify_on_recovery
+  notify_on_final_failure: !input notify_on_final_failure
+  repeat_failure_alerts: !input repeat_failure_alerts
+  repeat_every_minutes: !input repeat_every_minutes
+  offline_for_minutes: !input offline_for_minutes
+  power_off_seconds: !input power_off_seconds
+  boot_wait_minutes: !input boot_wait_minutes
+
+action:
+  - variables:
+      msg_initial: "📴 4G offline • reiniciando modem"
+      msg_success: "✅ 4G restaurado"
+      msg_failed: "🚨 4G ainda offline"
+
+  - if:
+      - condition: template
+        value_template: "{{ notify_on_initial_failure }}"
+    then:
+      - service: !input notify_service
+        data:
+          title: "{{ notification_title }}"
+          message: "{{ msg_initial }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ create_persistent_notification }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: "{{ notification_title }}"
+              message: "{{ msg_initial }}"
+
+  - service: switch.turn_off
+    target:
+      entity_id: !input modem_plug
+
+  - delay:
+      seconds: !input power_off_seconds
+
+  - service: switch.turn_on
+    target:
+      entity_id: !input modem_plug
+
+  - delay:
+      minutes: !input boot_wait_minutes
+
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input connectivity_sensor
+            state: "on"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ notify_on_recovery }}"
+            then:
+              - service: !input notify_service
+                data:
+                  title: "{{ notification_title }}"
+                  message: "{{ msg_success }}"
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ create_persistent_notification }}"
+                sequence:
+                  - service: persistent_notification.create
+                    data:
+                      title: "{{ notification_title }}"
+                      message: "{{ msg_success }}"
+
+    default:
+      - if:
+          - condition: template
+            value_template: "{{ notify_on_final_failure }}"
+        then:
+          - service: !input notify_service
+            data:
+              title: "{{ notification_title }}"
+              message: "{{ msg_failed }}"
+
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ create_persistent_notification }}"
+            sequence:
+              - service: persistent_notification.create
+                data:
+                  title: "{{ notification_title }}"
+                  message: "{{ msg_failed }}"
+
+      - repeat:
+          count: !input repeat_failure_alerts
+          sequence:
+            - delay:
+                minutes: !input repeat_every_minutes
+
+            - if:
+                - condition: state
+                  entity_id: !input connectivity_sensor
+                  state: "on"
+              then:
+                - if:
+                    - condition: template
+                      value_template: "{{ notify_on_recovery }}"
+                  then:
+                    - service: !input notify_service
+                      data:
+                        title: "{{ notification_title }}"
+                        message: "✅ 4G restaurado"
+                - stop: "Conectividade recuperada durante a fase de alertas adicionais."
+
+            - if:
+                - condition: template
+                  value_template: "{{ notify_on_final_failure }}"
+              then:
+                - service: !input notify_service
+                  data:
+                    title: "{{ notification_title }}"
+                    message: "🚨 4G offline • alerta {{ repeat.index }}"
+
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ create_persistent_notification }}"
+                  sequence:
+                    - service: persistent_notification.create
+                      data:
+                        title: "{{ notification_title }}"
+                        message: "🚨 4G offline • alerta {{ repeat.index }}"

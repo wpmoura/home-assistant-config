@@ -1,0 +1,145 @@
+###############################################################################
+# V20.2C-I5A — Intenção de gravação UniFi Protect subordinada ao CSMR
+#
+# Harness-only nesta etapa: não publica Timeline/Event Feed e não altera C1.x.
+###############################################################################
+
+input_boolean:
+  casa_csmr_protect_gravacao_solicitada_v20_2c:
+    name: Casa CSMR — Gravação Protect Solicitada V20.2C
+    icon: mdi:cctv
+
+  casa_csmr_protect_override_manual_v20_2c:
+    name: Casa Protect — Override Manual de Gravação V20.2C
+    icon: mdi:account-edit
+
+template:
+  - sensor:
+      - name: Casa CSMR Protect — Intenção de Gravação V20.2C
+        unique_id: casa_csmr_protect_intencao_gravacao_v20_2c
+        icon: mdi:camera-control
+        state: >-
+          {% if is_state('input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c', 'on')
+                or is_state('input_boolean.casa_csmr_protect_override_manual_v20_2c', 'on') %}
+            always
+          {% else %}
+            detections
+          {% endif %}
+        attributes:
+          requested_by_csmr: >-
+            {{ is_state('input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c', 'on') }}
+          manual_override: >-
+            {{ is_state('input_boolean.casa_csmr_protect_override_manual_v20_2c', 'on') }}
+          effective_state: >-
+            {% if is_state('input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c', 'on')
+                  or is_state('input_boolean.casa_csmr_protect_override_manual_v20_2c', 'on') %}
+              always
+            {% else %}
+              detections
+            {% endif %}
+          observed_cozinha: "{{ states('select.g4_instant_recording_mode') }}"
+          observed_quarto: "{{ states('select.g4_instant_recording_mode_2') }}"
+          last_change_origin: >-
+            {% if is_state('input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c', 'on') %}
+              csmr
+            {% elif is_state('input_boolean.casa_csmr_protect_override_manual_v20_2c', 'on') %}
+              manual
+            {% else %}
+              baseline
+            {% endif %}
+          session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') | default('', true) }}"
+          baseline_mode: detections
+
+automation:
+  - id: casa_csmr_protect_gravacao_intencao_v20_2c
+    alias: Casa — CSMR — Intenção de Gravação Protect V20.2C
+    description: >-
+      Aplica a intenção automática do CSMR somente após autorização temporal;
+      preserva override manual e restaura detections fora da sessão.
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id: sensor.casa_csmr_estado_v20_2c
+      - platform: state
+        entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+      - platform: state
+        entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
+      - platform: state
+        entity_id: input_boolean.casa_csmr_protect_override_manual_v20_2c
+      - platform: homeassistant
+        event: start
+
+    variables:
+      protect_authorized: >-
+        {{ is_state('sensor.casa_csmr_estado_v20_2c', 'active')
+           and is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'off')
+           and states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') != ''
+           and states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c')
+                 not in ['unknown', 'unavailable', '1970-01-01 00:00:00']
+           and states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c')
+                 == state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') }}
+      manual_override: >-
+        {{ is_state('input_boolean.casa_csmr_protect_override_manual_v20_2c', 'on') }}
+      effective_continuous_recording: >-
+        {{ protect_authorized or manual_override }}
+
+    action:
+      - choose:
+          - conditions: "{{ effective_continuous_recording }}"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: "{{ protect_authorized }}"
+                then:
+                  - service: input_boolean.turn_on
+                    target:
+                      entity_id: input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c
+                else:
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c
+              - if:
+                  - condition: template
+                    value_template: "{{ states('select.g4_instant_recording_mode') != 'always' }}"
+                then:
+                  - service: select.select_option
+                    target:
+                      entity_id: select.g4_instant_recording_mode
+                    data:
+                      option: always
+              - if:
+                  - condition: template
+                    value_template: "{{ states('select.g4_instant_recording_mode_2') != 'always' }}"
+                then:
+                  - service: select.select_option
+                    target:
+                      entity_id: select.g4_instant_recording_mode_2
+                    data:
+                      option: always
+        default:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.casa_csmr_protect_gravacao_solicitada_v20_2c
+          - if:
+              - condition: state
+                entity_id: input_boolean.casa_csmr_protect_override_manual_v20_2c
+                state: "off"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ states('select.g4_instant_recording_mode') != 'detections' }}"
+                then:
+                  - service: select.select_option
+                    target:
+                      entity_id: select.g4_instant_recording_mode
+                    data:
+                      option: detections
+              - if:
+                  - condition: template
+                    value_template: "{{ states('select.g4_instant_recording_mode_2') != 'detections' }}"
+                then:
+                  - service: select.select_option
+                    target:
+                      entity_id: select.g4_instant_recording_mode_2
+                    data:
+                      option: detections

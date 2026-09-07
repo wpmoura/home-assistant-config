@@ -1,0 +1,279 @@
+###############################################################################
+# Central Operacional V20.2 - Lote 2A
+# Prova minima de relevancia contextual
+#
+# Camada paralela e observavel.
+# Nao publica timeline, nao altera aliases finais e nao substitui score atual.
+###############################################################################
+
+template:
+  - sensor:
+      - name: "Casa Relevancia Contextual V20 2"
+        unique_id: casa_relevancia_contextual_v20_2
+        icon: mdi:gauge
+        state: >
+          {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+          {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+          {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+          {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+          {% set energia = states('sensor.casa_energia_estado_v20') %}
+          {% set internet = states('sensor.casa_internet_estado_v20') %}
+          {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+          {% set portas = [
+            states('sensor.casa_porta_sala_estado_v20'),
+            states('sensor.casa_porta_banheiro_estado_v20'),
+            states('sensor.casa_porta_quarto_menor_estado_v20'),
+            states('sensor.casa_porta_quarto_maior_estado_v20')
+          ] %}
+          {% set janelas = [
+            states('sensor.casa_janela_varanda_sala_estado_v20'),
+            states('sensor.casa_janela_quarto_maior_estado_v20'),
+            states('sensor.casa_janela_quarto_menor_estado_v20')
+          ] %}
+          {% set porta_aberta = 'aberta' in portas %}
+          {% set janela_aberta = 'aberta' in janelas %}
+          {% if chuva == 'ativa' and janela_aberta %}
+            critica
+          {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+            critica
+          {% elif porta_aberta and casa_vazia == 'on' %}
+            alta
+          {% elif internet == 'degradada' and noturno == 'on' %}
+            media
+          {% elif casa_vazia in invalid or noturno in invalid or humano in invalid %}
+            indeterminada
+          {% else %}
+            baixa
+          {% endif %}
+        attributes:
+          evento_base: >
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set energia = states('sensor.casa_energia_estado_v20') %}
+            {% set internet = states('sensor.casa_internet_estado_v20') %}
+            {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+            {% set portas = [
+              states('sensor.casa_porta_sala_estado_v20'),
+              states('sensor.casa_porta_banheiro_estado_v20'),
+              states('sensor.casa_porta_quarto_menor_estado_v20'),
+              states('sensor.casa_porta_quarto_maior_estado_v20')
+            ] %}
+            {% set janelas = [
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% if chuva == 'ativa' and 'aberta' in janelas %}
+              chuva_janela_aberta
+            {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+              energia_ausente_casa_ocupada
+            {% elif 'aberta' in portas and casa_vazia == 'on' %}
+              porta_aberta_casa_vazia
+            {% elif internet == 'degradada' and noturno == 'on' %}
+              internet_degradada_noturno
+            {% else %}
+              nenhum_evento_contextual
+            {% endif %}
+          contexto: >
+            humano={{ states('sensor.casa_contexto_humano_v20_2') }};
+            casa_vazia={{ states('binary_sensor.casa_vazia_v20_2') }};
+            noturno={{ states('binary_sensor.contexto_noturno_v20_2') }};
+            operacional={{ states('sensor.casa_contexto_operacional_v20_2') }};
+            ambiental={{ states('sensor.casa_contexto_ambiental_v20_2') }}
+          motivo: >
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set energia = states('sensor.casa_energia_estado_v20') %}
+            {% set internet = states('sensor.casa_internet_estado_v20') %}
+            {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+            {% set portas = [
+              states('sensor.casa_porta_sala_estado_v20'),
+              states('sensor.casa_porta_banheiro_estado_v20'),
+              states('sensor.casa_porta_quarto_menor_estado_v20'),
+              states('sensor.casa_porta_quarto_maior_estado_v20')
+            ] %}
+            {% set janelas = [
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% if chuva == 'ativa' and 'aberta' in janelas %}
+              Chuva ativa com janela aberta
+            {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+              Energia ausente com alguém em casa
+            {% elif 'aberta' in portas and casa_vazia == 'on' %}
+              Porta aberta com casa vazia
+            {% elif internet == 'degradada' and noturno == 'on' %}
+              Internet degradada em contexto noturno
+            {% else %}
+              Nenhuma regra contextual mínima ativa
+            {% endif %}
+          confianca: >
+            {% set invalid = ['unknown', 'unavailable', 'none', 'None', '', none] %}
+            {% if states('binary_sensor.casa_vazia_v20_2') in invalid
+                  or states('binary_sensor.contexto_noturno_v20_2') in invalid
+                  or states('sensor.casa_contexto_humano_v20_2') in invalid %}
+              baixa
+            {% else %}
+              alta
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: "Casa Evento Relevante V20 2"
+        unique_id: casa_evento_relevante_v20_2
+        icon: mdi:alert-decagram-outline
+        state: >
+          {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+          {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+          {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+          {% set energia = states('sensor.casa_energia_estado_v20') %}
+          {% set internet = states('sensor.casa_internet_estado_v20') %}
+          {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+          {% set portas = [
+            states('sensor.casa_porta_sala_estado_v20'),
+            states('sensor.casa_porta_banheiro_estado_v20'),
+            states('sensor.casa_porta_quarto_menor_estado_v20'),
+            states('sensor.casa_porta_quarto_maior_estado_v20')
+          ] %}
+          {% set janelas = [
+            states('sensor.casa_janela_varanda_sala_estado_v20'),
+            states('sensor.casa_janela_quarto_maior_estado_v20'),
+            states('sensor.casa_janela_quarto_menor_estado_v20')
+          ] %}
+          {% if chuva == 'ativa' and 'aberta' in janelas %}
+            chuva_janela_aberta
+          {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+            energia_ausente_casa_ocupada
+          {% elif 'aberta' in portas and casa_vazia == 'on' %}
+            porta_aberta_casa_vazia
+          {% elif internet == 'degradada' and noturno == 'on' %}
+            internet_degradada_noturno
+          {% else %}
+            nenhum_evento_contextual
+          {% endif %}
+        attributes:
+          evento_base: >
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set energia = states('sensor.casa_energia_estado_v20') %}
+            {% set internet = states('sensor.casa_internet_estado_v20') %}
+            {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+            {% set portas = [
+              states('sensor.casa_porta_sala_estado_v20'),
+              states('sensor.casa_porta_banheiro_estado_v20'),
+              states('sensor.casa_porta_quarto_menor_estado_v20'),
+              states('sensor.casa_porta_quarto_maior_estado_v20')
+            ] %}
+            {% set janelas = [
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% if chuva == 'ativa' and 'aberta' in janelas %}
+              chuva_janela_aberta
+            {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+              energia_ausente_casa_ocupada
+            {% elif 'aberta' in portas and casa_vazia == 'on' %}
+              porta_aberta_casa_vazia
+            {% elif internet == 'degradada' and noturno == 'on' %}
+              internet_degradada_noturno
+            {% else %}
+              nenhum_evento_contextual
+            {% endif %}
+          contexto: >
+            humano={{ states('sensor.casa_contexto_humano_v20_2') }};
+            casa_vazia={{ states('binary_sensor.casa_vazia_v20_2') }};
+            noturno={{ states('binary_sensor.contexto_noturno_v20_2') }};
+            chuva={{ states('sensor.casa_chuva_estado_v20') }};
+            energia={{ states('sensor.casa_energia_estado_v20') }};
+            internet={{ states('sensor.casa_internet_estado_v20') }}
+          motivo: >
+            {% set casa_vazia = states('binary_sensor.casa_vazia_v20_2') %}
+            {% set noturno = states('binary_sensor.contexto_noturno_v20_2') %}
+            {% set humano = states('sensor.casa_contexto_humano_v20_2') %}
+            {% set energia = states('sensor.casa_energia_estado_v20') %}
+            {% set internet = states('sensor.casa_internet_estado_v20') %}
+            {% set chuva = states('sensor.casa_chuva_estado_v20') %}
+            {% set portas = [
+              states('sensor.casa_porta_sala_estado_v20'),
+              states('sensor.casa_porta_banheiro_estado_v20'),
+              states('sensor.casa_porta_quarto_menor_estado_v20'),
+              states('sensor.casa_porta_quarto_maior_estado_v20')
+            ] %}
+            {% set janelas = [
+              states('sensor.casa_janela_varanda_sala_estado_v20'),
+              states('sensor.casa_janela_quarto_maior_estado_v20'),
+              states('sensor.casa_janela_quarto_menor_estado_v20')
+            ] %}
+            {% if chuva == 'ativa' and 'aberta' in janelas %}
+              Chuva ativa com janela aberta
+            {% elif energia == 'ausente' and humano == 'alguem_em_casa' %}
+              Energia ausente com alguém em casa
+            {% elif 'aberta' in portas and casa_vazia == 'on' %}
+              Porta aberta com casa vazia
+            {% elif internet == 'degradada' and noturno == 'on' %}
+              Internet degradada em contexto noturno
+            {% else %}
+              Nenhuma regra contextual mínima ativa
+            {% endif %}
+          confianca: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% if relevancia == 'indeterminada' %}
+              baixa
+            {% elif relevancia in ['media', 'alta', 'critica', 'baixa'] %}
+              alta
+            {% else %}
+              baixa
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"
+
+      - name: "Casa Motivo Relevancia V20 2"
+        unique_id: casa_motivo_relevancia_v20_2
+        icon: mdi:text-search
+        state: >
+          {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+          {% if evento == 'chuva_janela_aberta' %}
+            Chuva ativa com janela aberta
+          {% elif evento == 'energia_ausente_casa_ocupada' %}
+            Energia ausente com alguém em casa
+          {% elif evento == 'porta_aberta_casa_vazia' %}
+            Porta aberta com casa vazia
+          {% elif evento == 'internet_degradada_noturno' %}
+            Internet degradada em contexto noturno
+          {% else %}
+            Nenhuma regra contextual mínima ativa
+          {% endif %}
+        attributes:
+          evento_base: "{{ states('sensor.casa_evento_relevante_v20_2') }}"
+          contexto: >
+            humano={{ states('sensor.casa_contexto_humano_v20_2') }};
+            casa_vazia={{ states('binary_sensor.casa_vazia_v20_2') }};
+            noturno={{ states('binary_sensor.contexto_noturno_v20_2') }};
+            operacional={{ states('sensor.casa_contexto_operacional_v20_2') }};
+            ambiental={{ states('sensor.casa_contexto_ambiental_v20_2') }}
+          motivo: >
+            {% set evento = states('sensor.casa_evento_relevante_v20_2') %}
+            {% if evento == 'chuva_janela_aberta' %}
+              Chuva ativa com janela aberta
+            {% elif evento == 'energia_ausente_casa_ocupada' %}
+              Energia ausente com alguém em casa
+            {% elif evento == 'porta_aberta_casa_vazia' %}
+              Porta aberta com casa vazia
+            {% elif evento == 'internet_degradada_noturno' %}
+              Internet degradada em contexto noturno
+            {% else %}
+              Nenhuma regra contextual mínima ativa
+            {% endif %}
+          confianca: >
+            {% set relevancia = states('sensor.casa_relevancia_contextual_v20_2') %}
+            {% if relevancia == 'indeterminada' %}
+              baixa
+            {% elif relevancia in ['media', 'alta', 'critica', 'baixa'] %}
+              alta
+            {% else %}
+              baixa
+            {% endif %}
+          timestamp: "{{ now().isoformat() }}"

@@ -1,0 +1,354 @@
+input_boolean:
+  casa_radar_movimento_ativo:
+    name: Casa - Radar de Movimento Ativo
+    icon: mdi:radar
+    initial: off
+
+input_number:
+  casa_radar_movimento_retencao_segundos:
+    name: Casa - Radar Movimento Retencao
+    icon: mdi:timer-outline
+    min: 10
+    max: 300
+    step: 5
+    unit_of_measurement: s
+    mode: slider
+    initial: 30
+
+template:
+  - trigger:
+      - platform: time_pattern
+        seconds: "/5"
+      - platform: state
+        entity_id:
+          - input_boolean.casa_radar_movimento_ativo
+          - input_number.casa_radar_movimento_retencao_segundos
+          - binary_sensor.movimento_area_servico_presence
+          - binary_sensor.movimento_banheiro_occupancy
+          - binary_sensor.movimento_cozinha_2_occupancy
+          - binary_sensor.movimento_corredor_occupancy
+          - binary_sensor.movimento_dispensa_occupancy
+          - binary_sensor.grp_movimento_quarto_maior
+          - binary_sensor.grp_movimento_quarto_menor
+          - binary_sensor.movimento_sala_estar_occupancy
+          - binary_sensor.movimento_sala_jantar_occupancy
+    binary_sensor:
+      - name: Casa Radar Area Servico Ativa V20
+        unique_id: casa_radar_area_servico_ativa_v20
+        icon: mdi:washing-machine
+        state: >
+          {% set fonte = states.binary_sensor.movimento_area_servico_presence %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: area_servico
+          fonte_ha: binary_sensor.movimento_area_servico_presence
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Banheiro Ativo V20
+        unique_id: casa_radar_banheiro_ativo_v20
+        icon: mdi:toilet
+        state: >
+          {% set fonte = states.binary_sensor.movimento_banheiro_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: banheiro
+          fonte_ha: binary_sensor.movimento_banheiro_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          excluido_do_ambiente: binary_sensor.movimento_alto_banheiro_occupancy
+          motivo_exclusao: reservado_para_banho_chuveiro
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Cozinha Ativa V20
+        unique_id: casa_radar_cozinha_ativa_v20
+        icon: mdi:pot-steam-outline
+        state: >
+          {% set fonte = states.binary_sensor.movimento_cozinha_2_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: cozinha
+          fonte_ha: binary_sensor.movimento_cozinha_2_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Corredor Ativo V20
+        unique_id: casa_radar_corredor_ativo_v20
+        icon: mdi:door-sliding
+        state: >
+          {% set fonte = states.binary_sensor.movimento_corredor_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: corredor
+          fonte_ha: binary_sensor.movimento_corredor_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Dispensa Ativa V20
+        unique_id: casa_radar_dispensa_ativa_v20
+        icon: mdi:archive-outline
+        state: >
+          {% set fonte = states.binary_sensor.movimento_dispensa_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: dispensa
+          fonte_ha: binary_sensor.movimento_dispensa_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Quarto Maior Ativo V20
+        unique_id: casa_radar_quarto_maior_ativo_v20
+        icon: mdi:bed-king-outline
+        state: >
+          {% set fonte = states.binary_sensor.grp_movimento_quarto_maior %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: quarto_maior
+          fonte_ha: binary_sensor.grp_movimento_quarto_maior
+          fonte_tipo: grupo
+          confiabilidade_preliminar: media
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Quarto Menor Ativo V20
+        unique_id: casa_radar_quarto_menor_ativo_v20
+        icon: mdi:bed-outline
+        state: >
+          {% set fonte = states.binary_sensor.grp_movimento_quarto_menor %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: quarto_menor
+          fonte_ha: binary_sensor.grp_movimento_quarto_menor
+          fonte_tipo: grupo
+          confiabilidade_preliminar: media
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Sala Estar Ativa V20
+        unique_id: casa_radar_sala_estar_ativa_v20
+        icon: mdi:sofa-outline
+        state: >
+          {% set fonte = states.binary_sensor.movimento_sala_estar_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: sala_estar
+          fonte_ha: binary_sensor.movimento_sala_estar_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+      - name: Casa Radar Sala Jantar Ativa V20
+        unique_id: casa_radar_sala_jantar_ativa_v20
+        icon: mdi:silverware-fork-knife
+        state: >
+          {% set fonte = states.binary_sensor.movimento_sala_jantar_occupancy %}
+          {% set retencao = states('input_number.casa_radar_movimento_retencao_segundos') | int(30) %}
+          {{ is_state('input_boolean.casa_radar_movimento_ativo', 'on')
+             and fonte is not none
+             and (
+               fonte.state == 'on'
+               or (
+                 fonte.state == 'off'
+                 and (as_timestamp(now(), 0) - as_timestamp(fonte.last_changed, 0)) <= retencao
+               )
+             ) }}
+        attributes:
+          ambiente: sala_jantar
+          fonte_ha: binary_sensor.movimento_sala_jantar_occupancy
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          cmdb_ready: true
+          cmdb_dependency: false
+
+  - trigger:
+      - platform: time_pattern
+        seconds: "/5"
+      - platform: state
+        entity_id:
+          - input_boolean.casa_radar_movimento_ativo
+          - input_number.casa_radar_movimento_retencao_segundos
+          - binary_sensor.casa_radar_area_servico_ativa_v20
+          - binary_sensor.casa_radar_banheiro_ativo_v20
+          - binary_sensor.casa_radar_cozinha_ativa_v20
+          - binary_sensor.casa_radar_corredor_ativo_v20
+          - binary_sensor.casa_radar_dispensa_ativa_v20
+          - binary_sensor.casa_radar_quarto_maior_ativo_v20
+          - binary_sensor.casa_radar_quarto_menor_ativo_v20
+          - binary_sensor.casa_radar_sala_estar_ativa_v20
+          - binary_sensor.casa_radar_sala_jantar_ativa_v20
+    sensor:
+      - name: Casa Radar Movimento V20
+        unique_id: casa_radar_movimento_v20
+        icon: mdi:radar
+        state: >
+          {% if not is_state('input_boolean.casa_radar_movimento_ativo', 'on') %}
+            desligado
+          {% else %}
+            {% set ativos = [
+              is_state('binary_sensor.casa_radar_area_servico_ativa_v20', 'on'),
+              is_state('binary_sensor.casa_radar_banheiro_ativo_v20', 'on'),
+              is_state('binary_sensor.casa_radar_cozinha_ativa_v20', 'on'),
+              is_state('binary_sensor.casa_radar_corredor_ativo_v20', 'on'),
+              is_state('binary_sensor.casa_radar_dispensa_ativa_v20', 'on'),
+              is_state('binary_sensor.casa_radar_quarto_maior_ativo_v20', 'on'),
+              is_state('binary_sensor.casa_radar_quarto_menor_ativo_v20', 'on'),
+              is_state('binary_sensor.casa_radar_sala_estar_ativa_v20', 'on'),
+              is_state('binary_sensor.casa_radar_sala_jantar_ativa_v20', 'on')
+            ] %}
+            {{ 'movimento_detectado' if ativos | select('equalto', true) | list | count > 0 else 'sem_movimento' }}
+          {% endif %}
+        attributes:
+          radar_ativo: "{{ is_state('input_boolean.casa_radar_movimento_ativo', 'on') }}"
+          retencao_configurada_segundos: "{{ states('input_number.casa_radar_movimento_retencao_segundos') | int(30) }}"
+          retencao_aplicada_fase_1: true
+          ambientes_ativos: >
+            {% if not is_state('input_boolean.casa_radar_movimento_ativo', 'on') %}
+              []
+            {% else %}
+              {% set ns = namespace(items=[]) %}
+              {% if is_state('binary_sensor.casa_radar_area_servico_ativa_v20', 'on') %}{% set ns.items = ns.items + ['area_servico'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_banheiro_ativo_v20', 'on') %}{% set ns.items = ns.items + ['banheiro'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_cozinha_ativa_v20', 'on') %}{% set ns.items = ns.items + ['cozinha'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_corredor_ativo_v20', 'on') %}{% set ns.items = ns.items + ['corredor'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_dispensa_ativa_v20', 'on') %}{% set ns.items = ns.items + ['dispensa'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_quarto_maior_ativo_v20', 'on') %}{% set ns.items = ns.items + ['quarto_maior'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_quarto_menor_ativo_v20', 'on') %}{% set ns.items = ns.items + ['quarto_menor'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_sala_estar_ativa_v20', 'on') %}{% set ns.items = ns.items + ['sala_estar'] %}{% endif %}
+              {% if is_state('binary_sensor.casa_radar_sala_jantar_ativa_v20', 'on') %}{% set ns.items = ns.items + ['sala_jantar'] %}{% endif %}
+              {{ ns.items | to_json }}
+            {% endif %}
+          quantidade_ambientes_ativos: >
+            {% if not is_state('input_boolean.casa_radar_movimento_ativo', 'on') %}
+              0
+            {% else %}
+              {% set ativos = [
+                is_state('binary_sensor.casa_radar_area_servico_ativa_v20', 'on'),
+                is_state('binary_sensor.casa_radar_banheiro_ativo_v20', 'on'),
+                is_state('binary_sensor.casa_radar_cozinha_ativa_v20', 'on'),
+                is_state('binary_sensor.casa_radar_corredor_ativo_v20', 'on'),
+                is_state('binary_sensor.casa_radar_dispensa_ativa_v20', 'on'),
+                is_state('binary_sensor.casa_radar_quarto_maior_ativo_v20', 'on'),
+                is_state('binary_sensor.casa_radar_quarto_menor_ativo_v20', 'on'),
+                is_state('binary_sensor.casa_radar_sala_estar_ativa_v20', 'on'),
+                is_state('binary_sensor.casa_radar_sala_jantar_ativa_v20', 'on')
+              ] %}
+              {{ ativos | select('equalto', true) | list | count }}
+            {% endif %}
+          ultimo_movimento_detectado: >
+            {% if not is_state('input_boolean.casa_radar_movimento_ativo', 'on') %}
+              none
+            {% else %}
+              {% set candidatos = [
+                ('area_servico', states.binary_sensor.casa_radar_area_servico_ativa_v20),
+                ('banheiro', states.binary_sensor.casa_radar_banheiro_ativo_v20),
+                ('cozinha', states.binary_sensor.casa_radar_cozinha_ativa_v20),
+                ('corredor', states.binary_sensor.casa_radar_corredor_ativo_v20),
+                ('dispensa', states.binary_sensor.casa_radar_dispensa_ativa_v20),
+                ('quarto_maior', states.binary_sensor.casa_radar_quarto_maior_ativo_v20),
+                ('quarto_menor', states.binary_sensor.casa_radar_quarto_menor_ativo_v20),
+                ('sala_estar', states.binary_sensor.casa_radar_sala_estar_ativa_v20),
+                ('sala_jantar', states.binary_sensor.casa_radar_sala_jantar_ativa_v20)
+              ] %}
+              {% set ns = namespace(nome='none', ts=0) %}
+              {% for nome, entidade in candidatos if entidade is not none and entidade.state == 'on' %}
+                {% set atual = as_timestamp(entidade.last_changed, 0) %}
+                {% if atual >= ns.ts %}
+                  {% set ns.nome = nome %}
+                  {% set ns.ts = atual %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.nome }}
+            {% endif %}
+          sensores_monitorados: >
+            {{ [
+              'binary_sensor.movimento_area_servico_presence',
+              'binary_sensor.movimento_banheiro_occupancy',
+              'binary_sensor.movimento_cozinha_2_occupancy',
+              'binary_sensor.movimento_corredor_occupancy',
+              'binary_sensor.movimento_dispensa_occupancy',
+              'binary_sensor.grp_movimento_quarto_maior',
+              'binary_sensor.grp_movimento_quarto_menor',
+              'binary_sensor.movimento_sala_estar_occupancy',
+              'binary_sensor.movimento_sala_jantar_occupancy'
+            ] | to_json }}
+          excluidos_fase_1: >
+            {{ ['binary_sensor.movimento_alto_banheiro_occupancy'] | to_json }}
+          cmdb_ready: true
+          cmdb_dependency: false

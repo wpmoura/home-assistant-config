@@ -1,0 +1,95 @@
+blueprint:
+  name: Modo Dormir por Inatividade Geral
+  description: >
+    Ativa automaticamente o modo dormir marcando Wilson e Jacira como dormindo
+    com base em sensores de movimento, luzes apagadas e TV desligada (via sensor de potência) após o pôr do sol.
+  domain: automation
+  input:
+    sensores_movimento:
+      name: Sensores sem movimento
+      description: Serão avaliados como "sem atividade" por 30 minutos
+      selector:
+        entity:
+          domain: binary_sensor
+    #      device_class: motion
+          multiple: true
+
+    luzes_apagadas:
+      name: Luzes que devem estar apagadas
+      description: Todas devem estar "off"
+      selector:
+        entity:
+          domain: light
+          multiple: true
+
+    sensor_tv_potencia:
+      name: Sensor de potência da TV
+      description: Sensor numérico (ex sensor.tv_potencia) que deve estar abaixo de 10
+      selector:
+        entity:
+          domain: sensor
+
+    pessoa_wilson:
+      name: Entidade da pessoa Wilson
+      default: person.wmoura
+      selector:
+        entity:
+          domain: person
+
+    pessoa_jacira:
+      name: Entidade da pessoa Jacira
+      default: person.jacira_f_p_moura
+      selector:
+        entity:
+          domain: person
+
+    servico_notificacao:
+      name: Serviço de notificação
+      default: notify.mobile_app_jphonewm
+      selector:
+        text:
+
+trigger:
+  - platform: state
+    entity_id: !input sensores_movimento
+    to: "off"
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+
+condition:
+  - condition: sun
+    after: sunset
+
+  - condition: state
+    entity_id: !input pessoa_wilson
+    state: "home"
+
+  - condition: state
+    entity_id: !input pessoa_jacira
+    state: "home"
+
+  - condition: template
+    value_template: >-
+      {% set luzes = states.light | selectattr('entity_id', 'in', (input.luzes_apagadas if input.luzes_apagadas is iterable else [input.luzes_apagadas])) | list %}
+      {{ luzes | selectattr('state', 'equalto', 'off') | list | count == luzes | length }}
+
+  - condition: numeric_state
+    entity_id: !input sensor_tv_potencia
+    below: 10
+
+action:
+  - service: input_boolean.turn_on
+    target:
+      entity_id:
+        - input_boolean.wilson_dormindo
+        - input_boolean.jacira_dormindo
+        - input_boolean.modo_dormir_ativo
+
+  - service: !input servico_notificacao
+    data:
+      message: "Modo dormir ativado automaticamente por inatividade geral."
+      title: "Modo Dormir Ativo"
+
+mode: queued

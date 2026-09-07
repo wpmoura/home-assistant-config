@@ -1,0 +1,50 @@
+# /config/recorder.yaml
+
+auto_purge: true
+auto_repack: true
+
+commit_interval: 30
+
+purge_keep_days: 14
+
+exclude:
+
+  domains:
+    - updater
+    - camera
+    - image
+    - button
+
+  entity_globs:
+
+    # energia instantânea
+    - sensor.*_power
+    - sensor.*_current
+    - sensor.*_voltage
+
+    # zigbee debug
+    - sensor.*_linkquality
+    - sensor.*_rssi
+
+    # uptime/debug
+    - sensor.*uptime*
+    - sensor.*last_seen*
+    - sensor.*_timestamp
+
+    # rede
+    - sensor.*download*
+    - sensor.*upload*
+    - sensor.*throughput*
+
+    # templates transitórios
+    - sensor.casa_timeline*
+    - sensor.casa_narrativa*
+    - sensor.atividade_relevante*
+
+    # disponibilidade
+    - binary_sensor.*connectivity*
+
+    # logs técnicos
+    - sensor.processor_use
+    - sensor.memory_use
+    - sensor.disk_use_percent

@@ -1,0 +1,15 @@
+automation:
+  - alias: "HA iniciou (estável)"
+    mode: single
+    trigger:
+      - platform: homeassistant
+        event: start
+
+    action:
+      - delay: "00:00:20"
+
+      - service: notify.mobile_app_iphonewm
+        data:
+          title: "🏠 Home Assistant"
+          message: >
+            ✅ HA online (há {{ relative_time(states.sensor.uptime.last_changed) }})

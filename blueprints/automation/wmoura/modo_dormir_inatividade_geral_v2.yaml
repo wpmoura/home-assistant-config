@@ -1,0 +1,152 @@
+blueprint:
+  name: Modo Dormir por Inatividade Geral
+  description: >
+    Ativa automaticamente o modo dormir marcando Wilson e Jacira como dormindo
+    com base em ausência de movimento, luzes apagadas e TV desligada após o pôr do sol.
+  domain: automation
+
+  input:
+    sensores_movimento:
+      name: Sensores de movimento
+      description: Todos devem permanecer em off durante o tempo configurado
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+
+    tempo_inatividade_minutos:
+      name: Tempo de inatividade
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 180
+          step: 5
+          mode: box
+          unit_of_measurement: min
+
+    luzes_apagadas:
+      name: Luzes que devem estar apagadas
+      description: Todas devem estar off
+      selector:
+        entity:
+          domain: light
+          multiple: true
+
+    sensor_tv_potencia:
+      name: Sensor de potência da TV
+      description: Deve estar abaixo do limite informado
+      selector:
+        entity:
+          domain: sensor
+
+    limite_potencia_tv:
+      name: Limite de potência da TV
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: box
+          unit_of_measurement: W
+
+    pessoa_wilson:
+      name: Entidade da pessoa Wilson
+      default: person.wmoura
+      selector:
+        entity:
+          domain: person
+
+    pessoa_jacira:
+      name: Entidade da pessoa Jacira
+      default: person.jacira_f_p_moura
+      selector:
+        entity:
+          domain: person
+
+    servico_notificacao:
+      name: Serviço de notificação
+      default: notify.mobile_app_jphonewm
+      selector:
+        text:
+
+variables:
+  sensores_movimento: !input sensores_movimento
+  luzes_apagadas: !input luzes_apagadas
+  sensor_tv_potencia: !input sensor_tv_potencia
+  limite_potencia_tv: !input limite_potencia_tv
+  pessoa_wilson: !input pessoa_wilson
+  pessoa_jacira: !input pessoa_jacira
+  servico_notificacao: !input servico_notificacao
+
+trigger:
+  - platform: template
+    value_template: >
+      {{
+        expand(sensores_movimento)
+        | selectattr('state', 'eq', 'off')
+        | list
+        | count
+        ==
+        (expand(sensores_movimento) | list | count)
+      }}
+    for:
+      minutes: !input tempo_inatividade_minutos
+
+condition:
+  - condition: sun
+    after: sunset
+
+  - condition: state
+    entity_id: !input pessoa_wilson
+    state: "home"
+
+  - condition: state
+    entity_id: !input pessoa_jacira
+    state: "home"
+
+  - condition: template
+    value_template: >
+      {{
+        expand(luzes_apagadas)
+        | selectattr('state', 'eq', 'off')
+        | list
+        | count
+        ==
+        (expand(luzes_apagadas) | list | count)
+      }}
+
+  - condition: template
+    value_template: >
+      {{ states(sensor_tv_potencia) | float(0) < (limite_potencia_tv | float(10)) }}
+
+  - condition: state
+    entity_id: input_boolean.modo_dormir_ativo
+    state: "off"
+
+action:
+  - service: input_boolean.turn_on
+    target:
+      entity_id:
+        - input_boolean.wilson_dormindo
+        - input_boolean.jacira_dormindo
+        - input_boolean.modo_dormir_ativo
+        - input_boolean.nao_perturbe_global
+
+  - service: input_text.set_value
+    target:
+      entity_id: input_text.ultima_acao_modo_dormir
+    data:
+      value: >
+        Modo dormir ativado automaticamente por inatividade geral em
+        {{ now().strftime('%d/%m/%Y %H:%M:%S') }}
+
+  - service: script.notificar_modo_inteligente
+    data:
+      notify_service: !input servico_notificacao
+      titulo: "Modo Dormir"
+      mensagem: "Modo dormir ativado automaticamente por inatividade geral."
+      criticidade: "normal"
+
+mode: single

@@ -1,0 +1,103 @@
+blueprint:
+  name: Luz com Movimento (com Grace Period e Horário)
+  description: >
+    Liga uma ou mais luzes ao detectar movimento. Desliga após ausência de movimento com um tempo de grace configurável.
+    Possui opções de horários e dias da semana para funcionamento.
+  domain: automation
+  input:
+    sensor_movimento:
+      name: Sensor de movimento
+      selector:
+        entity:
+          domain: binary_sensor
+
+    luz:
+      name: Luz ou luzes
+      selector:
+        target:
+          entity:
+            domain: light
+
+    tempo_ausencia:
+      name: Tempo após ausência (minutos)
+      description: Tempo que deve aguardar após a ausência de movimento para desligar a luz.
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: minutos
+
+    hora_inicio:
+      name: Hora de início
+      default: "00:00:00"
+      selector:
+        time: {}
+
+    hora_fim:
+      name: Hora de término
+      default: "23:59:59"
+      selector:
+        time: {}
+
+    dias:
+      name: Dias da semana
+      default:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+
+trigger:
+  - platform: state
+    entity_id: !input sensor_movimento
+    from: "off"
+    to: "on"
+    id: "movimento"
+
+  - platform: state
+    entity_id: !input sensor_movimento
+    from: "on"
+    to: "off"
+    for:
+      minutes: !input tempo_ausencia
+    id: "ausencia"
+
+condition:
+  - condition: time
+    after: !input hora_inicio
+    before: !input hora_fim
+    weekday: !input dias
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "movimento"
+        sequence:
+          - service: light.turn_on
+            target: !input luz
+
+      - conditions:
+          - condition: trigger
+            id: "ausencia"
+        sequence:
+          - service: light.turn_off
+            target: !input luz
+
+mode: restart

@@ -1,0 +1,295 @@
+###############################################################################
+# V20.2C — Consumidor SmallTV (GeekMagic) — Canal 3 (read-only, subordinado)
+#
+# Package NOVO e autocontido. Nao modifica o contrato canonico V20.1O, os
+# produtores (CSMR, carro_presenca, lavadora), a Timeline ou o Push.
+#
+# Observa exclusivamente o evento ja publicado pelo pipeline existente
+# (casa_timeline_publicar_canonico_v20, disparado por
+# script.casa_publicar_evento_timeline_v20 apos decisao=publish) e, quando o
+# evento estiver na whitelist minima abaixo, replica a mensagem via
+# geekmagic.notify na camada GeekMagic ja homologada fisicamente.
+#
+# Whitelist inicial de producao (promovida em 2026-08-21): apenas
+#   source=lavadora, event_code in [washing_started, washing_finished]
+#
+# Quarta expansao funcional (Gate heartbeat HA -> Timeline), mesmo
+# mecanismo do contrato canonico ja em uso pelas demais entradas desta
+# whitelist — nenhuma malha nova, nenhum bypass do produtor:
+#   - source=ha_uptime, event_code=heartbeat -> "🟢 HA ativo"
+#   Dedup por request_id (mecanismo ja existente nesta automacao, secao
+#   abaixo) protege retries do produtor exatamente como para lavadora;
+#   nao ha necessidade de tratamento especial aqui — a excecao de
+#   deduplicacao por texto que passou a existir no motor da Timeline
+#   para o heartbeat (ver motor_timeline_v20.yaml) e local a esse motor
+#   e nao se propaga para este consumidor, que ja deduplica por
+#   request_id e nunca por texto.
+#
+# Segunda expansao funcional (2026-08-22), somente eventos reais ja
+# existentes em pipelines ja homologados, sem nova malha paralela:
+#   - Recovery 4G (evento casa_recovery_4g_central, campo fato):
+#     recuperacao_validada (sucesso), tentativas_esgotadas/
+#     ciclo_encerrado_sem_validacao (falha). Inicio, tentativa e
+#     bloqueio/cooldown permanecem fora.
+#   - Porta da sala (sensor.casa_porta_sala_estado_v20, estado "aberta"
+#     apenas). Fechamento nao gera trigger nesta automacao.
+#   - Chuva (sensor.casa_chuva_estado_v20, estados "ativa"/"inativa"),
+#     com estabilizacao for: 2 minutos aplicada exclusivamente ao trigger
+#     deste consumidor — nao altera o sensor, a Timeline nem o Push de
+#     chuva. Intensidade da chuva permanece fora.
+#
+# Terceira expansao funcional (2026-08-22), Internet/Failover 4G — SOMENTE
+# via camada V20 consolidada e ja amortecida (sensor.casa_wan_evento_
+# dominante_v20, motor WAN/4G nao alterado, herda debounce de 30-120s dos
+# binary_sensors subjacentes em wan_4g_engine_v20.yaml):
+#   - internet_indisponivel -> "Internet indisponivel"
+#   - failover_4g -> "Failover 4G ativo"
+#   - sem_evento (somente vindo de um estado de problema) -> "Internet
+#     restaurada" (cobre WAN principal restaurada e Internet restaurada,
+#     que sao o mesmo fato nesta fonte — uma unica notificacao)
+# A camada legada sem debounce (sensor.casa_internet_estado_v20,
+# sensor.internet_estado_operacional) NAO e usada por este consumidor.
+# internet_degradada permanece fora nesta etapa.
+#
+# carro_presenca (car_use_started/car_use_ended) e CSMR permanecem fora da
+# whitelist. Nao expandir mais sem nova autorizacao explicita.
+#
+# Isolamento de falha: geekmagic.notify roda em automacao propria, com
+# continue_on_error, e nunca pode atrasar, bloquear ou alterar Timeline,
+# Push ou o produtor do evento — sao consumidores independentes do mesmo
+# evento, nao uma cadeia sequencial.
+#
+# Deduplicacao (V20.2C — correcao cirurgica): o produtor pode reemitir o
+# mesmo evento canonico (mesmo request_id) em retries internos ate a
+# confirmacao final de publicacao na Timeline. O consumidor SmallTV guarda,
+# em helper proprio e exclusivo deste dominio, o ultimo request_id que
+# efetivamente chamou geekmagic.notify. Um request_id repetido e descartado
+# silenciosamente antes de qualquer chamada — nao altera o contrato, o ACK
+# da Timeline, nem o comportamento de retry do produtor.
+###############################################################################
+
+input_boolean:
+  casa_smalltv_habilitado_v20:
+    name: Casa — SmallTV — Notificações Habilitadas V20
+    icon: mdi:television-classic
+
+input_text:
+  casa_smalltv_ultimo_request_id_v20:
+    name: Casa — SmallTV — Último Request ID Processado V20
+    icon: mdi:identifier
+    max: 64
+
+  # Domínios sem request_id (porta/chuva sao gatilhos de estado, nao eventos
+  # do contrato canonico). Deduplicacao equivalente usa o last_changed real
+  # do proprio trigger.to_state como identidade — mesmo principio de
+  # "ultimo valor processado", sem criar ledger.
+  casa_smalltv_ultimo_estado_porta_v20:
+    name: Casa — SmallTV — Último Estado de Porta Processado V20
+    icon: mdi:identifier
+    max: 64
+
+  casa_smalltv_ultimo_estado_chuva_v20:
+    name: Casa — SmallTV — Último Estado de Chuva Processado V20
+    icon: mdi:identifier
+    max: 64
+
+  casa_smalltv_ultimo_estado_wan_v20:
+    name: Casa — SmallTV — Último Estado de WAN Processado V20
+    icon: mdi:identifier
+    max: 64
+
+automation:
+  - id: casa_smalltv_publicar_evento_v20
+    alias: Casa — SmallTV — Publicar Evento V20
+    description: >-
+      Consumidor subordinado do canal SmallTV (GeekMagic). Observa eventos
+      ja existentes em pipelines ja homologados (contrato canonico V20.1O,
+      evento bruto do Recovery 4G, sensores de dominio ja publicados na
+      Timeline: porta da sala e chuva; e o sensor WAN Evento Dominante V20,
+      camada ja consolidada e ja amortecida do motor WAN/4G) e replica,
+      quando elegivel pela whitelist minima, via geekmagic.notify. Nao
+      decide Timeline nem Push, nao participa do contrato canonico e nao
+      alcanca o motor Recovery 4G, o motor WAN/4G nem o sensor de
+      chuva/porta — apenas observa leitura ja existente. Falha aqui e
+      isolada e nao pode afetar Timeline, Push, CSMR, Recovery, o motor
+      WAN/4G ou qualquer produtor.
+    mode: single
+    max_exceeded: silent
+    trigger:
+      - platform: event
+        id: contrato_canonico
+        event_type: casa_timeline_publicar_canonico_v20
+      - platform: event
+        id: recovery_4g
+        event_type: casa_recovery_4g_central
+      - platform: state
+        id: porta_aberta
+        entity_id: sensor.casa_porta_sala_estado_v20
+        to: "aberta"
+      - platform: state
+        id: chuva_iniciada
+        entity_id: sensor.casa_chuva_estado_v20
+        to: "ativa"
+        for:
+          minutes: 2
+      - platform: state
+        id: chuva_encerrada
+        entity_id: sensor.casa_chuva_estado_v20
+        to: "inativa"
+        for:
+          minutes: 2
+      - platform: state
+        id: wan_indisponivel
+        entity_id: sensor.casa_wan_evento_dominante_v20
+        to: "internet_indisponivel"
+      - platform: state
+        id: wan_failover
+        entity_id: sensor.casa_wan_evento_dominante_v20
+        to: "failover_4g"
+      - platform: state
+        id: wan_restaurada
+        entity_id: sensor.casa_wan_evento_dominante_v20
+        to: "sem_evento"
+    condition:
+      - condition: state
+        entity_id: input_boolean.casa_smalltv_habilitado_v20
+        state: "on"
+      - condition: template
+        alias: >-
+          Elegibilidade por whitelist minima. Porta/chuva ja sao filtradas
+          pelo proprio trigger (so existe trigger para os estados
+          autorizados); a checagem aqui e defensiva/documental, no mesmo
+          espirito da whitelist do contrato canonico e do Recovery 4G.
+        value_template: >-
+          {% set fonte = trigger.event.data.source | default('', true) | string | trim if trigger.id == 'contrato_canonico' else '' %}
+          {% set codigo = trigger.event.data.event_code | default('', true) | string | trim if trigger.id == 'contrato_canonico' else '' %}
+          {% set whitelist_smalltv_v20 = {
+            'lavadora': ['washing_started', 'washing_finished'],
+            'ha_uptime': ['heartbeat']
+          } %}
+          {% set recovery_fato = trigger.event.data.fato | default('', true) | string | trim if trigger.id == 'recovery_4g' else '' %}
+          {% set recovery_whitelist_v20 = ['recuperacao_validada', 'tentativas_esgotadas', 'ciclo_encerrado_sem_validacao'] %}
+          {% set wan_problema_v20 = ['internet_indisponivel', 'failover_4g', 'internet_degradada'] %}
+          {{ (trigger.id == 'contrato_canonico' and fonte in whitelist_smalltv_v20 and codigo in whitelist_smalltv_v20[fonte])
+             or (trigger.id == 'recovery_4g' and recovery_fato in recovery_whitelist_v20)
+             or trigger.id in ['porta_aberta', 'chuva_iniciada', 'chuva_encerrada', 'wan_indisponivel', 'wan_failover']
+             or (trigger.id == 'wan_restaurada'
+                 and trigger.from_state is not none
+                 and trigger.from_state.state in wan_problema_v20) }}
+      - condition: template
+        alias: >-
+          Deduplicacao local SmallTV. contrato_canonico/recovery_4g usam o
+          request_id ja existente nesses eventos (mesmo mecanismo
+          homologado). porta/chuva nao carregam request_id — usam o
+          last_changed real do proprio trigger.to_state como identidade
+          equivalente, sem criar ledger.
+        value_template: >-
+          {% if trigger.id in ['contrato_canonico', 'recovery_4g'] %}
+            {% set identidade_atual = trigger.event.data.request_id | default('', true) | string | trim %}
+            {% set ultimo_processado = states('input_text.casa_smalltv_ultimo_request_id_v20') | default('', true) | string | trim %}
+            {{ identidade_atual != '' and identidade_atual != ultimo_processado }}
+          {% elif trigger.id == 'porta_aberta' %}
+            {% set identidade_atual = trigger.to_state.last_changed.isoformat() %}
+            {% set ultimo_processado = states('input_text.casa_smalltv_ultimo_estado_porta_v20') | default('', true) | string | trim %}
+            {{ identidade_atual != ultimo_processado }}
+          {% elif trigger.id in ['chuva_iniciada', 'chuva_encerrada'] %}
+            {% set identidade_atual = trigger.to_state.last_changed.isoformat() %}
+            {% set ultimo_processado = states('input_text.casa_smalltv_ultimo_estado_chuva_v20') | default('', true) | string | trim %}
+            {{ identidade_atual != ultimo_processado }}
+          {% else %}
+            {% set identidade_atual = trigger.to_state.last_changed.isoformat() %}
+            {% set ultimo_processado = states('input_text.casa_smalltv_ultimo_estado_wan_v20') | default('', true) | string | trim %}
+            {{ identidade_atual != ultimo_processado }}
+          {% endif %}
+    action:
+      - choose:
+          - conditions: "{{ trigger.id == 'contrato_canonico' }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: "{{ trigger.event.data.message | default('', true) }}"
+                  duration: 10
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_request_id_v20
+                data:
+                  value: "{{ trigger.event.data.request_id | default('', true) | string | trim }}"
+          - conditions: "{{ trigger.id == 'recovery_4g' }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: >-
+                    {% if trigger.event.data.fato == 'recuperacao_validada' %}
+                      ✅ Recovery 4G concluído — backup operacional
+                    {% else %}
+                      ⚠️ Recovery 4G concluído sem recuperação
+                    {% endif %}
+                  duration: 10
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_request_id_v20
+                data:
+                  value: "{{ trigger.event.data.request_id | default('', true) | string | trim }}"
+          - conditions: "{{ trigger.id == 'porta_aberta' }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: "🚪 Porta sala aberta"
+                  duration: 10
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_estado_porta_v20
+                data:
+                  value: "{{ trigger.to_state.last_changed.isoformat() }}"
+          - conditions: "{{ trigger.id in ['chuva_iniciada', 'chuva_encerrada'] }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: >-
+                    {% if trigger.id == 'chuva_iniciada' %}
+                      🌧️ Chuva iniciada
+                    {% else %}
+                      🌤️ Chuva encerrada
+                    {% endif %}
+                  duration: 10
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_estado_chuva_v20
+                data:
+                  value: "{{ trigger.to_state.last_changed.isoformat() }}"
+          - conditions: "{{ trigger.id in ['wan_indisponivel', 'wan_failover'] }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: "{{ trigger.to_state.attributes.mensagem | default('', true) }}"
+                  icon: "{{ 'mdi:lan-disconnect' if trigger.id == 'wan_indisponivel' else 'mdi:signal-4g' }}"
+                  duration: "{{ 15 if trigger.id == 'wan_indisponivel' else 12 }}"
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_estado_wan_v20
+                data:
+                  value: "{{ trigger.to_state.last_changed.isoformat() }}"
+          - conditions: "{{ trigger.id == 'wan_restaurada' }}"
+            sequence:
+              - service: geekmagic.notify
+                continue_on_error: true
+                data:
+                  device_id: ae31fa4cdefdeae3e4274dd99ed14303
+                  message: "🌐 Internet restaurada"
+                  icon: mdi:lan-connect
+                  duration: 10
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.casa_smalltv_ultimo_estado_wan_v20
+                data:
+                  value: "{{ trigger.to_state.last_changed.isoformat() }}"

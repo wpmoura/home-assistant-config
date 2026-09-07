@@ -1,0 +1,187 @@
+###############################################################################
+# Central Operacional V20 - Fase 4.1
+# Testes assistidos do motor_eventos_v20
+#
+# Package temporario de apoio a validacao.
+# Nao simula sensores fisicos, nao altera entidades reais e nao substitui aliases.
+###############################################################################
+
+input_select:
+  casa_teste_motor_v20_cenario:
+    name: Casa Teste Motor V20 Cenario
+    icon: mdi:test-tube
+    options:
+      - neutro
+      - backup_porta
+      - internet_chuva
+      - energia_ups
+      - retorno_normal
+    initial: neutro
+
+input_boolean:
+  casa_teste_motor_v20_ativo:
+    name: Casa Teste Motor V20 Ativo
+    icon: mdi:toggle-switch
+
+template:
+  - sensor:
+
+      - name: Casa Teste Motor V20 Cenario Esperado
+        unique_id: casa_teste_motor_v20_cenario_esperado
+        icon: mdi:clipboard-check-outline
+        state: >-
+          {% set cenario = states('input_select.casa_teste_motor_v20_cenario') | trim %}
+          {% if cenario == 'backup_porta' %}
+            backup_google
+          {% elif cenario == 'internet_chuva' %}
+            internet
+          {% elif cenario == 'energia_ups' %}
+            energia
+          {% else %}
+            sem_evento
+          {% endif %}
+        attributes:
+          cenario: "{{ states('input_select.casa_teste_motor_v20_cenario') | trim }}"
+          dominante_esperado: >-
+            {% set cenario = states('input_select.casa_teste_motor_v20_cenario') | trim %}
+            {% if cenario == 'backup_porta' %}
+              backup_google
+            {% elif cenario == 'internet_chuva' %}
+              internet
+            {% elif cenario == 'energia_ups' %}
+              energia
+            {% else %}
+              sem_evento
+            {% endif %}
+          tipo_esperado: >-
+            {% set cenario = states('input_select.casa_teste_motor_v20_cenario') | trim %}
+            {% if cenario in ['backup_porta', 'internet_chuva', 'energia_ups'] %}
+              incidente
+            {% else %}
+              inativo
+            {% endif %}
+          ativo_esperado: >-
+            {% set cenario = states('input_select.casa_teste_motor_v20_cenario') | trim %}
+            {{ 'on' if cenario in ['backup_porta', 'internet_chuva', 'energia_ups'] else 'off' }}
+          mensagem_esperada: >-
+            {% set cenario = states('input_select.casa_teste_motor_v20_cenario') | trim %}
+            {% if cenario == 'backup_porta' %}
+              ⚠️ Backup Google requer atenção
+            {% elif cenario == 'internet_chuva' %}
+              🌐 Internet indisponível
+            {% elif cenario == 'energia_ups' %}
+              ⚡ Energia concessionária ausente
+            {% else %}
+              Nenhum evento operacional ativo
+            {% endif %}
+          observacao: >
+            Este package nao forca estados reais. Ele apenas compara o motor V20 atual
+            com o resultado esperado para o cenario selecionado.
+
+      - name: Casa Teste Motor V20 Resultado Atual
+        unique_id: casa_teste_motor_v20_resultado_atual
+        icon: mdi:clipboard-pulse-outline
+        state: "{{ states('sensor.casa_evento_dominante_v20') | trim }}"
+        attributes:
+          teste_ativo: "{{ is_state('input_boolean.casa_teste_motor_v20_ativo', 'on') }}"
+          cenario: "{{ states('input_select.casa_teste_motor_v20_cenario') | trim }}"
+          dominante_atual: "{{ states('sensor.casa_evento_dominante_v20') | trim }}"
+          tipo_atual: "{{ states('sensor.casa_evento_tipo_v20') | trim }}"
+          mensagem_atual: "{{ states('sensor.casa_evento_atual_v20') | trim }}"
+          mensagem_atual_base: >-
+            {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {{ msg[6:] | trim if ja_tem_hora else msg }}
+          ativo_atual: "{{ states('binary_sensor.casa_evento_ativo_v20') | trim | lower }}"
+          dominante_esperado: "{{ states('sensor.casa_teste_motor_v20_cenario_esperado') | trim }}"
+          tipo_esperado: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim }}"
+          mensagem_esperada: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim }}"
+          ativo_esperado: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower }}"
+          dominante_ok: >
+            {{ states('sensor.casa_evento_dominante_v20') | trim == states('sensor.casa_teste_motor_v20_cenario_esperado') | trim }}
+          tipo_ok: >
+            {{ states('sensor.casa_evento_tipo_v20') | trim == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim }}
+          mensagem_ok: >
+            {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {% set msg_base = msg[6:] | trim if ja_tem_hora else msg %}
+            {{ msg_base == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim }}
+          ativo_ok: >
+            {{ states('binary_sensor.casa_evento_ativo_v20') | trim | lower == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower }}
+
+  - binary_sensor:
+
+      - name: Casa Teste Motor V20 Passou
+        unique_id: casa_teste_motor_v20_passou
+        icon: mdi:check-decagram-outline
+        state: >
+          {% set dominante_atual = states('sensor.casa_evento_dominante_v20') | trim %}
+          {% set tipo_atual = states('sensor.casa_evento_tipo_v20') | trim %}
+          {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+          {% set hh = msg[0:2] | int(-1) %}
+          {% set mm = msg[3:5] | int(-1) %}
+          {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+          {% set mensagem_atual = msg[6:] | trim if ja_tem_hora else msg %}
+          {% set ativo_atual = states('binary_sensor.casa_evento_ativo_v20') | trim | lower %}
+          {% set dominante_esperado = states('sensor.casa_teste_motor_v20_cenario_esperado') | trim %}
+          {% set tipo_esperado = state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim %}
+          {% set mensagem_esperada = state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim %}
+          {% set ativo_esperado = state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower %}
+          {{ dominante_atual == dominante_esperado
+             and tipo_atual == tipo_esperado
+             and mensagem_atual == mensagem_esperada
+             and ativo_atual == ativo_esperado }}
+        attributes:
+          cenario: "{{ states('input_select.casa_teste_motor_v20_cenario') | trim }}"
+          teste_ativo: "{{ is_state('input_boolean.casa_teste_motor_v20_ativo', 'on') }}"
+          esperado: >
+            dominante={{ states('sensor.casa_teste_motor_v20_cenario_esperado') | trim }};
+            tipo={{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim }};
+            mensagem={{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim }};
+            ativo={{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower }}
+          atual: >
+            {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {% set msg_base = msg[6:] | trim if ja_tem_hora else msg %}
+            dominante={{ states('sensor.casa_evento_dominante_v20') | trim }};
+            tipo={{ states('sensor.casa_evento_tipo_v20') | trim }};
+            mensagem={{ msg }};
+            mensagem_base={{ msg_base }};
+            ativo={{ states('binary_sensor.casa_evento_ativo_v20') | trim | lower }}
+          dominante_atual: "{{ states('sensor.casa_evento_dominante_v20') | trim }}"
+          dominante_esperado: "{{ states('sensor.casa_teste_motor_v20_cenario_esperado') | trim }}"
+          tipo_atual: "{{ states('sensor.casa_evento_tipo_v20') | trim }}"
+          tipo_esperado: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim }}"
+          mensagem_atual: "{{ states('sensor.casa_evento_atual_v20') | trim }}"
+          mensagem_atual_base: >-
+            {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {{ msg[6:] | trim if ja_tem_hora else msg }}
+          mensagem_esperada: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim }}"
+          ativo_atual: "{{ states('binary_sensor.casa_evento_ativo_v20') | trim | lower }}"
+          ativo_esperado: "{{ state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower }}"
+          dominante_ok: >
+            {{ states('sensor.casa_evento_dominante_v20') | trim == states('sensor.casa_teste_motor_v20_cenario_esperado') | trim }}
+          tipo_ok: >
+            {{ states('sensor.casa_evento_tipo_v20') | trim == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'tipo_esperado') | string | trim }}
+          mensagem_ok: >
+            {% set msg = states('sensor.casa_evento_atual_v20') | trim %}
+            {% set hh = msg[0:2] | int(-1) %}
+            {% set mm = msg[3:5] | int(-1) %}
+            {% set ja_tem_hora = msg | length >= 6 and msg[2:3] == ':' and hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59 and msg[5:6] == ' ' %}
+            {% set msg_base = msg[6:] | trim if ja_tem_hora else msg %}
+            {{ msg_base == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'mensagem_esperada') | string | trim }}
+          ativo_ok: >
+            {{ states('binary_sensor.casa_evento_ativo_v20') | trim | lower == state_attr('sensor.casa_teste_motor_v20_cenario_esperado', 'ativo_esperado') | string | trim | lower }}
+          criterio_passou: >
+            O resultado compara dominante, tipo, mensagem e o state real do
+            binary_sensor.casa_evento_ativo_v20 como on/off. O helper
+            input_boolean.casa_teste_motor_v20_ativo e apenas marcador visual.

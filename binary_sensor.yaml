@@ -1,0 +1,38 @@
+#### Sensores binarios
+#  ping
+#  - platform: ping
+#    host: 192.168.50.239
+#    name: disp_notebook_ayesa
+#    count: 2
+#    scan_interval: 10
+    
+#  - platform: ping    
+#    host: www.google.com
+#    name: rede_Internet
+#    count: 7
+#    scan_interval: 15
+   
+#  - platform: ping
+#    host: 192.168.1.254
+#    name: rede_FribaForte
+#    count: 2
+#    scan_interval: 5
+    
+#  - platform: ping
+#    host: 192.168.50.1
+#    name: rede_Roteador Mikrotik
+#    count: 2
+#    scan_interval: 5
+    
+#  - platform: ping
+#    host: 192.168.0.1
+#    name: rede_Modem ZTE
+#    count: 2
+#    scan_interval: 5
+    
+#  - platform: ping
+#    host: 192.168.50.12
+#    name: disp_MacbookPro
+#    count: 7
+#    scan_interval: 10
+##########

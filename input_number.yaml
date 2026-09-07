@@ -1,0 +1,37 @@
+# input_number.yaml
+nivel_atual_umidificador:
+  name: Nível Atual do Umidificador
+  min: 0
+  max: 4
+  step: 0.1
+  unit_of_measurement: "L"
+valor_kwh:
+  name: "Valor do kWh"
+  min: 0
+  max: 10
+  step: 0.01
+  mode: box
+  unit_of_measurement: "BRL/kWh"
+  initial: 0.89
+# Novos controles para simulação:
+horas_uso_chuveiro:
+  name: "Horas Uso Chuveiro/Dia"
+  min: 0
+  max: 5
+  step: 0.25
+  unit_of_measurement: "h"
+  initial: 1.5
+potencia_chuveiro:
+  name: "Potência Chuveiro"
+  min: 3000
+  max: 10000
+  step: 100
+  unit_of_measurement: "W"
+  initial: 7500
+horas_iluminacao:
+  name: "Horas Iluminação/Dia"
+  min: 0
+  max: 24
+  step: 0.5
+  unit_of_measurement: "h"
+  initial: 4

@@ -1,0 +1,209 @@
+teste:
+  alias: Home office - Alexa - Let's rock
+  sequence:
+  - data:
+      volume_level: 0.39
+    action: media_player.volume_set
+    target:
+      entity_id: media_player.echo_show_de_wilson_2
+  - data:
+      message: Let's rock
+      target: media_player.echo_show_de_wilson
+      data:
+        type: announce
+    action: notify.alexa_media_echo_show_de_wilson
+  mode: single
+  icon: mdi:briefcase-clock-outline
+inicio_do_trabalho:
+  sequence:
+  - service: light.turn_on
+    data:
+      color_temp: 421
+      brightness_pct: 30
+    target:
+      entity_id:
+      - light.smart_lampada_wifi_2
+      - light.yeelight_lamp15_0xeccc7ee
+      - light.yeelight_strip6_0x156f44f7
+      - switch.regua_zigbee_br_l5
+  mode: single
+  alias: 'Home office - Iniciar expediente  '
+  icon: mdi:briefcase-outline
+home_office_iniciar_expediente_strip_light:
+  alias: Home office - Iniciar expediente Strip Light
+  sequence:
+  - service: light.turn_on
+    data:
+      brightness_pct: 100
+      rgb_color:
+      - 103
+      - 92
+      - 255
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+  - service: light.turn_off
+    data:
+      transition: 60
+    target:
+      device_id: de92f5877e537102f7c39d4a4169741e
+  mode: single
+  icon: mdi:led-strip-variant
+desliga_tudo:
+  alias: Desliga tudo
+  sequence:
+  - service: light.turn_off
+    data: {}
+    target:
+      entity_id:
+      - light.chair
+      - light.smart_lampada_wifi
+      - light.desktop_light
+      - light.quarto
+      - light.yeelight_lamp15_0xeccc7ee
+      - light.yeelight_lamp15_0xeccc7ee_ambilight
+      - light.yeelight_strip6_0x156f44f7
+  - service: switch.turn_off
+    data: {}
+    target:
+      entity_id:
+      - switch.regua_zigbee_br_l2
+      - switch.regua_zigbee_br_l1
+      - switch.regua_zigbee_br_l5
+      - switch.regua_zigbee_br_l3
+  mode: single
+verifica_subida_do_sistema_ha:
+  alias: Verifica subida do sistema HA
+  sequence:
+  - service: light.turn_off
+    data: {}
+    target:
+      device_id: c7a76fc56d44064ab8b3f5df93cea603
+  mode: single
+  icon: mdi:home-assistant
+'1691176415030':
+  alias: Home office - Alexa - Good bye
+  sequence:
+  - data:
+      volume_level: 0.15
+    action: media_player.volume_set
+    target:
+      entity_id: media_player.echo_show_de_wilson_2
+  - data:
+      target: media_player.echo_show_de_wilson
+      data:
+        type: announce
+      message: Good bye!!!!
+    action: notify.alexa_media_echo_show_de_wilson
+  - data: {}
+    target:
+      device_id: a7adec408cd485d7261d9ecd29ce5070
+    action: media_player.media_stop
+  mode: single
+  icon: mdi:briefcase-variant-off
+home_office_religar_link_fibra_apos_10min:
+  sequence:
+  - delay:
+      hours: 0
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+  - action: switch.turn_on
+    target:
+      entity_id: switch.mikrotik_ether1_port
+    data: {}
+  alias: Home office - Religar Link Fibra após 10min
+  description: ''
+resetar_nivel_do_umidificador:
+  alias: Resetar Nível do Umidificador
+  sequence:
+  - target:
+      entity_id: input_number.nivel_atual_umidificador
+    data:
+      value: 4
+    action: input_number.set_value
+  mode: single
+  description: ''
+'1743352611708':
+  alias: Anunciar via Alexa
+  use_blueprint:
+    path: lnpbr/anunciar_na_alexa.yaml
+  description: ''
+'1743721090083':
+  sequence:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.naodesliguemonitorhoje
+    data: {}
+  alias: LAB - Reset do Não desligar Monitor
+  description: ''
+#
+#
+forcar_modo_dormir:
+  alias: "Forçar Modo Dormir"
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.modo_dormir_ativo
+#
+#
+desativar_alarme_modo_dormir:
+  alias: Desativar Alarme com Código
+  sequence:
+    - service: alarm_control_panel.alarm_disarm
+      data:
+        entity_id: alarm_control_panel.home_alarm
+        code: !secret codigo_alarme
+#
+#
+acordar_wilson:
+  alias: Acordar Wilson
+  icon: mdi:weather-sunset-up
+  sequence:
+    # Desarma o alarme
+    - service: alarm_control_panel.alarm_disarm
+      data:
+        entity_id: alarm_control_panel.home_alarm
+        code: !secret codigo_alarme
+
+    # Desliga o modo dormir
+    - service: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.modo_dormir_ativo
+          - input_boolean.wilson_dormindo
+
+    # Liga luzes
+    - service: light.turn_on
+      target:
+        entity_id:
+          - light.quarto
+          - light.corredor
+      data:
+        brightness_pct: 75
+
+    # Liga ventilador (ou outro dispositivo)
+    - service: switch.turn_on
+      target:
+        entity_id:
+          - switch.ventilador_notebook
+
+    # Notifica que acordou
+    - service: notify.notify
+      data:
+        message: "Bom dia, Wilson! Você acordou, o alarme foi desarmado e a casa está pronta."
+
+    # Atualiza log da última ativação (opcional)
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.ultima_ativacao_modo_dormir
+      data:
+        value: "Acordou em {{ now().strftime('%d/%m/%Y %H:%M:%S') }}"
+
+#
+#
+teste_botao_acordar:
+  alias: Teste Botão Acordar
+  sequence:
+    - service: notify.notify
+      data:
+        message: "Botão Acordar foi clicado"

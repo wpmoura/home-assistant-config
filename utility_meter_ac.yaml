@@ -1,0 +1,11 @@
+#
+  ar_condicionado_quarto_diario:
+    source: sensor.ar_condicionado_quarto_total_energy
+    cycle: daily
+    name: Consumo Diário Ar-Condicionado Quarto
+#
+  ar_condicionado_sala_diario:
+    source: sensor.ar_condicionado_sala_total_energy
+    cycle: daily
+    name: Consumo Diário Ar-Condicionado Sala
+#

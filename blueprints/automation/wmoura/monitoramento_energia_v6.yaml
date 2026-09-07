@@ -1,0 +1,268 @@
+blueprint:
+  name: Monitoramento de Equipamento Crítico por Energia (V6)
+  description: >
+    Monitora equipamentos críticos como geladeira, cervejeira e freezer.
+    Detecta consumo alto contínuo, consumo baixo/zerado prolongado,
+    corrente alta e tensão fora da faixa.
+    Compatível com redes 127V e 220V.
+
+  domain: automation
+
+  input:
+    nome_equipamento:
+      name: Nome do equipamento
+      default: "Equipamento"
+      selector:
+        text:
+
+    sensor_potencia:
+      name: Sensor de potência (W)
+      selector:
+        entity:
+          domain: sensor
+
+    sensor_corrente:
+      name: Sensor de corrente (A)
+      selector:
+        entity:
+          domain: sensor
+
+    sensor_tensao:
+      name: Sensor de tensão (V)
+      selector:
+        entity:
+          domain: sensor
+
+    tomada_switch:
+      name: Tomada inteligente
+      selector:
+        entity:
+          domain: switch
+
+    limite_potencia_alta:
+      name: Limite de potência alta (W)
+      default: 300
+      selector:
+        number:
+          min: 50
+          max: 2000
+          step: 10
+          unit_of_measurement: W
+
+    tempo_potencia_alta:
+      name: Tempo em potência alta (min)
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          unit_of_measurement: min
+
+    limite_potencia_baixa:
+      name: Limite de potência baixa (W)
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: W
+
+    tempo_potencia_baixa:
+      name: Tempo em potência baixa (min)
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 180
+          step: 1
+          unit_of_measurement: min
+
+    limite_corrente_alta:
+      name: Limite de corrente alta (A)
+      default: 3.2
+      selector:
+        number:
+          min: 0.5
+          max: 20
+          step: 0.1
+          unit_of_measurement: A
+
+    tempo_corrente_alta:
+      name: Tempo em corrente alta (min)
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          unit_of_measurement: min
+
+    tensao_minima:
+      name: Tensão mínima (V)
+      default: 110
+      selector:
+        number:
+          min: 80
+          max: 250
+          step: 1
+          unit_of_measurement: V
+
+    tensao_maxima:
+      name: Tensão máxima (V)
+      default: 132
+      selector:
+        number:
+          min: 120
+          max: 260
+          step: 1
+          unit_of_measurement: V
+
+    tempo_tensao_anormal:
+      name: Tempo com tensão anormal (min)
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          unit_of_measurement: min
+
+    religar_automaticamente:
+      name: Religar automaticamente
+      default: false
+      selector:
+        boolean:
+
+mode: single
+
+trigger:
+  - platform: numeric_state
+    id: potencia_alta
+    entity_id: !input sensor_potencia
+    above: !input limite_potencia_alta
+    for:
+      minutes: !input tempo_potencia_alta
+
+  - platform: numeric_state
+    id: potencia_baixa
+    entity_id: !input sensor_potencia
+    below: !input limite_potencia_baixa
+    for:
+      minutes: !input tempo_potencia_baixa
+
+  - platform: numeric_state
+    id: corrente_alta
+    entity_id: !input sensor_corrente
+    above: !input limite_corrente_alta
+    for:
+      minutes: !input tempo_corrente_alta
+
+  - platform: numeric_state
+    id: tensao_baixa
+    entity_id: !input sensor_tensao
+    below: !input tensao_minima
+    for:
+      minutes: !input tempo_tensao_anormal
+
+  - platform: numeric_state
+    id: tensao_alta
+    entity_id: !input sensor_tensao
+    above: !input tensao_maxima
+    for:
+      minutes: !input tempo_tensao_anormal
+
+condition: []
+
+action:
+  - variables:
+      nome: !input nome_equipamento
+      religar: !input religar_automaticamente
+
+      sensor_potencia_entidade: !input sensor_potencia
+      sensor_corrente_entidade: !input sensor_corrente
+      sensor_tensao_entidade: !input sensor_tensao
+
+      potencia: "{{ states(sensor_potencia_entidade) | float(0) }}"
+      corrente: "{{ states(sensor_corrente_entidade) | float(0) }}"
+      tensao: "{{ states(sensor_tensao_entidade) | float(0) }}"
+
+      trigger_id: "{{ trigger.id if trigger is defined and trigger.id is defined else 'manual' }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'potencia_alta' }}"
+        sequence:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "🔴 {{ nome }}"
+              message: >
+                Consumo alto contínuo detectado.
+                Potência atual: {{ potencia }} W.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'potencia_baixa' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ religar }}"
+            then:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input tomada_switch
+              - delay: "00:00:10"
+
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "🟡 {{ nome }}"
+              message: >
+                Consumo muito baixo ou zerado detectado.
+                Potência atual: {{ potencia }} W.
+                Ação automática: {{ 'religado' if religar else 'somente alerta' }}.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'corrente_alta' }}"
+        sequence:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "🟠 {{ nome }}"
+              message: >
+                Corrente alta detectada.
+                Corrente atual: {{ corrente }} A.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'tensao_baixa' }}"
+        sequence:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "⚠️ {{ nome }}"
+              message: >
+                Tensão baixa detectada.
+                Tensão atual: {{ tensao }} V.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'tensao_alta' }}"
+        sequence:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "⚠️ {{ nome }}"
+              message: >
+                Tensão alta detectada.
+                Tensão atual: {{ tensao }} V.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger_id == 'manual' }}"
+        sequence:
+          - service: notify.mobile_app_iphonewm
+            data:
+              title: "🧪 Teste manual - {{ nome }}"
+              message: >
+                Execução manual OK.
+                Potência: {{ potencia }} W | Corrente: {{ corrente }} A | Tensão: {{ tensao }} V.

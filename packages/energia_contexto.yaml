@@ -1,0 +1,7 @@
+template:
+  - binary_sensor:
+      - name: "Energia Concessionaria"
+        unique_id: energia_concessionaria
+        device_class: power
+        state: >
+          {{ states('sensor.ups_voltagem') not in ['unavailable', 'unknown', 'none', ''] }}

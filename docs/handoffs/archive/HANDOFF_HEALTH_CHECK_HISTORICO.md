@@ -1,4 +1,12 @@
-## Handoff — Health Check / Saúde do Sistema (pós-merge PR #2)
+# Handoff Histórico — Health Check / Saúde do Sistema
+
+**Status documental: `SUPERADO — HISTÓRICO`.**
+
+Este arquivo preserva integralmente o handoff detalhado que existia em `main` antes da reconciliação das branches. Não é fonte canônica, não representa o estado mutável atual e nenhuma instrução ou autorização nele registrada permanece válida. Para continuidade, consultar `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md` e revalidar Git/GitHub, documentos canônicos e runtime.
+
+---
+
+## Conteúdo histórico original — pós-merge PR #2
 
 **Data deste handoff:** 2026-08-31
 **Última atualização de conteúdo:** 2026-09-02 (Seções 5, 7, 8, 9.4-9.9, 10, 11 e 12 — fechamento da seleção Haiku/Sonnet, correção de `effort`, homologação real Haiku, correção de precificação por model ID versionado, publicação determinística real, acabamentos de dashboard, auditoria Health Check → Timeline, entrada em operação normal, diagnóstico de billing/créditos Anthropic, e habilitação do scheduler 1x/dia com a primeira execução automática ainda PENDENTE de homologação). Conteúdo anterior preservado; campos superados marcados explicitamente em vez de removidos.

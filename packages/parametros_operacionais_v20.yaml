@@ -1,8 +1,11 @@
 ###############################################################################
-# Central Operacional V20 - Parametros complementares
+# Central Operacional V20.1 - Parametros complementares
 #
-# Helpers de preparacao para a futura matriz contextual de prioridade.
-# Nao altera score, automacoes ou dashboards.
+# Helpers de preparacao para a matriz contextual de prioridade e para a camada
+# de controle operacional da timeline/feed.
+#
+# Inclui a politica parametrizavel e o estado tecnico persistente do Executor
+# de Recovery 4G V20.1Q.1. Nao publica Timeline/Push e nao altera detectores.
 ###############################################################################
 
 input_number:
@@ -45,7 +48,181 @@ input_number:
     icon: mdi:door-clock
     initial: 5
 
+  casa_timeout_banho_minutos:
+    name: Casa - Timeout banho
+    min: 1
+    max: 30
+    step: 1
+    mode: slider
+    unit_of_measurement: min
+    icon: mdi:shower-head
+    initial: 2
+
+  casa_timeline_max_eventos:
+    name: Casa - Maximo de Eventos na Timeline
+    min: 3
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: eventos
+    icon: mdi:format-list-numbered
+    initial: 16
+
+  casa_recovery_4g_max_tentativas:
+    name: Casa - Recovery 4G Maximo de Tentativas
+    min: 1
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: tentativas
+    icon: mdi:counter
+    initial: 2
+
+  casa_recovery_4g_tempo_off_tentativa_1:
+    name: Casa - Recovery 4G Tempo OFF Tentativa 1 (Legado)
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-outline
+    initial: 5
+
+  casa_recovery_4g_tempo_off_tentativa_2:
+    name: Casa - Recovery 4G Tempo OFF Tentativa 2 (Legado)
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-alert-outline
+    initial: 10
+
+  # Helpers numerados preservados acima apenas para compatibilidade e rollback.
+  # O Recovery generico consome exclusivamente o helper abaixo.
+  casa_recovery_4g_tempo_off_segundos:
+    name: Casa - Recovery 4G Tempo OFF
+    min: 1
+    max: 60
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-outline
+    initial: 5
+
+  casa_recovery_4g_timeout_confirmacao_tomada_segundos:
+    name: Casa - Recovery 4G Timeout Confirmação da Tomada
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: s
+    initial: 5
+    icon: mdi:power-plug-clock
+
+  casa_recovery_4g_cooldown_minutos:
+    name: Casa - Recovery 4G Cooldown
+    min: 1
+    max: 120
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-lock-outline
+    initial: 10
+
+  casa_recovery_4g_estabilizacao_retorno_minutos:
+    name: Casa - Recovery 4G Estabilização do Retorno
+    min: 0
+    max: 10
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-check-outline
+    initial: 3
+
+  casa_recovery_4g_confirmacao_queda_minutos:
+    name: Casa - Recovery 4G Confirmação da Queda
+    min: 1
+    max: 30
+    step: 1
+    mode: box
+    unit_of_measurement: min
+    icon: mdi:timer-alert-outline
+    initial: 3
+
+  casa_recovery_4g_timeout_validacao_segundos:
+    name: Casa - Recovery 4G Timeout de Validacao
+    min: 30
+    max: 600
+    step: 10
+    mode: box
+    unit_of_measurement: s
+    icon: mdi:timer-sand
+    initial: 120
+
+  casa_recovery_4g_tentativa_atual:
+    name: Casa - Recovery 4G Tentativa Atual
+    min: 0
+    max: 100
+    step: 1
+    mode: box
+    unit_of_measurement: tentativas
+    icon: mdi:counter
+
 input_boolean:
+  casa_recovery_4g_automatico:
+    name: Casa - Recovery 4G Automatico
+    icon: mdi:router-wireless-settings
+    initial: true
+
+  casa_recovery_4g_timeline:
+    name: Casa - Recovery 4G Timeline
+    icon: mdi:timeline-text-outline
+    initial: true
+
+  casa_recovery_4g_push:
+    name: Casa - Recovery 4G Push
+    icon: mdi:bell-outline
+    initial: false
+
+  casa_recovery_4g_ciclo_em_andamento:
+    name: Casa - Recovery 4G Ciclo em Andamento
+    icon: mdi:progress-wrench
+
+  # Harness de homologação — infraestrutura de isolamento (nao executa cenarios T1-T10 por si so).
+  casa_recovery_4g_modo_teste:
+    name: Casa - Recovery 4G Modo Teste (Harness)
+    icon: mdi:flask-outline
+    initial: false
+
+  # Repouso = on: representa a tomada fisica normalmente ligada (mesmo repouso do
+  # switch real). O cenario nominal do Recovery e "tomada ligada + link caiu por
+  # outro motivo" — achado do T1 de 2026-08-09 (guard preexistente tomada_ja_desligada
+  # bloqueou a solicitacao porque o fixture nascia off). Sem relacao com a logica do
+  # Recovery, que se comportou corretamente diante do estado que encontrou.
+  casa_recovery_4g_sim_tomada:
+    name: Casa - Recovery 4G Tomada Simulada (Harness)
+    icon: mdi:power-socket-outline
+    initial: true
+
+  casa_recovery_4g_sim_backup_operacional:
+    name: Casa - Recovery 4G Backup Simulado (Harness)
+    icon: mdi:cellphone-wireless
+    initial: false
+
+  # Bloqueio do recovery legado (Gestão modem 4G), gerido pelo harness. Preserva o
+  # comportamento produtivo atual (initial: true replica o bloqueio hoje resultante
+  # do helper orfao input_boolean.energia_falta). Nao decommission do legado.
+  casa_recovery_4g_bloqueio_legado_harness:
+    name: Casa - Recovery 4G Bloqueio do Legado (Harness)
+    icon: mdi:shield-lock-outline
+    initial: true
+
+  casa_comunicacao_modo_manutencao:
+    name: Manutenção da Comunicação
+    icon: mdi:router-wireless-off
+    initial: false
+
   casa_eventos_visiveis:
     name: Casa - Eventos Visiveis
     icon: mdi:eye-outline
@@ -55,3 +232,173 @@ input_boolean:
     name: Casa - Prioridade Contextual Ativa
     icon: mdi:vector-combine
     initial: false
+
+  casa_timeline_evento_tv:
+    name: Casa - Timeline TV
+    icon: mdi:television
+    initial: true
+
+  casa_timeline_evento_chuva:
+    name: Casa - Timeline Chuva
+    icon: mdi:weather-rainy
+    initial: true
+
+  casa_timeline_evento_porta_sala:
+    name: Casa - Timeline Porta Sala
+    icon: mdi:door-open
+    initial: true
+
+  casa_timeline_evento_portas_internas:
+    name: Casa - Timeline Portas Internas
+    icon: mdi:door
+    initial: false
+
+  casa_timeline_evento_janelas:
+    name: Casa - Timeline Janelas
+    icon: mdi:window-open-variant
+    initial: false
+
+  casa_timeline_evento_vazamento:
+    name: Casa - Timeline Vazamento
+    icon: mdi:water-alert
+    initial: false
+
+  casa_timeline_evento_banho:
+    name: Casa - Timeline Banho
+    icon: mdi:shower-head
+    initial: true
+
+  casa_timeline_evento_maquina_lavar:
+    name: Casa - Timeline Maquina Lavar
+    icon: mdi:washing-machine
+    initial: true
+
+  casa_timeline_evento_microondas:
+    name: Casa - Timeline Microondas
+    icon: mdi:microwave
+    initial: true
+
+  casa_timeline_evento_backup_google:
+    name: Casa - Timeline Backup Google
+    icon: mdi:cloud-alert
+    initial: true
+
+  casa_timeline_evento_energia:
+    name: Casa - Timeline Energia
+    icon: mdi:transmission-tower
+    initial: true
+
+  casa_timeline_evento_internet:
+    name: Casa - Timeline Internet
+    icon: mdi:wan
+    initial: true
+
+  casa_timeline_evento_failover:
+    name: Casa - Timeline Failover 4G
+    icon: mdi:router-wireless
+    initial: true
+
+  casa_push_evento_tv:
+    name: Casa - Push TV
+    icon: mdi:television
+    initial: false
+
+  casa_push_evento_banho:
+    name: Casa - Push Banho
+    icon: mdi:shower-head
+    initial: false
+
+  casa_push_evento_maquina_lavar:
+    name: Casa - Push Maquina Lavar
+    icon: mdi:washing-machine
+    initial: false
+
+  casa_push_evento_microondas:
+    name: Casa - Push Microondas
+    icon: mdi:microwave
+    initial: false
+
+  casa_agregacao_evento_tv:
+    name: Casa - Agregacao TV
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_banho:
+    name: Casa - Agregacao Banho
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_maquina_lavar:
+    name: Casa - Agregacao Maquina Lavar
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+  casa_agregacao_evento_microondas:
+    name: Casa - Agregacao Microondas
+    icon: mdi:timeline-plus-outline
+    initial: true
+
+input_select:
+  casa_recovery_4g_estado_executor:
+    name: Casa - Recovery 4G Estado do Executor
+    icon: mdi:state-machine
+    options:
+      - ocioso
+      - bloqueado
+      - solicitado
+      - executando
+      - aguardando_validacao
+      - concluido_tecnicamente
+      - timeout_validacao
+      - esgotado
+      - cooldown
+      - erro
+
+  # Barreira de sincronizacao exclusiva de teste (R2/R3), harness Recovery 4G.
+  # Escritores: harness/operador escreve *_armado (arme) e idle (liberacao);
+  # o orquestrador escreve *_pausado (anuncio) e idle (autolimpeza em timeout).
+  # Nunca lido/escrito fora das duas barreiras de sincronizacao do orquestrador
+  # nem influencia a decisao de nenhum checkpoint. Repouso = idle.
+  casa_recovery_4g_harness_checkpoint:
+    name: Casa - Recovery 4G Checkpoint de Sincronizacao (Harness)
+    icon: mdi:pause-circle-outline
+    options:
+      - idle
+      - r2_armado
+      - r2_pausado
+      - r3_armado
+      - r3_pausado
+
+input_text:
+  casa_recovery_4g_request_id:
+    name: Casa - Recovery 4G Request ID
+    max: 255
+    icon: mdi:identifier
+
+  casa_recovery_4g_ultima_tentativa_processada:
+    name: Casa - Recovery 4G Ultima Tentativa Processada
+    max: 255
+    icon: mdi:check-decagram-outline
+
+  casa_recovery_4g_veredito_central:
+    name: Casa - Recovery 4G Veredito da Central
+    max: 255
+    icon: mdi:gavel
+
+  # Contexto persistido do ciclo ativo, para reconciliacao/observabilidade (harness).
+  # Escritor unico: script.central_orquestrar_recovery_4g, no nascimento do ciclo.
+  # Valores validos: "" | producao | teste. Nunca convertido de teste para producao.
+  # NAO e a autoridade de uma execucao em curso (essa e modo_execucao_capturado,
+  # variavel de script, congelada no nascimento de cada execucao).
+  casa_recovery_4g_modo_execucao_ciclo:
+    name: Casa - Recovery 4G Modo de Execucao do Ciclo (Harness)
+    max: 20
+    icon: mdi:flask-outline
+
+input_datetime:
+  # Timestamp do ultimo esgotamento completo que iniciou cooldown.
+  casa_recovery_4g_ultima_execucao:
+    name: Casa - Recovery 4G Último Esgotamento
+    has_date: true
+    has_time: true
+    icon: mdi:clock-check-outline

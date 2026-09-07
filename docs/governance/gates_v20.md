@@ -1,0 +1,582 @@
+# Gates V20
+
+Data: 2026-05-20
+Status: ATIVO
+
+## Objetivo
+
+Definir criterios obrigatorios para encerramento de fases da Central Operacional V20.
+
+Nenhuma fase deve ser considerada concluida sem gate documental correspondente.
+
+## Gate de Enquadramento — SOC x AT
+
+Obrigatório antes do primeiro prompt de implementação e novamente quando o escopo mudar. Deve ser curto e baseado em evidências já existentes.
+
+Responder somente:
+
+1. A melhoria apenas consome interfaces existentes?
+2. Modifica contrato, motor ou componente central?
+3. O impacto é local ou alcança outros domínios?
+4. O rollback é simples e imediato?
+5. Existem dúvidas ou dependências não auditadas?
+
+Registro mínimo:
+
+```text
+GATE DE ENQUADRAMENTO
+
+Iniciativa:
+Consome:
+Modifica:
+Impacto:
+Rollback:
+Incertezas:
+
+Decisão: GO AT | GO SOC | NO-GO
+Motivo:
+Evidência principal:
+```
+
+### Decisão
+
+- `GO AT`: melhoria pequena e delimitada, apenas consome interfaces existentes, possui impacto local e rollback simples.
+- `GO SOC`: cria ou altera contrato, allowlist, deduplicação, persistência, idempotência, motor, componente central ou autoridade operacional; ou possui impacto sistêmico.
+- `NO-GO`: faltam evidências ou existem conflitos. Bloqueia implementação e autoriza somente a auditoria do ponto incerto.
+
+Usar um publicador canônico não significa alterar a Timeline. Modificar seu contrato, suas fontes/eventos autorizados ou o motor da Timeline significa alterá-la.
+
+Não repetir fatos já comprovados. Referenciar documento, commit, PR ou evidência existente. Não criar arquivo novo para cada enquadramento quando o roadmap ou o documento da iniciativa puder registrar a decisão.
+
+## Proporcionalidade dos prompts e Gates
+
+O enquadramento `SOC x AT` decide onde a iniciativa será gerida. O nível do prompt decide quanto controle a atividade concreta exige. As decisões são independentes: uma atividade AT pode exigir prompt crítico e uma atividade documental do SOC pode usar prompt simples.
+
+### Triagem do nível do prompt
+
+Antes de gerar o prompt, responder apenas:
+
+1. Haverá escrita ou somente leitura?
+2. O efeito alcança apenas um artefato isolado, o runtime controlado ou componentes centrais/múltiplos domínios?
+3. O rollback é imediato e comprovado?
+4. Há incerteza relevante, ação física, segredo, custo externo, operação Git sensível ou risco de indisponibilidade?
+
+Não existe pontuação. Aplica-se o nível mais alto identificado:
+
+| Nível | Usar quando | Conteúdo mínimo |
+| --- | --- | --- |
+| `P1 — Simples` | leitura, consulta, auditoria pequena ou ação local facilmente reversível, sem impacto em runtime | objetivo; limite; evidência esperada; condição de parada |
+| `P2 — Operacional controlado` | escrita delimitada, commit documental, push/PR isolado, reload parcial ou mudança pequena com rollback conhecido | objetivo; estado de entrada; escopo; limites; PASS/NO-GO; evidências; rollback; parada |
+| `P3 — Crítico` | contrato ou motor central, múltiplos domínios, restart, ação física, segurança/segredo, custo externo relevante, indisponibilidade possível, Git destrutivo/divergente ou rollback complexo | objetivo; estado de entrada; invariantes; escopo e exclusões; sequência controlada; autorizações; PASS/NO-GO; evidências; rollback; paradas imediatas |
+
+### Regras de decisão
+
+- Em dúvida entre dois níveis, usar o maior somente até auditar a dúvida; depois simplificar se a evidência permitir.
+- Se a execução revelar risco, dependência ou blast radius maior, parar e reclassificar o prompt antes de continuar.
+- Atividade longa pode ser dividida em operações com níveis diferentes; não elevar automaticamente todas as etapas ao nível crítico.
+- Reutilizar evidências já comprovadas e não reauditar fatos sem razão objetiva.
+- Não criar Gate para aprovar o nível do próprio Gate; a triagem deve caber no cabeçalho do prompt ou no documento da iniciativa.
+- Autorização humana é exigida no ponto que produz efeito externo, físico, financeiro, irreversível ou de publicação; leitura e preparação podem avançar dentro do escopo já autorizado.
+
+Registro mínimo:
+
+```text
+NÍVEL DO PROMPT: P1 | P2 | P3
+Motivo:
+Efeito máximo previsto:
+Parar se:
+```
+
+### Exemplos
+
+- Consultar documentação ou comparar branches sem escrita: `P1`.
+- Editar documentação local e validar o diff, sem commit: `P1` quando o escopo for inequívoco e totalmente reversível.
+- Criar commit, push ou PR isolado: `P2`.
+- Reload parcial com rollback conhecido: `P2`.
+- Alterar contrato ou deduplicação da Timeline: `P3`.
+- Restart do Home Assistant, ação física no Recovery 4G ou Git destrutivo/divergente: `P3`.
+
+Em resumo, o detalhamento deve acompanhar risco, reversibilidade, incerteza e blast radius:
+
+- Gate simples: consulta read-only, auditoria pequena ou operação reversível de baixo impacto;
+- Gate operacional controlado: commit documental, push de branch isolada, PR, reload controlado ou alteração pequena com impacto delimitado;
+- Gate crítico: alteração funcional ou arquitetural relevante, runtime de alto impacto, histórico Git divergente, merge complexo, rebase, reset ou risco de contaminar outras frentes.
+
+Todo Gate deve conter apenas o necessário entre objetivo, limites, critérios PASS/NO-GO, evidências, rollback e condição de parada. Mais texto não significa mais segurança.
+
+Autorização humana deve ser inequívoca. Texto exibido após o prompt `❯` pelo Claude Code pode ser sugestão da própria ferramenta e não deve ser tratado como autorização de Wilson sem confirmação humana fora daquele output.
+
+## Status comuns dos roadmaps
+
+- `Concluído`: implementado, homologado, documentado e publicado; sem pendência bloqueante.
+- `Em fechamento`: funcionalidade pronta e homologada, faltando documentação, publicação, limpeza controlada ou encerramento formal.
+- `Em andamento`: trabalho iniciado ainda incompleto.
+- `Backlog priorizado`: iniciativa aprovada, desejada e ainda não iniciada.
+- `Dívida técnica`: problema técnico conhecido que não impede a operação atual.
+- `Dívida de governança`: problema de documentação, branching, processo, classificação, autorização ou fonte da verdade.
+- `Futuro / ideias`: possibilidade ainda não aprovada.
+
+`Bloqueado` e `Homologação suspensa` são condições adicionais, não status principais. Código ou documento existente, isoladamente, não comprova conclusão.
+
+## Gate corretivo V20.1Q — Recovery 4G
+
+- [x] Tentativas genéricas e snapshot do máximo implementados estaticamente.
+- [x] Tempo OFF único e helpers numerados marcados como legado.
+- [x] Confirmação de queda e estabilização de retorno parametrizadas separadamente.
+- [x] Cooldown restrito ao esgotamento e `ultima_execucao` com semântica documentada.
+- [x] Cancelamentos sem cooldown implementados.
+- [x] Validação YAML e buscas estáticas executadas.
+- [x] Dashboard "Parâmetros" reorganizado em três cards (Operação, Ciclo de Recuperação, Avisos) conforme especificação oficial de UX.
+- [x] Especificação oficial de UX documentada e versionada em `docs/ux/espec_ux_param_recovery4g.md`.
+- [x] Commit e push da entrega de UX do dashboard "Parâmetros" realizados, com rastreabilidade em `CHANGELOG.md` e `docs/releases/implementation_plan_v20_1q.md`.
+- [ ] Validação visual do critério A8 da especificação de UX (nenhum rótulo quebra em duas linhas em viewport de celular) — sem evidência visual registrada.
+- [x] Cenários 1, 5 e 10 homologados no runtime com quedas reais controladas (Testes 1, 3 e 2, respectivamente). Cenário 2 considerado suficientemente coberto por generalização de código (laço genérico único, sem hardcode por valor, confirmado por leitura de código e por execução real em três valores distintos) e não é bloqueador de encerramento.
+- [x] Snapshot dos parâmetros (`max_tentativas_ciclo`) validado contra alteração de helper em pleno ciclo — prova definitiva no Teste 2.
+- [x] Cooldown homologado — entrada e expiração, com trace de ação real da transição `cooldown → ocioso` (Testes 1 e 2).
+- [x] Religamento de segurança e proteção da tomada contra permanência desligada homologados (Testes 1–3).
+- [x] Erro técnico seguro / falha intermediária sem decisão autônoma do Executor homologado (achado real não planejado no Teste 3: atraso de confirmação da tomada tratado corretamente, sem corromper o ciclo).
+- [x] Restart durante ciclo ativo homologado (reconciliação limpa, sem cooldown).
+- [x] Timeline validada com o limite de 16 eventos em produção.
+- [ ] Oscilação, `unknown` e `unavailable` dos sensores — sem ocorrência real observada em nenhum teste; permanece sem evidência.
+- [ ] Janela de estabilização igual a zero — parametrizada em três execuções (incluindo a repetição do Teste 3 em 2026-07-20 com `estabilizacao_retorno_minutos=0` e monitoramento por assinatura de eventos), mas nunca exercida de fato: em nenhuma tentativa houve retorno de `backup_4g_operacional` durante a janela de validação.
+- [ ] Retorno estabilizado em índice intermediário (sucesso antes do esgotamento) — não obtido em nenhuma das quatro quedas reais tentadas até agora; a duração real das quedas variou de ~2min30s a ~6min55s, sempre excedendo a janela de tentativas configurada no momento.
+- [ ] Cancelamento pelo operador em ciclo ativo — não exercitado. Na primeira tentativa (Teste 3, 2026-07-18) faltou por limitação de monitoramento (polling); na repetição (2026-07-20), o monitor por assinatura de eventos foi validado e usado com sucesso, mas o cancelamento não foi tentado porque a execução foi mantida estritamente passiva por instrução explícita do usuário (sem alteração automática de helper).
+- Interrupção por falta de energia em ciclo ativo — **classificada como risco residual aceito**, não bloqueador. Mesma condição de código do cancelamento pelo operador, já comprovada por analogia estrutural (leitura de código), mas sem execução real com ciclo ativo. Não deve ser forçada deliberadamente.
+- [x] Achado arquitetural: guard rail `tomada_ja_desligada` confirmado — o orquestrador recusa iniciar um ciclo se a tomada já estiver desligada no momento da solicitação (`fato: solicitacao_bloqueada`). Descoberto na repetição do Teste 3 (2026-07-20); implica que o mecanismo de "provocar queda" via tomada deve sempre religá-la antes da janela de confirmação, ou usar uma fonte de queda que não envolva a tomada.
+- [x] Guard de manutenção implementado estaticamente: `input_boolean.casa_comunicacao_modo_manutencao` inicia desligado e bloqueia somente novas execuções de `automation.central_recovery_4g_solicitar` quando ligado. O orquestrador, ciclos já iniciados e `automation.central_recovery_4g_religamento_seguranca` não consomem esse helper.
+
+### Nota de rigor metodológico — 2026-07-20
+
+Uma afirmação anterior de que o padrão observado de "retorno real poucos segundos após o esgotamento" seria "quase estrutural" foi revisada e **reclassificada como hipótese não comprovada**, não como achado. Evidência disponível (leitura de código do sensor `backup_4g_operacional`/`internet_wan2_4g_ok` e histórico das sondas de latência subjacentes) mostra que a detecção está próxima do retorno real (sem indício de retorno silencioso não detectado), mas a amostra de apenas 3 quase-acertos e 1 queda longa, com duração total variando de ~2min30s a ~6min55s, não sustenta a existência de um tempo de reconexão fixo/estrutural da operadora. Ver detalhamento completo em `docs/releases/implementation_plan_v20_1q.md`.
+
+### Estado da homologação runtime — Suspensa
+
+**Status:** Homologação Suspensa.
+
+**Motivo:** interrupção por decisão operacional. Não existe bloqueio técnico conhecido. A implementação permanece válida.
+
+**Evidências preservadas (não precisam ser repetidas):** Recovery 4G funcional de ponta a ponta; snapshot dos parâmetros; parametrização das tentativas (cenários 1, 5 e 10); cooldown; expiração do cooldown; religamento de segurança; tratamento de erro técnico; Timeline; estados do Executor; guard rail `tomada_ja_desligada`; monitoramento por assinatura de eventos (WebSocket) formalmente validado (6/6 critérios) e usado com sucesso.
+
+**Permanecem para retomada futura:** cancelamento pelo operador em ciclo ativo; retorno antes do esgotamento (índice intermediário); janela de estabilização igual a zero.
+
+**Limitação metodológica registrada:** a proximidade observada entre esgotamento e retorno real da conectividade não deve ser tratada como propriedade estrutural do sistema — amostra pequena (3 casos), duração real das quedas variável (~2min30s–6min55s). Ver "Nota de rigor metodológico" acima.
+
+Detalhamento completo dos testes executados (Teste 1, Teste 2, Teste 3 e sua repetição em 2026-07-20), evidências, fatos vs. hipóteses e próxima etapa recomendada em `docs/releases/implementation_plan_v20_1q.md`.
+
+Quatro power cycles reais e controlados foram autorizados e executados pelo usuário durante as rodadas de homologação runtime (Testes 1, 2, 3 e sua repetição), conforme Gate pré-teste físico.
+
+## Gate 0 - Escopo
+
+Obrigatorio antes de iniciar.
+
+- Fase nomeada.
+- Objetivo declarado.
+- Limites declarados.
+- Itens fora de escopo declarados.
+- Tipo da fase definido: documentacao, auditoria, shadow, implementacao, migracao ou limpeza.
+
+## Gate 1 - Contratos protegidos
+
+Obrigatorio para qualquer fase que possa afetar operacao.
+
+Validar que nao houve alteracao indevida em:
+
+- `sensor.status_casa`
+- aliases finais sem versao
+- `sensor.casa_timeline`
+- `sensor.casa_event_feed`
+- dashboards produtivos
+- automacoes criticas
+
+## Gate 2 - Arquitetura
+
+Obrigatorio para novas camadas, motores ou decisoes operacionais.
+
+- A fase respeita a Constituicao V20.
+- Nao cria inteligencia paralela sem classificacao.
+- Roadmap nao esta sendo usado como implementacao.
+- YAML nao redefine arquitetura.
+- Camada shadow permanece desacoplada ate promocao formal.
+
+## Gate 3 - Evidencia
+
+Obrigatorio para homologacao.
+
+- Evidencias ou resultados registrados.
+- Falhas, bloqueios e parciais declarados.
+- Ausencia de spam, duplicidade e `unavailable` avaliada quando aplicavel.
+- Impacto em timeline/event feed declarado quando aplicavel.
+
+## Gate 4 - Rollback
+
+Obrigatorio para implementacao, migracao ou limpeza.
+
+- Rollback simples identificado.
+- Lote pequeno e reversivel.
+- Nenhuma edicao manual de `.storage` sem fase propria.
+- Nenhuma remocao automatica de automacoes orfas/desabilitadas.
+
+## Gate 5 - Documentacao
+
+Obrigatorio no encerramento.
+
+- Changelog ou checkpoint atualizado.
+- Roadmap consolidado atualizado quando houver impacto futuro.
+- Backlog tecnico atualizado quando houver pendencia.
+- Auditoria registrada quando a fase for diagnostica.
+
+## Gate 6 - Status final
+
+Status permitido:
+
+- `Planejada`
+- `Em diagnostico`
+- `Implementada em shadow`
+- `Homologada`
+- `Concluida`
+- `Bloqueada`
+- `Parcial`
+- `Arquivada`
+
+Uma fase homologada deve ter escopo fechado e nao deve continuar acumulando mudancas sem nova fase.
+
+## Gate de Promoção Limitada V20.2C — Sessão de Monitoramento Remoto
+
+Status documental: I1/I2/I2A/I3A/I3B HOMOLOGADOS; CONSUMIDORES PERMANECEM PENDENTES
+
+Este Gate é obrigatório antes de habilitar o Coordenador da Sessão de Monitoramento Remoto (CSMR), publicar eventos da V20.2C na Timeline ou liberar consumidores subordinados pelo contrato de sessão.
+
+### Gate arquitetural
+
+- [x] Promoção limitada registrada no despacho `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`.
+- [x] CSMR classificado como motor oficial de coordenação operacional com escopo restrito.
+- [x] Restante da V20.2 e Context Engine original preservados em shadow.
+- [x] V20.1O preservada como autoridade canônica da Timeline e Event Feed.
+- [x] Fronteiras entre CSMR, publicador e consumidores definidas.
+- [x] Plano técnico restrito definido e decisões DP-1 a DP-5 resolvidas documentalmente em `docs/v20_2c/plano_tecnico_csmr.md`.
+
+### Gate de contrato
+
+- [x] Eventos autorizados limitados a `📍 Wilson saiu de casa`, `🛡️ Monitoramento remoto iniciado`, `📍 Wilson chegou em casa` e `🛡️ Monitoramento remoto encerrado`.
+- [x] Formato público `HH:MM mensagem` preservado.
+- [x] Escrita direta em aliases finais, Timeline e Event Feed proibida.
+- [x] Timeline, Event Feed, histórico e deduplicação paralelos proibidos.
+- [x] Caminho canônico decidido: script V20.1O com payload versionado, ACK correlacionado e preservação de `sensor.casa_evento_publicavel_v20`.
+- [x] Script canônico, ACK e ledger idempotente implementados e validados em `test_mode` pelo lote V20.2C-I1.
+
+### Gate de comportamento
+
+Fundação transacional I2 homologada:
+
+- [x] Estados mínimos `idle`, `starting`, `active`, `ending` e `failed` observados no Harness isolado.
+- [x] `session_id` único preservado durante abertura, atividade, encerramento e falha.
+- [x] Reenvio por `request_id`, transições inválidas e abertura concorrente tratados deterministicamente.
+- [x] Falhas de abertura/encerramento e recuperação explícita comprovadas sem publicação ou consumidor.
+- [x] Checkpoint ativo e idempotência preservados após reload parcial.
+- [x] Ausência de trigger de presença/startup comprovada; `away + idle` não possui caminho para abertura no I2.
+
+Gate isolado da emenda I2A:
+
+- [x] Autoridade exclusiva do CSMR sobre geração do `session_id` preservada documentalmente.
+- [x] Origem operacional fechada definida como `csmr_dispatcher_v20_2c`.
+- [x] Política D1 para retorno durante `starting` reafirmada; regra conflitante do I3 substituída com rastreabilidade.
+- [x] Reserva, cancelamento e consumo implementados sem novo estado principal.
+- [x] Origem produtiva validada sem publicação e Harness legado preservado.
+- [x] Idempotência, concorrência e persistência da reserva comprovadas.
+- [x] Fluxo D1 simulado sem consumidores e sem Timeline produtiva.
+
+Gate V20.2C-I3A — **STATUS: HOMOLOGADO**:
+
+- [x] Commit funcional auditado: `b11309bf20985a9385fb7918e82883dff4c8867e`.
+- [x] Integração lógica entre `person.wmoura`, graça, revalidação, dispatcher, reserva I2A, CSMR e I1 comprovada em Harness.
+- [x] Reserva e consumo preservaram um único `session_id`; cada evento recebeu `request_id` próprio.
+- [x] Ciclo nominal concluiu `idle → active → idle` com quatro ACKs `validated_test` correlacionados e ordenados.
+- [x] Retorno durante a graça cancelou sem reserva, sessão ou publicação.
+- [x] Retorno durante `starting` aplicou D1 e concluiu abertura/encerramento na mesma sessão, sem consumidores.
+- [x] Concorrência foi serializada por `mode: queued`; nenhuma sessão ou UUID concorrente foi criado.
+- [x] Reload durante a graça preservou uma única execução e não criou abertura, reserva ou publicação duplicada.
+- [x] Persistência, duplicate, retry, cancelamento de reserva e idempotência foram comprovados pelo conjunto I1/I2/I2A/I3A, sem repetição desnecessária de testes.
+- [x] Timeout/falha de publicação referenciados à homologação I1; falhas de abertura/encerramento e recuperação referenciadas à homologação I2.
+- [x] Parser YAML, `config_check`, reload parcial, traces, ACKs, `git diff --check` e commit foram auditados.
+- [x] Timeline e Event Feed permaneceram sem os quatro eventos produtivos; todas as chamadas I1 usaram `test_mode: true`.
+- [x] V20.1Q, Recovery 4G, C1.x, UniFi Protect, dashboards e consumidores permaneceram inalterados.
+
+- [x] Cancelamento durante a graça comprovado sem abertura ou evento.
+- [x] Abertura lógica comprovada exatamente uma vez em Harness.
+- [x] Ordem dos dois eventos de entrada comprovada por ACKs `validated_test`.
+- [ ] Consumidores liberados somente depois da abertura publicada.
+- [x] Encerramento lógico comprovado exatamente uma vez em Harness.
+- [x] Ordem dos dois eventos de retorno comprovada por ACKs `validated_test`.
+- [x] Retorno sem sessão aberta comprovado sem publicação.
+- [ ] Ciclos consecutivos completos, independentes e sem duplicidade.
+- [x] Reload comprovado sem sessão fantasma; startup/restart conservador permanece coberto pela ausência de trigger e persistência homologada, sem restart físico no I3A.
+- [x] Harness do contrato I1 comprovado por ACK `validated_test` como fonte não publicável, sem alteração de Timeline, Event Feed ou aliases.
+
+### Gate de regressão
+
+- [x] C1.1 preservado pelo lote I1.
+- [x] C1.2 preservado pelo lote I1.
+- [x] C1.3 preservado pelo lote I1.
+- [x] Harness preservado.
+- [x] V20.1O preservada como autoridade; extensão interna restrita e retrocompatível.
+- [x] Timeline e Event Feed preservados nos testes I1.
+- [x] Nenhum outro componente V20.2 promovido implicitamente pelo I1.
+
+### Gate de falha e rollback
+
+- [x] Falha de publicação permanece observável pelo contrato I1 e interrompe encadeamento.
+- [x] Timeout de 10 s, duas repetições com intervalo de 5 s e escalonamento seguro comprovados no I1 e reutilizados sem mecanismo paralelo no I3A.
+- [x] ACK `duplicate` comprovado para repetição de `request_id` e de identidade lógica no namespace de teste.
+- [x] Ledger técnico comprovado com limite de 16; política produtiva de últimos 16 e mínimo de 7 dias validada estaticamente, sem publicação real.
+- [ ] Recuperação parcial retoma somente o evento pendente, sem compensação ou reemissão do par.
+- [x] Nenhuma progressão silenciosa após falha crítica de abertura, conforme guards I3A e testes de falha I1/I2.
+- [ ] Rollback restrito à promoção funcional da sessão.
+- [ ] V20.1O permanece funcional após rollback.
+- [ ] Nenhuma execução ou sessão pendente após rollback.
+- [ ] Helpers e Harness terminam em estado seguro.
+
+### Gate de homologação
+
+- [x] Parser YAML aprovado.
+- [x] Validação estática e configuração Home Assistant aprovadas.
+- [x] Traces e ACKs preservados.
+- [x] Timeline e Event Feed comprovados sem publicação produtiva no I3A.
+- [x] Ordem, deduplicação e ciclos lógicos comprovados pelo conjunto I1/I2/I2A/I3A.
+- [x] Working tree e commit funcional auditados.
+- [ ] Homologação real posterior executada somente com coordenação do operador.
+
+O Gate I3A está encerrado e não deve acumular novas mudanças. Permanecem abertos somente itens de promoção produtiva, consumidores e rollback operacional pertencentes a Gates posteriores.
+
+O Gate seguinte ao I3A foi o **V20.2C-I3B — Promoção Operacional**, limitado à substituição de `test_mode: true` por `test_mode: false` nas quatro chamadas I1 e à homologação operacional controlada. Sua conclusão está registrada abaixo.
+
+### Gate V20.2C-I3B — Promoção Operacional
+
+**STATUS: HOMOLOGADO**
+
+- [x] Commit funcional `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37` alterou exclusivamente quatro valores I1 de `test_mode: true` para `test_mode: false` no dispatcher homologado.
+- [x] Parser YAML, `homeassistant.check_config`, `git diff --check` e reload parcial de automações aprovados.
+- [x] Um único ciclo operacional controlado foi executado pelo Harness, sem alterar `person.wmoura` ou o helper de graça.
+- [x] Sessão única `37c7be2f-4da1-46b4-8a4d-217ce73f4d14` preservada nos quatro eventos.
+- [x] `wilson_left_home`: request `9e57d3e1-977e-4a54-8d3c-9197c66da8aa`, ACK `published` em `2026-08-07T07:48:41.974521-03:00`.
+- [x] `remote_monitoring_started`: request `3ee45057-30f2-46f8-8b61-5e7c10ced008`, ACK `published` em `2026-08-07T07:48:42.352951-03:00`.
+- [x] `wilson_arrived_home`: request `b2b3d3d0-7e9a-4ce9-89f8-be08897ece62`, ACK `published` em `2026-08-07T07:49:19.462676-03:00`.
+- [x] `remote_monitoring_ended`: request `8751c680-69a9-4e47-82ab-79c364f8105d`, ACK `published` em `2026-08-07T07:49:19.846991-03:00`.
+- [x] Timeline e Event Feed persistiram os quatro textos oficiais na ordem causal; origem e IDs foram preservados no ledger canônico V20.1O.
+- [x] CSMR terminou `idle`, sem reserva e com a sessão arquivada em `last_session_id`.
+- [x] Reload pós-ciclo preservou quatro registros no ledger e não republicou nenhum evento.
+- [x] Permanência contínua não gerou nova sessão ou publicação; traces de saída e retorno terminaram sem erro.
+- [x] C1.1, C1.2 e C1.3 mantiveram estado, `last_triggered` e ausência de execução pelo dispatcher.
+- [x] Protect cozinha/quarto permaneceram em `detections`; Recovery 4G automático permaneceu `on`.
+- [x] V20.1Q, contrato I1, estado I2/I2A, dashboards, presença, helper de graça e consumidores não foram modificados.
+
+O I3B encerra somente a promoção produtiva dos quatro eventos. Integração de C1.x, UniFi Protect e qualquer consumidor futuro continua bloqueada até Gate próprio. Rollback funcional: reverter `20eb9d15b6a4b2c59b7bf52426c2e6f61c01bf37`, validar configuração e recarregar automações; os quatro fatos já publicados permanecem como histórico legítimo do ciclo homologado e não exigem edição da Timeline.
+
+### Gate V20.2C-I4A — Integração dos Consumidores
+
+**STATUS: HOMOLOGADO**
+
+O Gate I4A fechou a integração temporal dos consumidores pelo commit funcional `b02e05d`. C1.1, C1.2 e C1.3 permanecem subordinados ao CSMR; não houve alteração em V20.1Q, Recovery, I1, I2/I2A, Timeline, Event Feed, UniFi Protect, dashboards, sensores físicos ou `person.wmoura`.
+
+- [x] `return_pending` persistente bloqueia consumidores durante retorno e D1.
+- [x] Fronteira persistente `consumer_authorized_since` vinculada ao `session_id`.
+- [x] Autorização exige `active`, `return_pending=false`, sessão correspondente e `occurred_at > consumer_authorized_since`.
+- [ ] Test mode end-to-end isolado IMPLEMENTADO NO WORKING TREE (não commitado): canal/helpers próprios, publicações `validated_test`, C1.2 Harness sem notify e consumidores produtivos bloqueados; checkpoint restaurável, processador idempotente e reconciliador preservam saída real preemptada. Revisão independente concluída em 19/08/2026 com resultado GO COM RESSALVAS (nenhum blocker; os três achados de saneamento pré-reload — divergência de `structural_errors`, tom documental e encerramento silencioso — já foram corrigidos no próprio working tree). Ainda NÃO VALIDADO EM RUNTIME nem PROMOVIDO/CONCLUÍDO: `check_config`, reload controlado, Harness dedicado, decisão explícita de religar reconciliador/processador e recuperação administrativa da sessão travada `2f4c70bf` permanecem pendentes.
+- [x] C1.2 usa `trigger.to_state.last_changed` e permanece reativa à abertura física da porta.
+- [x] Harness exige `occurred_at` explícito.
+- [x] Fronteira invalidada em `idle`, `starting`, `ending`, `failed` e retorno pendente.
+- [x] `homeassistant.check_config` aprovado e reloads parciais retornaram HTTP 200.
+- [x] Starting e Ending rejeitados; Failed não acionou consumidor.
+- [x] D1 não acionou C1.1, C1.2 ou C1.3.
+- [x] Active nominal produziu uma execução de C1.2 e uma de C1.3, sem duplicação indevida.
+- [x] Reload com `return_pending=true` preservou a proteção.
+- [x] Nenhum restart foi executado e nenhum componente protegido foi alterado.
+
+Estado final: `CSMR=idle`, `return_pending=off`, `consumer_authorized_since=1970-01-01 00:00:00`.
+
+Continuam pendentes a promoção operacional real dos consumidores, a validação por ciclo real de saída/retorno, UniFi Protect e demais consumidores futuros. O próximo Gate autorizado é **V20.2C-I4B.1**.
+
+### Despacho V20.2C-A2 — Governança de homologação
+
+O projeto distingue formalmente **Homologação Técnica** de **Evidência Operacional**. Homologação Técnica pode usar Harness quando ele reproduz integralmente contratos funcionais, transacionais, estados, concorrência, idempotência, rollback, recovery, reload, consumidores e efeitos esperados. Evidência Operacional é apenas a observação natural posterior em produção; sua ausência não bloqueia o Roadmap. Hardware ou integração sem Harness equivalente permanece sujeito a Gate físico.
+
+### Gate V20.2C-I4B.1 — Promoção Operacional Controlada
+
+**STATUS: HOMOLOGADO**
+
+Esta etapa valida exclusivamente pelo Harness homologado o runtime produtivo, dispatcher, Timeline, CSMR, consumidores C1.1/C1.2/C1.3, publicação, autorização temporal, push, D1, reload, rollback, ausência de duplicidade e proteção dos componentes. Não altera código funcional.
+
+- [x] Graça, abertura, publicação canônica e sessão `active` observadas pelo Harness Dispatcher.
+- [x] C1.1 e C1.3 executaram uma vez; C1.2 executou uma vez após a fronteira temporal.
+- [x] Retorno elevou o bloqueio, encerrou a sessão e invalidou a fronteira.
+- [x] Porta pós-retorno não acionou consumidor.
+- [x] Reloads HTTP 200 não reabriram sessão nem produziram evento retroativo.
+- [x] Resíduo de `cycle_id` foi reconciliado por checkpoint `idle`, sem publicação ou alteração funcional.
+- [x] Estado final seguro e componentes protegidos inalterados.
+
+### Gate V20.2C-I4B.2 — Evidência Operacional
+
+**STATUS: PENDENTE DE EVIDÊNCIA OPERACIONAL**
+
+Esta etapa registrará o primeiro ciclo físico natural `home → not_home → home`, coletando traces, Timeline, Event Feed, ACKs, `session_id`, `request_id`, estados, consumidores, push e encerramento. Nenhuma correção será feita durante a coleta; comportamento inesperado exigirá Gate corretivo. I4B.2 não bloqueia I5, I6, consumidores futuros ou UniFi Protect após I4B.1 homologado.
+
+### Gate V20.2C-I5A — Integração controlada do UniFi Protect
+
+**STATUS: HOMOLOGADO (Harness)**
+
+O I5A homologou o modelo mínimo de intenção automática e manual para os modos de gravação das câmeras G4 Instant. `csmr_recording_requested` depende do contexto operacional autorizado do CSMR; `manual_override` é uma solicitação explícita independente. A intenção efetiva é `csmr_recording_requested OR manual_override`, mapeada exclusivamente para `always`; com ambas desligadas, o baseline é `detections`.
+
+Foram validados os dois selects Protect, retorno pendente, ending, failed, manualização em idle, retorno com override manual preservado, reload, falha parcial documentada e comandos idempotentes. Não houve novos `event_code`, publicação na Timeline/Event Feed, alteração de CSMR, dispatcher, I1/I2, C1.x, Recovery, V20.1Q, dashboards ou sensores físicos.
+
+### Gate V20.2C-I5B — Promoção operacional controlada
+
+**STATUS: HOMOLOGADO** em 2026-08-07. O Harness executou CSMR ativo, retorno, override manual, `return_pending`, `failed`, reload, idempotência e divergência controlada de uma câmera. O baseline final ficou em `detections`; nenhum componente protegido foi alterado.
+
+## V20.2D — Consolidação da baseline V20.2C
+
+**STATUS: V20.2C FUNCIONALMENTE CONCLUÍDA**
+
+## Gate V20.2E — Integração do Uso do Carro à Timeline
+
+**Status: CORREÇÃO DO CONSUMIDOR APROVADA ESTATICAMENTE PARA COMMIT E PUSH; HOMOLOGAÇÃO RUNTIME PENDENTE**
+
+### Escopo e arquitetura
+
+- [x] Lote formal V20.2E autorizado como ampliação estritamente aditiva da V20.1O.
+- [x] Produtor limitado a `source: carro_presenca` e códigos `car_use_started`/`car_use_ended`.
+- [x] Quatro eventos, source e semântica do CSMR preservados integralmente.
+- [x] Escrita direta em Timeline, Event Feed e aliases finais proibida.
+- [x] Detecção existente do carro e destinatário `notify.mobile_app_iphonewm` preservados.
+
+### Contrato e comportamento
+
+- [x] Publicador canônico ampliado sem ledger, retry ou idempotência paralelos.
+- [x] Um `session_id` persistente correlaciona início e término; cada publicação usa `request_id` próprio.
+- [x] ACK `published`, `duplicate` ou `validated_test` permite conclusão segura; `rejected`, `failed` e timeout preservam o checkpoint.
+- [x] Término sem sessão válida não publica evento órfão nem bloqueia o comportamento funcional legado.
+- [x] Push de início e término parametrizados independentemente; Timeline não depende desses parâmetros.
+- [x] Reinício com ciclo ativo preserva a correlação por helpers restauráveis.
+
+### Validação e homologação
+
+- [x] Persistência e reconciliação controlada do `request_id` de `car_use_ended` implementadas e verificadas; ciclo real reconciliado em ordem com sessão e requests originais, dois ACKs `published` e limpeza somente após o término.
+- [x] Ausência de `initial` nos dois controles de push verificada estaticamente, permitindo primeira criação nativa em `off` e restauração posterior da escolha do usuário; ativação inicial controlada permanece pendente de implantação.
+- [ ] Tratamento de checkpoint de término vazio/válido/inválido e bloqueio de estados parciais verificados estaticamente; confirmação runtime permanece pendente.
+- [ ] Persistência de `rejected` para início/término, bloqueio da reconciliação e liberação governada verificados estaticamente; confirmação runtime permanece pendente.
+- [ ] Recuperação administrativa de metadados `rejected` parciais, validação contra o ciclo e trava contra escritor ativo verificadas estaticamente; confirmação runtime permanece pendente.
+- [ ] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente; teste de concorrência runtime permanece pendente.
+- [x] Compatibilidade do guard fail-closed com `has_value`/`state_attr` aprovada na revisão estática final independente: `none` preservado, validação numérica estrita, booleanos e negativos recusados, ausência de fallback zero, stops separados antes da limpeza e lógica administrativa preservada. Classificação: **A. APROVADA ESTATICAMENTE PARA ATUALIZAÇÃO DO GATE E COMMIT.**
+- [x] Inclusão de `car_use_started`/`car_use_ended` no consumidor canônico, correlação atômica por `trigger.to_state`, autorização fail-closed de `publicar_timeline` e vínculo entre materialização visível, `request_ids_json` e ACK aprovados em revisão estática independente para commit e push.
+- [x] Normalização restritiva de `publicar_timeline` aprovada estaticamente e em runtime: aceita somente `true` nativo ou string legítima exatamente `true` após `trim`/normalização de caixa; valores falsos, ausentes, ambíguos ou incompatíveis permanecem fail-closed.
+- [ ] Eventos consecutivos com a mesma mensagem validados no runtime: segundo evento deduplicado visualmente, sem inclusão de seu `request_id` no ledger e sem ACK `published` falso; resultado efetivo do publicador registrado.
+- [x] Correção runtime do produtor (`hash` incompatível substituído por `md5`) e bootstrap fail-closed aprovados; `check_config`, carregamento das automações e primeira materialização dos checkpoints concluídos sem efeitos funcionais espontâneos.
+- [ ] Validação no ambiente real do atributo `current`, testes funcionais e de concorrência, implantação e homologação operacional permanecem pendentes.
+- [x] Parser YAML, parser JSON Storage e `check_config` nativo aprovados.
+- [x] `git diff --check`, referências, IDs e ausência de escrita direta aprovados.
+- [x] Cenários de pushes ligados/desligados preparados.
+- [x] Duplicidade, falha/timeout, término sem sessão e reinício com ciclo ativo preparados.
+- [x] Nenhum reload, restart, push real ou publicação produtiva executado sem autorização específica.
+- [x] Gate runtime do contrato `publicar_timeline` aprovado com `template.reload`: `"true"` textual incorporado coerentemente em Timeline, `eventos_json`, `request_ids_json`, ledger e ACK, sem falso `published`.
+- [x] Sessão CSMR real de 11/08/2026 auditada: `wilson_left_home` falhou antes de `open`; monitoramento não chegou a `active`; retorno apenas cancelou a reserva; os outros três eventos não ocorreram e não serão retropublicados.
+- [x] Decisão temporal concluída: a Timeline atual não suporta `occurred_at` nem ordenação histórica; o request real de `wilson_left_home` não será reapresentado. Evolução temporal permanece futura e não bloqueante.
+
+A sequência operacional e os bloqueios detalhados permanecem consolidados na seção V20.2E de `docs/pendencias_atuais_central_operacional.md`.
+
+I4B.2 permanece exclusivamente como evidência operacional futura e não bloqueante. O catálogo de contratos, mapa arquitetural, auditoria estática e próximas evoluções elegíveis estão consolidados em `docs/v20_2c/baseline_v20_2d.md`.
+
+## Gates especificos - V20.1Q Recovery 4G
+
+### Gate documental
+
+- Auditoria, despacho arquitetural e Implementation Plan presentes e referenciados.
+- Classificacao e subordinacao documental declaradas.
+- Lacunas de cooldown e timeout numericos registradas sem inferencia.
+
+### Gate pre-implementacao
+
+- Nova Etapa A executada sobre `develop` sincronizada.
+- Helpers equivalentes, consumidores, tomada, blueprint e automacao confirmados.
+- Lista exata de arquivos apresentada antes de alteracao funcional.
+- Persistencia, idempotencia, restart seguro, cancelamento e rollback definidos.
+- Fronteira V20.1Q.1/V20.1Q.2 preservada.
+
+### Gate pre-teste fisico
+
+- YAML e configuracao Home Assistant validados.
+- Tomada correta e caminho de religamento confirmados.
+- Ausencia de detector proprio, ping ou interpretacao de bytes no Executor confirmada.
+- Rollback preparado.
+- Autorizacao operacional explicita do usuario registrada antes de qualquer power cycle.
+
+### Gate de homologacao
+
+- Cenarios de recovery desabilitado, tentativas 1 e 2, cooldown, timeout, concorrencia, restart e erro executados.
+- Nenhuma tentativa além do snapshot configurado observada.
+- Central confirmada como unica decisora e validadora.
+- Timeline, Push, aliases finais, `sensor.status_casa` e V20.1O preservados.
+
+### Gate de encerramento
+
+- Evidencias e pendencias registradas.
+- Changelog/checkpoint e Roadmap atualizados.
+- Legado preservado ou tratado somente por fase propria.
+- Nenhuma edicao manual de `.storage`.
+
+## Decisões de governança — Canal SmallTV (2026-08-22)
+
+Registradas no fechamento documental do baseline operacional do canal SmallTV (`packages/smalltv_publicacao_v20.yaml`), sem nenhuma alteração funcional associada a este registro:
+
+- **A.** O CSMR não é bloqueador global para evoluções arquiteturalmente isoladas. Uma frente nova pode prosseguir independentemente do estado de homologação do CSMR quando comprovadamente não depende dele.
+- **B.** Uma frente somente deve ser bloqueada pelo CSMR quando tocar diretamente sua FSM, seu contrato, suas transições, ou quando seu comportamento funcional depender dele para operar corretamente. Observar passivamente um evento já publicado pelo CSMR (sem escrever de volta, sem consultar seu estado interno) não configura esse tipo de dependência.
+- **C.** O canal SmallTV permanece desacoplado do CSMR — confirmado por auditoria de código: nenhuma leitura de estado do CSMR, nenhuma escrita, nenhuma dependência de FSM/checkpoint/reconciliador.
+- **D.** A migração futura do gatilho do consumidor SmallTV do evento interno do contrato canônico (`casa_timeline_publicar_canonico_v20`) para o evento ACK (`casa_timeline_contrato_ack_v20`) permanece como **backlog técnico**, não como requisito da implementação atual — a implementação atual já opera de forma segura e isolada sem essa migração.
+- **E.** "Internet degradada" permanece fora da whitelist do canal SmallTV até que haja observação de produção e decisão específica — não é um bloqueio permanente, apenas uma etapa ainda não autorizada.
+- **F.** `sensor.casa_wan_evento_dominante_v20` passou a ter, pela primeira vez, um consumidor real em produção através do canal SmallTV. Recomenda-se observação desse sensor antes de autorizar novas expansões que dependam dele.
+- **G.** A discordância conhecida entre a camada legada de Internet (`sensor.internet_estado_operacional`, sem amortecimento) e a camada V20 consolidada (`sensor.casa_wan_evento_dominante_v20`, amortecida) é registrada como pendência independente do canal SmallTV — não bloqueia esta frente e não foi tratada neste ou em nenhum Gate anterior do canal SmallTV.
+
+## SmallTV — Baseline Operacional
+
+**Status:** EM PRODUÇÃO / HOMOLOGADA NO ESCOPO ATUAL.
+
+Source/event_code/estados reais autorizados (nomes exatamente como existem no código, sem nomes conceituais):
+
+| Fonte real | Identidade real | Cobertura |
+|---|---|---|
+| `casa_timeline_publicar_canonico_v20` (evento), `source: lavadora` | `event_code`: `washing_started`, `washing_finished` | Início e término de lavagem |
+| `sensor.casa_porta_sala_estado_v20` (estado) | `aberta` | Somente abertura |
+| `casa_recovery_4g_central` (evento) | `fato`: `recuperacao_validada`, `tentativas_esgotadas`, `ciclo_encerrado_sem_validacao` | Somente sucesso/falha final |
+| `sensor.casa_chuva_estado_v20` (estado) | `ativa`, `inativa` (com `for: 2min` local ao consumidor) | Início e fim de chuva |
+| `sensor.casa_wan_evento_dominante_v20` (estado) | `internet_indisponivel`, `failover_4g`, `sem_evento` (somente vindo de estado de problema) | Indisponibilidade, failover e restauração |
+
+Explicitamente fora: `carro_presenca` (`car_use_started`/`car_use_ended`), qualquer `event_code` de `csmr_v20_2c`, `internet_degradada`, estados técnicos/intermediários de qualquer domínio, e qualquer evento não listado acima.
+
+## Heartbeat HA → Timeline → SmallTV (Gate de implementação, 2026-09-02)
+
+Implementado no working tree (não commitado): novo produtor `ha_uptime` no contrato canônico, a partir da automação já existente derivada do Blueprint `wmoura/Uptime_HA_Hostv2.yaml` ("Notificações HA - Uptime HA + Host (Intervalo Configurável) v2"). Decisão de Discovery preservada: **manter o Blueprint**, sem migração para package.
+
+- **Produtor novo:** `source: ha_uptime`, `event_code: heartbeat`, mensagem fixa `"🟢 HA ativo"` (preferida a "HA operacional" — o heartbeat comprova que a cadeia automação → sensores de uptime → contrato canônico executou, não a saúde integral de todos os subsistemas).
+- **Origem única da execução:** a mesma automação/trigger/condição (`time_pattern minutes:"0"` + `now().hour % intervalo_horas == 0`) que já envia a notificação Watch/iPhone. `intervalo_horas` continua sendo o único parâmetro de periodicidade (input do Blueprint, sem hardcode e sem segundo helper concorrente) — isso elimina por construção qualquer risco de dessincronia entre os dois canais.
+- **Independência dos canais:** a ação de notificação pessoal (canal Watch/iPhone, texto inalterado) é a primeira ação da sequência; a publicação na Timeline (canal operacional) é uma segunda ação independente, via `script.turn_on` fire-and-forget (mesmo padrão de `lavadora_sessao.yaml`/`carro_presenca.yaml`) com `continue_on_error: true` — uma falha na publicação da Timeline nunca impede, atrasa ou reverte a notificação pessoal, que já foi enviada antes.
+- **Identidade transacional:** `request_id` e `session_id` gerados por `md5(context.id ~ ':ha_uptime:heartbeat:<request|session>')`, formatados como UUIDv4-like — mesma convenção já validada em produção por `lavadora_sessao.yaml`/`carro_presenca.yaml`. Cada execução do heartbeat gera identidade nova (nunca reaproveitada), independentemente do texto exibido.
+- **Allowlist sincronizada** (dívida técnica de allowlist triplicada, já registrada no Discovery, mantida — não refatorada neste Gate): `ha_uptime`/`heartbeat`/`"🟢 HA ativo"` adicionado em `packages/contrato_publicacao_timeline_v20.yaml` (validação + `sources_autorizadas`), replicado em `packages/motor_timeline_v20.yaml` (`canonico_eventos_por_source`/`canonico_mensagens`) e em `packages/smalltv_publicacao_v20.yaml` (`whitelist_smalltv_v20`).
+- **Correção da deduplicação por texto (achado do Discovery):** o sensor `Casa Timeline V20` deduplicava por `evento_base == anterior_base` (texto sem o prefixo `HH:MM`), o que faria heartbeats consecutivos idênticos (ex.: 12:00/15:00/18:00 sem nenhum outro evento entre eles) nunca materializarem e o contrato esgotar os 3 retries com ACK `failed`/`publication_timeout_after_retries` — falso negativo, não indicativo de falha real. Corrigido com uma **exceção explicitamente governada, escopada exclusivamente a `source=ha_uptime`/`event_code=heartbeat`**: um novo atributo persistente `ultimo_request_id_heartbeat_v20` guarda o `request_id` do último heartbeat materializado; a supressão por texto só se aplica quando o `request_id` da execução atual é igual a esse valor (ou seja, é um retry da mesma transação) — nunca com base em mensagem ou horário. Para todos os demais `source`/`event_code`, a dedução por texto permanece exatamente como era. Validado localmente via `ha_eval_template` (sem tocar a Timeline real): heartbeats com `request_id` distintos e texto idêntico materializam; um retry com o mesmo `request_id` é suprimido; o comportamento de um evento não-heartbeat repetido (ex.: `lavadora`/`washing_started`) permanece suprimido como antes.
+- **SmallTV como consumidora indireta:** `packages/smalltv_publicacao_v20.yaml` passou a aceitar `source=ha_uptime`/`event_code=heartbeat` na whitelist mínima, usando o mecanismo de deduplicação por `request_id` já existente (protege retries do produtor sem qualquer tratamento especial). O Blueprint não chama `geekmagic.notify` e não conhece a SmallTV; o fluxo permanece `Blueprint uptime → script.casa_publicar_evento_timeline_v20 → contrato → motor Timeline → sensor.casa_timeline_v20 → pipeline SmallTV → GeekMagic`.
+- **Não executado neste Gate:** `test_mode:false`, disparo manual da automação real, push real para Watch/iPhone, chamada real a GeekMagic, reload, restart. Validação de contrato (`test_mode:true` → `validated_test`) e da lógica de deduplicação foram feitas de forma determinística e local via `ha_eval_template`, sem publicar nenhum evento real. Homologação runtime permanece pendente de autorização.
+
+### Carga runtime e homologação real (2026-09-03)
+
+Carga controlada executada por reload específico — **`script.reload`**, **`template.reload`** e **`automation.reload`**, todos `success: true`; `homeassistant.check_config` já havia passado antes. **Restart não foi necessário nem executado.** `automation.note_ha_uptime` permaneceu `on` antes e depois, com o mesmo `use_blueprint` e sem overrides. Antes da carga, foi verificado que o próximo disparo elegível (`hora % intervalo_horas == 0`) só ocorreria às 15:00, fora da janela real de carga — risco comunicado e execução autorizada explicitamente pelo operador, inclusive para usar o ciclo natural das 15:00 como primeira homologação funcional (sem disparo manual).
+
+**Duas execuções reais, naturais, sem qualquer disparo manual:**
+
+| Execução | `request_id` | `session_id` | ACK | SmallTV disparada |
+|---|---|---|---|---|
+| 15:00:00 | `dc591f96-7ec7-4314-8dc0-9bc4e209771a` | `39d56655-f50a-46d0-8425-56ecdb7cc521` | `published`, `reason=""` | sim, `15:00:03.197` (mesma cadeia causal do trigger da automação) |
+| 18:00:00 | `ea9bc680-55ba-4179-874b-50484a01ba06` | `291909bf-8e47-453d-8cdb-082acdfec8cb` | `published`, `reason=""` | sim, `18:00:04.662` (evento raw `casa_timeline_publicar_canonico_v20`, ~17ms antes do `ack_at`, coerente com a arquitetura documentada) |
+
+Ambas materializaram `🟢 HA ativo` em `sensor.casa_timeline_v20` (`linha_1`), e `ultimo_request_id_heartbeat_v20` acompanhou corretamente cada uma (`dc591f96...` após as 15:00, `ea9bc680...` após as 18:00). `request_id`/`session_id` distintos em cada execução, confirmando a geração `md5(context.id ~ salt)` funcionando como projetado. Nenhum erro em log para `ha_uptime`, `heartbeat`, `smalltv`, `Uptime_HA_Hostv2`, `timeline_v20` ou `casa_publicar_evento_timeline` em nenhuma das duas janelas.
+
+**Confirmação humana registrada pelo operador:** Watch OK, iPhone OK, Timeline OK, GeekMagic OK.
+
+**Limitação explícita da evidência runtime:** entre as duas execuções reais ocorreram outros eventos genuínos na Timeline (`17:59 🧺 Lavagem iniciada`, entre outros) — ou seja, o cenário real observado **não** foi "dois heartbeats imediatamente consecutivos sem nenhum evento entre eles". A exceção governada de deduplicação (`heartbeat_excecao`) permanece validada apenas por lógica/simulação determinística (`ha_eval_template`, Gate de implementação) — **ainda não foi exercitada por um caso real** em que o texto anterior imediato também fosse `"🟢 HA ativo"`. Nenhum teste artificial foi criado para forçar esse cenário. Fica registrado como validação pendente de observação natural futura, não como bloqueio.
+
+**Dívida técnica residual confirmada como ainda existente:** a allowlist `source`/`event_code`/`message` permanece triplicada em `contrato_publicacao_timeline_v20.yaml`, `motor_timeline_v20.yaml` e `smalltv_publicacao_v20.yaml` — não refatorada neste Gate, por decisão explícita de escopo.

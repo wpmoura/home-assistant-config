@@ -124,12 +124,18 @@ template:
           fallback_fonte: sensor.central_ultima_mensagem
           fallback: Aguardando eventos
           formato_publicacao: HH:MM mensagem
-          linha_1: "{{ state_attr('sensor.casa_timeline_v20', 'linha_1') | default('', true) }}"
-          linha_2: "{{ state_attr('sensor.casa_timeline_v20', 'linha_2') | default('', true) }}"
-          linha_3: "{{ state_attr('sensor.casa_timeline_v20', 'linha_3') | default('', true) }}"
-          linha_4: "{{ state_attr('sensor.casa_timeline_v20', 'linha_4') | default('', true) }}"
-          linha_5: "{{ state_attr('sensor.casa_timeline_v20', 'linha_5') | default('', true) }}"
-          linha_6: "{{ state_attr('sensor.casa_timeline_v20', 'linha_6') | default('', true) }}"
+          limite_eventos: "{{ state_attr('sensor.casa_timeline_v20', 'limite_eventos') | int(3) }}"
+          eventos_json: "{{ state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) }}"
+          linhas_renderizadas: >
+            {% set limite = state_attr('sensor.casa_timeline_v20', 'limite_eventos') | int(3) %}
+            {% set raw = state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) %}
+            {% set eventos = raw | from_json(default=[]) if raw is string else raw %}
+            {{ eventos[:limite] | join('\n') }}
+          linha_1: >
+            {% set limite = state_attr('sensor.casa_timeline_v20', 'limite_eventos') | int(3) %}
+            {% set raw = state_attr('sensor.casa_timeline_v20', 'eventos_json') | default('[]', true) %}
+            {% set eventos = raw | from_json(default=[]) if raw is string else raw %}
+            {{ eventos[:limite] | join('\n') }}
           origem: "{{ state_attr('sensor.central_ultima_mensagem', 'origem') }}"
           prioridade: "{{ state_attr('sensor.central_ultima_mensagem', 'prioridade') }}"
 
@@ -160,12 +166,18 @@ template:
           fallback_fonte: sensor.central_ultima_mensagem
           fallback: Aguardando eventos
           formato_publicacao: HH:MM mensagem
-          linha_1: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_1') | default('', true) }}"
-          linha_2: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_2') | default('', true) }}"
-          linha_3: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_3') | default('', true) }}"
-          linha_4: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_4') | default('', true) }}"
-          linha_5: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_5') | default('', true) }}"
-          linha_6: "{{ state_attr('sensor.casa_event_feed_v20', 'linha_6') | default('', true) }}"
+          limite_eventos: "{{ state_attr('sensor.casa_event_feed_v20', 'limite_eventos') | int(3) }}"
+          eventos_json: "{{ state_attr('sensor.casa_event_feed_v20', 'eventos_json') | default('[]', true) }}"
+          linhas_renderizadas: >
+            {% set limite = state_attr('sensor.casa_event_feed_v20', 'limite_eventos') | int(3) %}
+            {% set raw = state_attr('sensor.casa_event_feed_v20', 'eventos_json') | default('[]', true) %}
+            {% set eventos = raw | from_json(default=[]) if raw is string else raw %}
+            {{ eventos[:limite] | join('\n') }}
+          linha_1: >
+            {% set limite = state_attr('sensor.casa_event_feed_v20', 'limite_eventos') | int(3) %}
+            {% set raw = state_attr('sensor.casa_event_feed_v20', 'eventos_json') | default('[]', true) %}
+            {% set eventos = raw | from_json(default=[]) if raw is string else raw %}
+            {{ eventos[:limite] | join('\n') }}
 
       #########################################################################
       # Contexto, prioridade e score finais

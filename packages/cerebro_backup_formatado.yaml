@@ -1,0 +1,51 @@
+homeassistant:
+  customize: {}
+
+##############################
+# FORMATAR DATAS BACKUP
+##############################
+
+template:
+  - sensor:
+
+      - name: "Backup Último Formatado"
+        state: >
+          {% set ts = states('sensor.backup_last_successful_automatic_backup') %}
+          {% if ts not in ['unknown','unavailable',''] %}
+            {{ as_timestamp(ts) | timestamp_custom('%d/%m %H:%M') }}
+          {% else %}
+            Indisponível
+          {% endif %}
+
+      - name: "Backup Próximo Formatado"
+        state: >
+          {% set ts = states('sensor.backup_next_scheduled_automatic_backup') %}
+          {% if ts not in ['unknown','unavailable',''] %}
+            {{ as_timestamp(ts) | timestamp_custom('%d/%m %H:%M') }}
+          {% else %}
+            Indisponível
+          {% endif %}
+
+##############################
+# PRIORIDADE DINÂMICA
+##############################
+
+      - name: "Casa Prioridade"
+        state: >
+          {% if is_state('binary_sensor.vazamento', 'on') %}
+            critica
+          {% elif is_state('sensor.casa_movimento_ativo', '1') %}
+            ativa
+          {% else %}
+            ociosa
+          {% endif %}
+
+      - name: "Casa Cor"
+        state: >
+          {% if is_state('binary_sensor.vazamento', 'on') %}
+            red
+          {% elif is_state('sensor.casa_movimento_ativo', '1') %}
+            green
+          {% else %}
+            grey
+          {% endif %}

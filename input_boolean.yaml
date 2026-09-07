@@ -1,0 +1,29 @@
+modo_dormir_ativo:
+  name: "Modo Dormir Ativo"
+  icon: mdi:moon-waning-crescent
+
+wilson_dormindo:
+  name: "Wilson Dormindo"
+  icon: mdi:sleep
+
+jacira_dormindo:
+  name: "Jacira Dormindo"
+  icon: mdi:sleep
+
+nao_perturbe_global:
+  name: "Não Perturbe Global"
+  icon: mdi:minus-circle-off
+
+permitir_alertas_criticos:
+  name: "Permitir alertas críticos"
+  icon: mdi:alert-circle-check
+  initial: true
+
+autoarmar_alarme_modo_dormir:
+  name: "Autoarmar alarme no modo dormir"
+  icon: mdi:shield-check
+  initial: true
+
+alarme_ativado_automaticamente:
+  name: "Alarme ativado automaticamente"
+  icon: mdi:shield-home
