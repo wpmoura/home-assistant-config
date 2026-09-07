@@ -22,7 +22,7 @@ O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SO
 | Recovery 4G | SOC | Em andamento | Homologação suspensa por decisão operacional; implementação existente e válida |
 | CSMR — baseline publicada | SOC | Concluído | I4B.2 permanece como evidência operacional natural não bloqueante |
 | Working tree local — alterações posteriores | SOC | Em andamento | 11 itens auditados e protegidos; NO-GO permanece somente para sincronizar `/Volumes/config` até transportar as frentes isoladamente |
-| Reconciliação `main` × feature | SOC | Em fechamento | Branch `integration/reconcile-main-feature-20260905` publicada; falta auditoria final, PR e merge em `main` |
+| Reconciliação `main` × feature | SOC | Concluída | PR #18 mergeado em `main` pelo merge commit `a25c471`; histórias e referências de segurança preservadas |
 | Alarme — segurança e identidade | SOC | Correção concluída | Código rotacionado, segredo externalizado e IDs validados; Alexa e teste integral dos gatilhos permanecem na PEND-016 sem bloquear o PR |
 | Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
 | Heartbeat HA → Timeline → SmallTV | SOC | Concluído | Dívida técnica: allowlist replicada em contrato, motor e SmallTV |
@@ -40,7 +40,7 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 ### Dívidas de governança prioritárias
 
-- Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` reconciliada na branch publicada `integration/reconcile-main-feature-20260905`; `main` continua canônica e somente receberá a reconciliação após PR e merge controlados.
+- Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` encerrada pelo PR #18; `main` permanece canônica no merge commit `a25c471` e as branches anteriores foram preservadas.
 - Onze itens locais de frentes mistas foram auditados e protegidos pelo backup `2026-09-06_pos_correcao_id_alarme`; a sincronização de `/Volumes/config` continua bloqueada pela PEND-001 até o transporte isolado das frentes.
 - A correção de segurança do alarme está no commit remoto `859531c`: código antigo rotacionado, referências em `!secret home_alarm_code` e identidade da automação de desarme validada. Alexa Media, script de anúncio e teste integral dos gatilhos permanecem na PEND-016.
 - Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado e conteúdo detalhado anterior preservado em arquivo histórico superado.
