@@ -29,7 +29,7 @@ Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos aba
 
 | Dívida | Situação | Tratamento |
 | --- | --- | --- |
-| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Em fechamento | Histórias preservadas na branch de integração publicada; `main` permanece canônica e aguarda PR/merge; referências de segurança preservam as pontas anteriores |
+| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Resolvida | PR #18 mergeado em `main` pelo merge commit `a25c471`; histórias, branches e referências de segurança preservadas |
 | Onze itens locais de frentes mistas | Auditada; reconciliação aberta | Backup atualizado em 2026-09-06; NO-GO para sincronizar `/Volumes/config` até transporte isolado das frentes |
 | Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-07 prevalece nos roadmaps; preservar histórico |
 | Handoff do Health Check isolado em `main` | Resolvida | Resumo encerrado preservado em `docs/handoffs/`; conteúdo detalhado marcado como histórico superado |

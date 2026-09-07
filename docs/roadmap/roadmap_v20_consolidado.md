@@ -22,6 +22,7 @@ Iniciativas pequenas e delimitadas pertencem ao roadmap AT em `docs/governance/a
 | Lavadora/FSM | FSM, Harness, contrato, cutover, restart e ciclo físico real homologados sem ressalvas | Destino do watcher pós-cutover |
 | Heartbeat HA → Timeline → SmallTV | PRs funcional e documental mergeados; runtime homologado | Allowlist replicada em três pontos |
 | Gestão do Carro — baseline AT-GC | AT-GC-00 a AT-GC-08 homologada; histórico AT preservado | Domínio transferido ao SOC e ainda possui backlog funcional |
+| Reconciliação `main` × feature | PR #18 mergeado em `main`; histórias Git e referências de segurança preservadas | Sincronização do working tree operacional permanece separada na PEND-001 |
 
 ### Em fechamento
 
@@ -33,7 +34,6 @@ Nenhuma frente identificada neste checkpoint.
 | --- | --- | --- |
 | Recovery 4G | Homologação suspensa por decisão operacional; implementação permanece válida | Retomar somente os cenários pendentes definidos no Gate V20.1Q |
 | Working tree local — alterações posteriores | 11 itens auditados e protegidos; NO-GO para sincronização local | Transportar cada frente isoladamente antes de reconciliar `/Volumes/config`; não executar `pull` sobre o working tree misto |
-| Reconciliação `main` × feature | Branch de integração publicada; `main` ainda inalterada | Auditar o diff remoto, abrir PR e mergear somente mediante Gates próprios |
 | Alarme — resíduos operacionais | Segurança, segredo e identidade corrigidos e validados | Resolver Alexa Media/script e homologar gatilhos automáticos em Gate controlado; não bloqueia o PR de reconciliação |
 | V20.2E — Uso do carro na Timeline | Implementação e correções existentes; núcleo do contrato e ciclo real possuem evidências, mas o Gate ainda registra homologação runtime complementar pendente | Auditar estado local/publicado e executar somente a cobertura residual necessária |
 | V20.2 shadow — motores contextuais | Implementação parcial em paralelo, sem promoção geral para produção | Consolidar quais lotes continuam ativos e quais são apenas experimentais antes de novo avanço |
@@ -53,7 +53,7 @@ Nenhuma frente identificada neste checkpoint.
 
 ### Dívida de governança
 
-- Histórias de `main` e `feature/v20-2c-contextual-automations` reconciliadas na branch publicada `integration/reconcile-main-feature-20260905`; `main` permanece canônica e aguarda PR/merge.
+- Histórias de `main` e `feature/v20-2c-contextual-automations` reconciliadas e mergeadas pelo PR #18; `main` permanece canônica no merge commit `a25c471`.
 - O working tree original possui 11 itens de frentes mistas já classificados e protegidos; permanece bloqueado para sincronização até o transporte isolado de cada frente.
 - Política de handoffs definida; handoff do Health Check incorporado seletivamente em `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`. O saneamento de outros títulos/localizações históricos permanece gradual, sem migração em massa.
 - Status antigos conflitantes precisam de saneamento controlado sem apagar evidências históricas.
