@@ -13,7 +13,7 @@ Ele nao possui autoridade superior a Constituicao, nao substitui automaticamente
 
 `main` é a branch canônica publicada do repositório. Branches de feature e integração são transitórias e somente alteram a fonte canônica depois de revisão e merge controlado em `main`.
 
-A reconciliação da antiga linha `feature/v20-2c-contextual-automations` preservou as duas histórias Git e o conteúdo mais recente do Health Check. Isso não autoriza sincronizar o working tree operacional `/Volumes/config`, que permanece bloqueado até auditoria e reconciliação próprias das nove alterações locais de frentes mistas.
+A reconciliação da antiga linha `feature/v20-2c-contextual-automations` está publicada em `integration/reconcile-main-feature-20260905`, preservando as duas histórias Git e o conteúdo mais recente do Health Check. Ela somente alterará a fonte canônica após PR e merge controlados em `main`. Isso não autoriza sincronizar o working tree operacional `/Volumes/config`: seus 11 itens de frentes mistas já foram auditados e protegidos, mas continuam exigindo transporte e reconciliação próprios.
 
 ## Hierarquia oficial
 

@@ -9,7 +9,7 @@ Registrar debitos tecnicos iniciais a partir do inventario resumido e do gap de 
 
 Este backlog nao autoriza implementacao, limpeza ou remocao. Cada item exige fase propria e gates.
 
-## Checkpoint de consolidação — 2026-09-04
+## Checkpoint de consolidação — 2026-09-07
 
 Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos abaixo não devem ser tratados automaticamente como estado atual sem confronto com os roadmaps SOC e AT.
 
@@ -23,14 +23,15 @@ Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos aba
 | Ordenação e correlação de eventos | Aberta | Preservar baseline atual até desenho e Gate específicos |
 | Cobertura residual do Recovery 4G | Aberta, homologação suspensa | Retomar somente cenários ainda sem evidência, sem repetir testes comprovados |
 | V20.2E — guard, concorrência e matriz completa de push | Aberta | Cobertura runtime complementar antes do encerramento formal |
+| Alexa Media e script histórico de anúncios | Aberta | Recuperar a integração e o serviço `notify.alexa_media` antes de restaurar o script; homologar anúncio real em Gate próprio |
 
 ### Dívidas de governança confirmadas
 
 | Dívida | Situação | Tratamento |
 | --- | --- | --- |
-| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Resolvida | Histórias preservadas por merge controlado; `main` é a branch canônica e referências de segurança preservam as pontas anteriores |
-| Nove alterações locais de frentes mistas não auditadas | Aberta | Backup validado em 2026-09-05; NO-GO para publicação ou sincronização de `/Volumes/config` até classificação e reconciliação arquivo a arquivo |
-| Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-04 prevalece nos roadmaps; preservar histórico |
+| Divergência entre `main` e `feature/v20-2c-contextual-automations` | Em fechamento | Histórias preservadas na branch de integração publicada; `main` permanece canônica e aguarda PR/merge; referências de segurança preservam as pontas anteriores |
+| Onze itens locais de frentes mistas | Auditada; reconciliação aberta | Backup atualizado em 2026-09-06; NO-GO para sincronizar `/Volumes/config` até transporte isolado das frentes |
+| Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-07 prevalece nos roadmaps; preservar histórico |
 | Handoff do Health Check isolado em `main` | Resolvida | Resumo encerrado preservado em `docs/handoffs/`; conteúdo detalhado marcado como histórico superado |
 | Aplicação prática da política P1/P2/P3 | Em observação | Ajustar somente com evidência de excesso ou insuficiência |
 

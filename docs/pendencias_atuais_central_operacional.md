@@ -1,11 +1,11 @@
 # Pendências Atuais - Central Operacional Home Assistant
 
 Data do levantamento original: 2026-05-16
-Última reconciliação: 2026-09-04
+Última reconciliação: 2026-09-07
 
 Este arquivo é a fila canônica de pendências concretas da Central Operacional. Roadmaps declaram situação e prioridade; `docs/technical_debt/backlog_tecnico.md` registra dívidas estruturais; Gates registram critérios e evidências. O conteúdo original de maio permanece abaixo como snapshot histórico não saneado.
 
-## Fila operacional atual — reconciliada em 2026-09-04
+## Fila operacional atual — reconciliada em 2026-09-07
 
 Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVADA`.
 
@@ -13,7 +13,8 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 
 | ID | Frente | Roadmap | Pendência | Tipo | Bloqueante | Classificação | Próxima ação / evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PEND-001 | Working tree local — frentes mistas | SOC | Auditar e reconciliar nove arquivos locais sobre o HEAD `4ef2362`: oito rastreados e um não rastreado | publicação e sincronização | Sim | ABERTA | Usar o backup validado de 2026-09-05; classificar arquivo e trecho por frente, com atenção a Health Check, `automations.yaml` e CSMR; não sincronizar `/Volumes/config` |
+| PEND-001 | Working tree local — frentes mistas | SOC | Reconciliar 11 itens locais sobre o HEAD `4ef2362`: dez rastreados e um não rastreado; auditoria e classificação arquivo/hunk concluídas | sincronização local | Sim para sincronizar `/Volumes/config`; não para o PR da integração | ABERTA | Usar o backup validado `2026-09-06_pos_correcao_id_alarme`; transportar cada frente isoladamente e não executar `pull` sobre o working tree misto |
+| PEND-007 | Divergência entre `main` e a feature | SOC | Concluir por PR/merge a reconciliação já publicada em `integration/reconcile-main-feature-20260905` | publicação | Sim para atualizar a fonte canônica | ABERTA | Auditar o diff remoto final e, mediante Gates próprios, abrir e mergear o PR; `main` continua canônica e inalterada até o merge |
 | PEND-002 | Recovery 4G | SOC | Cancelamento em ciclo ativo, retorno antes do esgotamento e estabilização igual a zero | teste | Sim, para encerramento integral | ABERTA | Retomar somente os cenários sem evidência definidos no Gate V20.1Q |
 | PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
@@ -23,6 +24,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-011 | V20.1B/legado | SOC | Side-effects, consumidores e duplicidades externas ainda não possuem encerramento integral comprovado | auditoria | Sim para decommission | ABERTA | Reutilizar auditorias V20.1C/D/E e investigar somente lacunas reais |
 | PEND-012 | V20.1C/decommission | SOC | Definir e autorizar lotes pequenos de desativação com rollback | decisão | Sim para qualquer remoção | ABERTA | Manter decommission bloqueado até Gate específico; diagnóstico/governança já concluídos |
 | PEND-014 | Dashboards/debug | SOC | Confirmar navegação oficial e ausência de consumo produtivo indevido de sensores experimentais | auditoria | Não comprovado | NÃO COMPROVADA | Auditar estado atual da Lovelace; não usar fotografia de maio como evidência atual |
+| PEND-016 | Alarme/Alexa — resíduos operacionais | SOC | Recuperar a integração `alexa_media` antes de restaurar o script histórico de anúncios; homologar os gatilhos automáticos do alarme em janela controlada | runtime/teste | Não para o PR de reconciliação | ABERTA | Diagnosticar `setup_retry`, confirmar `notify.alexa_media` e entidades Echo disponíveis, restaurar o script compatível em Gate próprio e manter ações físicas sob autorização; limpeza do registro órfão é opcional |
 
 ### Itens antigos resolvidos ou superados
 
@@ -40,7 +42,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-015 — autoridade de `docs/roadmap_central_operacional_semantic_house_v_26.md` | RESOLVIDA | Classificado como visão estratégica conceitual subordinada; não é roadmap canônico nem declara status operacional |
 | PEND-006 — handoff do Health Check | RESOLVIDA | Conteúdo de `main` incorporado seletivamente como `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`; original preservado, artefato auxiliar e nenhuma autorização histórica transportada |
 | PEND-008 — publicação da consolidação documental | RESOLVIDA | PR #16 mergeado em `feature/v20-2c-contextual-automations` pelo merge commit `4a0f63b` |
-| PEND-007 — divergência entre `main` e a feature | RESOLVIDA | Histórias reconciliadas por merge controlado com referências de segurança `safety/pre-reconcile-main-20260905` e `safety/pre-reconcile-feature-20260905`; `main` definida como branch canônica. A sincronização local permanece separada e bloqueada pela PEND-001 |
+| Correção de segurança e identidade do alarme | RESOLVIDA | Código exposto rotacionado; referências migradas para `!secret home_alarm_code`; ID duplicado substituído por `alarme_desativar_automaticamente_ao_acordar_v1`; configuração, reload e coexistência das automações validados. Commit remoto `859531c`; teste integral dos gatilhos permanece em PEND-016 |
 
 ### Regras de manutenção
 

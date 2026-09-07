@@ -1,6 +1,6 @@
 # Roadmap SOC — Sistema Operacional Casa
 
-Data de consolidação: 2026-09-04
+Data de consolidação: 2026-09-07
 Status: ATIVO
 
 ## Objetivo
@@ -32,7 +32,9 @@ Nenhuma frente identificada neste checkpoint.
 | Frente | Condição | Próxima necessidade |
 | --- | --- | --- |
 | Recovery 4G | Homologação suspensa por decisão operacional; implementação permanece válida | Retomar somente os cenários pendentes definidos no Gate V20.1Q |
-| Working tree local — alterações posteriores | NO-GO para publicação ou sincronização | Auditar nove arquivos de frentes mistas preservados em backup local antes de reconciliar `/Volumes/config` |
+| Working tree local — alterações posteriores | 11 itens auditados e protegidos; NO-GO para sincronização local | Transportar cada frente isoladamente antes de reconciliar `/Volumes/config`; não executar `pull` sobre o working tree misto |
+| Reconciliação `main` × feature | Branch de integração publicada; `main` ainda inalterada | Auditar o diff remoto, abrir PR e mergear somente mediante Gates próprios |
+| Alarme — resíduos operacionais | Segurança, segredo e identidade corrigidos e validados | Resolver Alexa Media/script e homologar gatilhos automáticos em Gate controlado; não bloqueia o PR de reconciliação |
 | V20.2E — Uso do carro na Timeline | Implementação e correções existentes; núcleo do contrato e ciclo real possuem evidências, mas o Gate ainda registra homologação runtime complementar pendente | Auditar estado local/publicado e executar somente a cobertura residual necessária |
 | V20.2 shadow — motores contextuais | Implementação parcial em paralelo, sem promoção geral para produção | Consolidar quais lotes continuam ativos e quais são apenas experimentais antes de novo avanço |
 
@@ -47,11 +49,12 @@ Nenhuma frente identificada neste checkpoint.
 - Allowlist de eventos replicada no contrato, motor Timeline e SmallTV.
 - Lógica principal do Health Check no Node-RED não está versionada no Git.
 - Pendências residuais da homologação Recovery 4G permanecem registradas no Gate próprio.
+- Integração `alexa_media` em `setup_retry`, serviço `notify.alexa_media` ausente e entidades Echo indisponíveis; o script histórico compatível não deve ser restaurado antes dessa recuperação.
 
 ### Dívida de governança
 
-- Histórias de `main` e `feature/v20-2c-contextual-automations` reconciliadas; `main` definida como branch canônica.
-- O working tree original possui nove alterações de frentes mistas ainda sem classificação e permanece bloqueado apesar do backup validado.
+- Histórias de `main` e `feature/v20-2c-contextual-automations` reconciliadas na branch publicada `integration/reconcile-main-feature-20260905`; `main` permanece canônica e aguarda PR/merge.
+- O working tree original possui 11 itens de frentes mistas já classificados e protegidos; permanece bloqueado para sincronização até o transporte isolado de cada frente.
 - Política de handoffs definida; handoff do Health Check incorporado seletivamente em `docs/handoffs/HANDOFF_HEALTH_CHECK_ENCERRADO.md`. O saneamento de outros títulos/localizações históricos permanece gradual, sem migração em massa.
 - Status antigos conflitantes precisam de saneamento controlado sem apagar evidências históricas.
 - A política de prompts `P1/P2/P3` está definida; acompanhar sua aplicação prática e ajustar somente quando houver evidência de excesso ou insuficiência.
@@ -69,7 +72,7 @@ Itens estratégicos ainda não aprovados permanecem nas seções de planejamento
 
 ## Estado consolidado histórico de 2026-05-20
 
-Esta tabela preserva o checkpoint original. Quando houver divergência, prevalece o estado operacional auditado de 2026-09-04 acima.
+Esta tabela preserva o checkpoint original. Quando houver divergência, prevalece o estado operacional auditado de 2026-09-07 acima.
 
 | Fase | Estado | Dependencia tecnica |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Roadmap da Central Operacional
 
-Data do checkpoint de consolidação: 2026-09-04
+Data do checkpoint de consolidação: 2026-09-07
 Função: índice executivo dos roadmaps SOC e AT
 
 ## Organização canônica
@@ -14,14 +14,16 @@ A Central Operacional possui dois roadmaps permanentes:
 
 O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SOC` ou `NO-GO`. Prefixos históricos não determinam pertencimento atual.
 
-## Resumo executivo auditado em 2026-09-04
+## Resumo executivo auditado em 2026-09-07
 
 | Frente | Roadmap | Status principal | Condição ou pendência |
 | --- | --- | --- | --- |
 | Health Check | SOC | Concluído | Dívida separada: lógica principal Node-RED fora do Git; integração semântica com Timeline adiada |
 | Recovery 4G | SOC | Em andamento | Homologação suspensa por decisão operacional; implementação existente e válida |
 | CSMR — baseline publicada | SOC | Concluído | I4B.2 permanece como evidência operacional natural não bloqueante |
-| Working tree local — alterações posteriores | SOC | Em andamento | NO-GO para publicação ou sincronização até auditar nove arquivos de frentes mistas protegidos por backup local |
+| Working tree local — alterações posteriores | SOC | Em andamento | 11 itens auditados e protegidos; NO-GO permanece somente para sincronizar `/Volumes/config` até transportar as frentes isoladamente |
+| Reconciliação `main` × feature | SOC | Em fechamento | Branch `integration/reconcile-main-feature-20260905` publicada; falta auditoria final, PR e merge em `main` |
+| Alarme — segurança e identidade | SOC | Correção concluída | Código rotacionado, segredo externalizado e IDs validados; Alexa e teste integral dos gatilhos permanecem na PEND-016 sem bloquear o PR |
 | Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
 | Heartbeat HA → Timeline → SmallTV | SOC | Concluído | Dívida técnica: allowlist replicada em contrato, motor e SmallTV |
 | Gestão do Carro — baseline AT-GC | SOC atual; origem AT | Concluído somente para a baseline AT-GC-00 a AT-GC-08 | Domínio não está integralmente concluído; zonas permanecem pendentes |
@@ -38,8 +40,9 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 ### Dívidas de governança prioritárias
 
-- Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` reconciliada; `main` é a branch canônica publicada.
-- Nove alterações locais de frentes mistas ainda não auditadas no working tree original; backup local validado, sincronização bloqueada pela PEND-001.
+- Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` reconciliada na branch publicada `integration/reconcile-main-feature-20260905`; `main` continua canônica e somente receberá a reconciliação após PR e merge controlados.
+- Onze itens locais de frentes mistas foram auditados e protegidos pelo backup `2026-09-06_pos_correcao_id_alarme`; a sincronização de `/Volumes/config` continua bloqueada pela PEND-001 até o transporte isolado das frentes.
+- A correção de segurança do alarme está no commit remoto `859531c`: código antigo rotacionado, referências em `!secret home_alarm_code` e identidade da automação de desarme validada. Alexa Media, script de anúncio e teste integral dos gatilhos permanecem na PEND-016.
 - Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado e conteúdo detalhado anterior preservado em arquivo histórico superado.
 - Documentos antigos mantêm status superados e precisam ser interpretados por este checkpoint até saneamento controlado.
 - A política de prompts proporcionais foi definida em `docs/governance/gates_v20.md` com níveis `P1`, `P2` e `P3`; sua aplicação deve ser auditada nas próximas atividades antes de qualquer refinamento.
@@ -56,7 +59,7 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 Esses itens permanecem visíveis para planejamento, mas não constituem backlog priorizado nem autorização de implementação.
 
-## Estado histórico anterior ao checkpoint de 2026-09-04
+## Estado histórico anterior ao checkpoint de 2026-09-07
 
 Esta seção é preservada como memória do planejamento acumulado. Quando houver divergência de status, prevalece o resumo executivo auditado acima até o saneamento controlado do conteúdo histórico.
 
