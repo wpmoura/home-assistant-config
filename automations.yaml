@@ -2297,3 +2297,65 @@
       limite_corrente_alta: 3
       tensao_minima: 198
       tensao_maxima: 242
+- id: '1787265479329'
+  alias: MacBook - Dell P3424WE desconectado
+  description: Atualiza o estado quando o MacBook deixa de detectar o monitor Dell
+    P3424WE
+  triggers:
+  - trigger: webhook
+    webhook_id: 9dd72135-8555-415b-8272-234bb1817660
+    allowed_methods:
+    - PUT
+    local_only: true
+  actions:
+  - action: input_boolean.turn_off
+    data: {}
+    target:
+      entity_id: input_boolean.macbook_dell_p3424we_conectado
+  mode: single
+- id: '1787267698401'
+  alias: MacBook - Dell P3424WE conectado
+  description: Atualiza o estado quando o MacBook detecta o monitor Dell P3424WE
+  triggers:
+  - trigger: webhook
+    webhook_id: 0386b4ee-27ba-4c31-a93d-7008ffa70acf
+    allowed_methods:
+    - PUT
+    local_only: true
+  actions:
+  - action: input_boolean.turn_on
+    data: {}
+    target:
+      entity_id: input_boolean.macbook_dell_p3424we_conectado
+  mode: single
+- id: '1787277538882'
+  alias: Time Machine - Controle tomada pela conexão Dell
+  description: Liga a tomada quando o Dell P3424WE é conectado e desliga 10 s após
+    a desconexão
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.macbook_dell_p3424we_conectado
+    to: 'on'
+    id: dell_on
+  - trigger: state
+    entity_id: input_boolean.macbook_dell_p3424we_conectado
+    to: 'off'
+    for: 00:00:10
+    id: dell_off
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: dell_on
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.regua_zigbee_br_l4
+    - conditions:
+      - condition: trigger
+        id: dell_off
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.regua_zigbee_br_l4
+  mode: restart
