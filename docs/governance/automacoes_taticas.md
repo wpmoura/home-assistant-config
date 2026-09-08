@@ -1,6 +1,6 @@
 # Roadmap AT — Automações Táticas
 
-Data de consolidação: 2026-09-04
+Data de consolidação: 2026-09-08
 Status: ATIVO
 Classificação: roadmap canônico da Vertical AT, subordinado à Constituição e ao Source of Truth
 
@@ -52,9 +52,7 @@ Uma AT pode ser concluída quando:
 
 ### Concluído
 
-| ID | Iniciativa | Evidência | Pendência não bloqueante |
-| --- | --- | --- | --- |
-| AT-001 | Controle automático de energia da dock Time Machine pela conexão Dell P3424WE | Ciclo ON/OFF end-to-end homologado | Validar com carga real após instalação da dock/HD |
+Nenhuma iniciativa identificada neste checkpoint.
 
 ### Transferido ao SOC
 
@@ -68,7 +66,9 @@ Nenhuma iniciativa identificada no checkpoint de 2026-09-04.
 
 ### Em andamento
 
-Nenhuma iniciativa identificada no checkpoint de 2026-09-04.
+| ID | Iniciativa | Estado | Próximo Gate |
+| --- | --- | --- | --- |
+| AT-001 | Controle automático de energia da dock Time Machine pela conexão Dell P3424WE | Funcionalidade homologada; publicação bloqueada porque os dois `webhook_id` foram expostos no PR #21. PEND-017 aberta; possível falha do espelhamento legado separada na PEND-018 | Rotação coordenada P3, fechamento do PR #21 sem merge e nova branch limpa com `!secret` |
 
 ### Backlog priorizado
 
@@ -91,8 +91,9 @@ Novas ideias somente entram aqui após o Gate de Enquadramento resultar em `GO A
 
 - MacBook conectado ao Dell P3424WE → webhook local → helper ligado → tomada ligada.
 - MacBook desconectado → helper desligado → atraso de 10 segundos → tomada desligada.
-- Webhooks permanecem `local_only`; seus UUIDs não devem ser documentados.
+- Webhooks permanecem `local_only`, mas seus UUIDs são credenciais e nunca devem ser versionados, documentados ou impressos; usar referências `!secret`.
 - O volume do Time Machine deve ser ejetado no macOS antes da desconexão física.
+- O helper `input_boolean.macbook_dell_p3424we_conectado` permanece gerenciado pela UI; migração para YAML exige Gate próprio para evitar colisão ou mudança de identidade.
 
 ## 8. Regra de manutenção
 

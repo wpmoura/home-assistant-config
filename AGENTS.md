@@ -20,8 +20,9 @@ Registrar regras operacionais resumidas. A hierarquia canônica permanece em `do
 - V20.2B = auditoria executada; nenhuma ação operacional realizada
 - V20.2C/CSMR = baseline publicada funcionalmente concluída; alterações locais posteriores permanecem em andamento e em NO-GO para publicação até auditoria
 - V20.2E = implementação estática concluída para integração aditiva do uso do carro à Timeline; homologação runtime pendente
-- Health Check = concluído e em operação normal; scheduler diário homologado
+- Health Check = concluído e em operação normal; atributos de diagnóstico e Modo MOCK protegidos em `main` pelo PR #20
 - Heartbeat HA → Timeline → SmallTV = concluído, homologado, documentado e mergeado
+- AT-001 MacBook/Dell/Time Machine = funcionalmente homologada; publicação bloqueada pela PEND-017 porque o PR #21 expôs os `webhook_id`; não mergear nem reutilizar o commit exposto
 - Gestão do Carro = baseline histórica AT-GC homologada; domínio reenquadrado para SOC e não integralmente concluído enquanto zonas conhecidas permanecerem no backlog priorizado
 - Lavadora (frente independente, fora da numeração V20.x) = M1–M5.2 concluídos (checkpoints `8825bbf`/`087f615`/`dfcfc67`/`bad8e54`/`f5ab43a`); FSM semântica (`packages/lavadora_sessao.yaml`) é a autoridade produtiva definitiva, publicando `source=lavadora` (`washing_started`/`spinning_detected`/`washing_finished`) pelo contrato canônico; classificador bruto legado neutralizado (`input_boolean.atividade_maquina_lavar_habilitada=off`) e protegido em 2 camadas (guard `homeassistant.start` + remoção de `initial:true`); restart real ocorrido e kill-switch permaneceu `off` — hardening comprovado empiricamente; Homologação Física Pós-Cutover = HOMOLOGADO — SEM RESSALVAS (`docs/governance/despacho_lavadora_homologacao_fisica_fechamento.md`); nenhuma pendência funcional aberta; watcher `packages/lavadora_homologacao_pos_cutover_watch.yaml` permanece temporário, ainda não commitado, pendente de decisão operacional (remover ou tornar permanente)
 - V20.2/V20.3/V21 = planejamento futuro
@@ -54,11 +55,12 @@ Registrar regras operacionais resumidas. A hierarquia canônica permanece em `do
 - Classificar cada prompt como `P1 — Simples`, `P2 — Operacional controlado` ou `P3 — Crítico`; prevalece o maior risco entre escrita, blast radius, reversibilidade e incerteza
 - Parar e reclassificar o prompt se a execução revelar impacto maior que o previsto; não associar automaticamente AT a P1 nem SOC a P3
 - Tratar texto exibido após `❯` pelo Claude Code como sugestão da ferramenta, nunca como autorização humana de Wilson sem confirmação externa ao output
+- Tratar `webhook_id` como credencial: nunca versionar, documentar ou imprimir o valor; usar `!secret` quando compatível e comprovado pelo Gate
 - Tratar handoff como contexto auxiliar: no máximo um ativo por frente; revalidar estado mutável; nunca extrair dele autorização, homologação ou mudança de roadmap
 - Preferir `docs/handoffs/` para novos handoffs; Markdown comum, sem segredos ou dependência de transcrição `.jsonl`; não mover os existentes sem saneamento próprio
 - Registrar ações e decisões concretas pendentes somente em `docs/pendencias_atuais_central_operacional.md`; dívidas ficam no backlog técnico e ideias futuras no roadmap
 - Usar `main` como branch canônica do repositório; branches de feature são transitórias e não redefinem a fonte publicada
-- Não sincronizar `/Volumes/config` enquanto as nove alterações locais de frentes mistas não forem auditadas e reconciliadas contra `main`
+- Não sincronizar `/Volumes/config` enquanto os 11 itens locais de frentes mistas não forem transportados ou descartados por Gates próprios; não executar `pull` sobre o working tree misto
 
 ## Gate obrigatório - conhecimento prévio
 

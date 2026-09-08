@@ -1,11 +1,11 @@
 # Pendências Atuais - Central Operacional Home Assistant
 
 Data do levantamento original: 2026-05-16
-Última reconciliação: 2026-09-07
+Última reconciliação: 2026-09-08
 
 Este arquivo é a fila canônica de pendências concretas da Central Operacional. Roadmaps declaram situação e prioridade; `docs/technical_debt/backlog_tecnico.md` registra dívidas estruturais; Gates registram critérios e evidências. O conteúdo original de maio permanece abaixo como snapshot histórico não saneado.
 
-## Fila operacional atual — reconciliada em 2026-09-07
+## Fila operacional atual — reconciliada em 2026-09-08
 
 Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVADA`.
 
@@ -13,7 +13,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 
 | ID | Frente | Roadmap | Pendência | Tipo | Bloqueante | Classificação | Próxima ação / evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PEND-001 | Working tree local — frentes mistas | SOC | Reconciliar 11 itens locais sobre o HEAD `4ef2362`: dez rastreados e um não rastreado; auditoria e classificação arquivo/hunk concluídas | sincronização local | Sim para sincronizar `/Volumes/config`; não para o PR da integração | ABERTA | Usar o backup validado `2026-09-06_pos_correcao_id_alarme`; transportar cada frente isoladamente e não executar `pull` sobre o working tree misto |
+| PEND-001 | Working tree local — frentes mistas | SOC | Reconciliar 11 itens locais sobre o HEAD `4ef2362`: Health Check transportado pelo PR #20; MacBook/Dell extraído, mas bloqueado pela PEND-017; CSMR/V20.2C e descartes locais ainda pendentes | sincronização local | Sim para sincronizar `/Volumes/config` | ABERTA | Preservar o backup `2026-09-06_pos_correcao_id_alarme`; concluir PEND-017 e transporte CSMR antes de qualquer descarte ou realinhamento; não executar `pull` sobre o working tree misto |
 | PEND-002 | Recovery 4G | SOC | Cancelamento em ciclo ativo, retorno antes do esgotamento e estabilização igual a zero | teste | Sim, para encerramento integral | ABERTA | Retomar somente os cenários sem evidência definidos no Gate V20.1Q |
 | PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
@@ -24,6 +24,8 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-012 | V20.1C/decommission | SOC | Definir e autorizar lotes pequenos de desativação com rollback | decisão | Sim para qualquer remoção | ABERTA | Manter decommission bloqueado até Gate específico; diagnóstico/governança já concluídos |
 | PEND-014 | Dashboards/debug | SOC | Confirmar navegação oficial e ausência de consumo produtivo indevido de sensores experimentais | auditoria | Não comprovado | NÃO COMPROVADA | Auditar estado atual da Lovelace; não usar fotografia de maio como evidência atual |
 | PEND-016 | Alarme/Alexa — resíduos operacionais | SOC | Recuperar a integração `alexa_media` antes de restaurar o script histórico de anúncios; homologar os gatilhos automáticos do alarme em janela controlada | runtime/teste | Não para o PR de reconciliação | ABERTA | Diagnosticar `setup_retry`, confirmar `notify.alexa_media` e entidades Echo disponíveis, restaurar o script compatível em Gate próprio e manter ações físicas sob autorização; limpeza do registro órfão é opcional |
+| PEND-017 | AT-001 MacBook/Dell — rotação de webhooks | AT | Dois `webhook_id` foram publicados literalmente na branch e no PR #21; os valores devem ser considerados comprometidos | segurança/runtime | Sim para qualquer merge/publicação das três automações | ABERTA | Não mergear o PR #21 nem reutilizar o commit `fdbda1d`; executar Gate P3 de backup e rotação coordenada, fechar o PR sem merge e criar branch limpa com referências `!secret` |
+| PEND-018 | AT-001 — espelhamento do estado do HD Backup | AT | `input_boolean.hd_backup` foi observado divergente do switch e existe erro preexistente em uma automação legada de espelhamento | auditoria | Não para a rotação dos webhooks; não comprovado para consumidores do helper | NÃO COMPROVADA | Auditar a automação legada, consumidores e impacto; corrigir somente em Gate próprio, sem misturar com a PEND-017 |
 
 ### Itens antigos resolvidos ou superados
 

@@ -1,6 +1,6 @@
 # Roadmap da Central Operacional
 
-Data do checkpoint de consolidação: 2026-09-07
+Data do checkpoint de consolidação: 2026-09-08
 Função: índice executivo dos roadmaps SOC e AT
 
 ## Organização canônica
@@ -21,7 +21,7 @@ O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SO
 | Health Check | SOC | Concluído | Dívida separada: lógica principal Node-RED fora do Git; integração semântica com Timeline adiada |
 | Recovery 4G | SOC | Em andamento | Homologação suspensa por decisão operacional; implementação existente e válida |
 | CSMR — baseline publicada | SOC | Concluído | I4B.2 permanece como evidência operacional natural não bloqueante |
-| Working tree local — alterações posteriores | SOC | Em andamento | 11 itens auditados e protegidos; NO-GO permanece somente para sincronizar `/Volumes/config` até transportar as frentes isoladamente |
+| Working tree local — alterações posteriores | SOC | Em andamento | Health Check transportado pelo PR #20; AT-001 bloqueada pela rotação dos webhooks; CSMR e descartes locais ainda pendentes na PEND-001 |
 | Reconciliação `main` × feature | SOC | Concluída | PR #18 mergeado em `main` pelo merge commit `a25c471`; histórias e referências de segurança preservadas |
 | Alarme — segurança e identidade | SOC | Correção concluída | Código rotacionado, segredo externalizado e IDs validados; Alexa e teste integral dos gatilhos permanecem na PEND-016 sem bloquear o PR |
 | Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
@@ -30,7 +30,7 @@ O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SO
 | Entrada/saída em zonas conhecidas | SOC | Backlog priorizado | Não iniciada; inclui Casa da Fernanda, Casa da Camila e demais zonas cadastradas |
 | V20.2E — Uso do carro na Timeline | SOC | Em andamento | Núcleo funcional recuperado e evidenciado; homologação runtime complementar e estado local/publicação ainda precisam de consolidação |
 | V20.2 shadow — motores contextuais | SOC | Em andamento | Implementação parcial em paralelo; promoção produtiva não autorizada como conjunto |
-| AT-001 Dell/Time Machine | AT | Concluído | Validação com carga real permanece não bloqueante |
+| AT-001 Dell/Time Machine | AT | Em correção de segurança | Funcionalidade homologada, mas PR #21 está em NO-GO; rotacionar webhooks pela PEND-017 e auditar espelhamento legado pela PEND-018 |
 
 ### Nota sobre Gestão do Carro
 
@@ -42,6 +42,7 @@ A zona Casa continua sob responsabilidade do CSMR para evitar duplicidade semân
 
 - Divergência estrutural entre `main` e `feature/v20-2c-contextual-automations` encerrada pelo PR #18; `main` permanece canônica no merge commit `a25c471` e as branches anteriores foram preservadas.
 - Onze itens locais de frentes mistas foram auditados e protegidos pelo backup `2026-09-06_pos_correcao_id_alarme`; a sincronização de `/Volumes/config` continua bloqueada pela PEND-001 até o transporte isolado das frentes.
+- O PR #20 protegeu em `main` os atributos de diagnóstico e o Modo MOCK do Health Check. O PR #21 não pode ser mergeado porque seu commit publicou credenciais de webhook; a PEND-017 exige rotação e nova branch sem ancestralidade do commit exposto.
 - A correção de segurança do alarme está no commit remoto `859531c`: código antigo rotacionado, referências em `!secret home_alarm_code` e identidade da automação de desarme validada. Alexa Media, script de anúncio e teste integral dos gatilhos permanecem na PEND-016.
 - Política de handoffs definida: artefatos auxiliares, no máximo um ativo por frente, sem autoridade de decisão ou autorização; handoff do Health Check incorporado seletivamente como artefato encerrado e conteúdo detalhado anterior preservado em arquivo histórico superado.
 - Documentos antigos mantêm status superados e precisam ser interpretados por este checkpoint até saneamento controlado.

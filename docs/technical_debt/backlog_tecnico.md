@@ -9,7 +9,7 @@ Registrar debitos tecnicos iniciais a partir do inventario resumido e do gap de 
 
 Este backlog nao autoriza implementacao, limpeza ou remocao. Cada item exige fase propria e gates.
 
-## Checkpoint de consolidação — 2026-09-07
+## Checkpoint de consolidação — 2026-09-08
 
 Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos abaixo não devem ser tratados automaticamente como estado atual sem confronto com os roadmaps SOC e AT.
 
@@ -24,14 +24,17 @@ Este checkpoint complementa a lista histórica de 2026-05-20. Status antigos aba
 | Cobertura residual do Recovery 4G | Aberta, homologação suspensa | Retomar somente cenários ainda sem evidência, sem repetir testes comprovados |
 | V20.2E — guard, concorrência e matriz completa de push | Aberta | Cobertura runtime complementar antes do encerramento formal |
 | Alexa Media e script histórico de anúncios | Aberta | Recuperar a integração e o serviço `notify.alexa_media` antes de restaurar o script; homologar anúncio real em Gate próprio |
+| Helper de conexão MacBook/Dell criado somente pela UI | Aberta | Manter a entidade atual durante a PEND-017; avaliar migração UI → YAML em Gate próprio, sem presumir preservação automática de identidade |
+| Espelhamento legado de `switch.regua_zigbee_br_l4` em `input_boolean.hd_backup` | Não comprovada | PEND-018 deve auditar erro preexistente, consumidores e impacto antes de qualquer correção |
 
 ### Dívidas de governança confirmadas
 
 | Dívida | Situação | Tratamento |
 | --- | --- | --- |
 | Divergência entre `main` e `feature/v20-2c-contextual-automations` | Resolvida | PR #18 mergeado em `main` pelo merge commit `a25c471`; histórias, branches e referências de segurança preservadas |
-| Onze itens locais de frentes mistas | Auditada; reconciliação aberta | Backup atualizado em 2026-09-06; NO-GO para sincronizar `/Volumes/config` até transporte isolado das frentes |
-| Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-07 prevalece nos roadmaps; preservar histórico |
+| Onze itens locais de frentes mistas | Auditada; reconciliação aberta | Health Check transportado pelo PR #20; AT-001 bloqueada pela PEND-017; CSMR e descartes ainda impedem sincronizar `/Volumes/config` |
+| Exposição de credenciais de webhook no PR #21 | Incidente aberto | PEND-017: não mergear o PR nem reutilizar `fdbda1d`; rotacionar e reconstruir a mudança em branch limpa |
+| Status antigos conflitantes | Em saneamento | Checkpoint de 2026-09-08 prevalece nos roadmaps; preservar histórico |
 | Handoff do Health Check isolado em `main` | Resolvida | Resumo encerrado preservado em `docs/handoffs/`; conteúdo detalhado marcado como histórico superado |
 | Aplicação prática da política P1/P2/P3 | Em observação | Ajustar somente com evidência de excesso ou insuficiência |
 
