@@ -350,6 +350,44 @@ template:
             {% else %}
               {{ this.attributes.request_id_ultima_chamada | default(none) }}
             {% endif %}
+          # GATE billing/credit diagnostics: classificacao de erros REAIS da
+          # API Anthropic (Node-RED, gate53b_fn_finalize). Preserva sempre o
+          # status HTTP e o corpo de erro originais retornados pela Anthropic
+          # -- a categoria/diagnostico sao apenas um rotulo operacional em
+          # cima do dado real, nunca o substituem. Ficam null em qualquer
+          # execucao que nao seja uma falha de comunicacao real com a
+          # Anthropic (MOCK, sucesso, ou falha de pipeline como
+          # credencial_ausente/schema_nao_corresponde).
+          erro_status_http: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.erro_status_http | default(none) }}
+            {% else %}
+              {{ this.attributes.erro_status_http | default(none) }}
+            {% endif %}
+          erro_tipo: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.erro_tipo | default(none) }}
+            {% else %}
+              {{ this.attributes.erro_tipo | default(none) }}
+            {% endif %}
+          erro_mensagem: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.erro_mensagem | default(none) }}
+            {% else %}
+              {{ this.attributes.erro_mensagem | default(none) }}
+            {% endif %}
+          erro_categoria: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.erro_categoria | default(none) }}
+            {% else %}
+              {{ this.attributes.erro_categoria | default(none) }}
+            {% endif %}
+          erro_diagnostico: >-
+            {% if estado_valido and evt.estado in ['success', 'failed'] %}
+              {{ evt.erro_diagnostico | default(none) }}
+            {% else %}
+              {{ this.attributes.erro_diagnostico | default(none) }}
+            {% endif %}
           # GATE 5.3D — checkpoint do scheduler (ver nota no topo do arquivo).
           # Atualizado SOMENTE por health_check_scheduled_checkpoint; nunca
           # tocado por nenhum outro tipo de evento.
@@ -495,6 +533,27 @@ input_boolean:
   gate53b1_teste_disparo_ha:
     name: "Gate 5.3B.1 - Teste - Disparo HA -> Node-RED (NAO E O BOTAO FINAL)"
     icon: mdi:test-tube
+
+  ###############################################################################
+  # GATE — Entrada em operação: toggle administrativo de Modo MOCK
+  #
+  # Controle único que decide, para AMBOS os caminhos de disparo (botão manual
+  # e scheduler automático — mesmo executor, mesmo ponto de convergência em
+  # Node-RED), se a execução usa MOCK (simulado, sem custo, sem chamada à
+  # Anthropic) ou REAL (chama a Anthropic com o modelo selecionado em
+  # input_select.saude_sistema_health_check_modelo_analitico).
+  #
+  # OFF (padrão) = operação REAL.
+  # ON = MOCK — uso exclusivamente administrativo/teste/manutenção.
+  #
+  # Node-RED lê este helper em um único nó (api-current-state) posicionado no
+  # ponto de convergência antes do lock (gate53b_fn_lock_check) — não duplica
+  # executor, não cria pipeline paralelo.
+  ###############################################################################
+  saude_sistema_health_check_modo_mock:
+    name: "Saúde do Sistema - Health Check - Modo MOCK"
+    icon: mdi:test-tube
+    initial: false
 
 ###############################################################################
 # GATE 5.3C — Execução manual controlada do Health Check
