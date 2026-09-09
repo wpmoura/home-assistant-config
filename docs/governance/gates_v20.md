@@ -580,3 +580,36 @@ Ambas materializaram `🟢 HA ativo` em `sensor.casa_timeline_v20` (`linha_1`), 
 **Limitação explícita da evidência runtime:** entre as duas execuções reais ocorreram outros eventos genuínos na Timeline (`17:59 🧺 Lavagem iniciada`, entre outros) — ou seja, o cenário real observado **não** foi "dois heartbeats imediatamente consecutivos sem nenhum evento entre eles". A exceção governada de deduplicação (`heartbeat_excecao`) permanece validada apenas por lógica/simulação determinística (`ha_eval_template`, Gate de implementação) — **ainda não foi exercitada por um caso real** em que o texto anterior imediato também fosse `"🟢 HA ativo"`. Nenhum teste artificial foi criado para forçar esse cenário. Fica registrado como validação pendente de observação natural futura, não como bloqueio.
 
 **Dívida técnica residual confirmada como ainda existente:** a allowlist `source`/`event_code`/`message` permanece triplicada em `contrato_publicacao_timeline_v20.yaml`, `motor_timeline_v20.yaml` e `smalltv_publicacao_v20.yaml` — não refatorada neste Gate, por decisão explícita de escopo.
+
+## Gate P3 — PEND-017 — Rotação e fechamento dos webhooks MacBook/Dell (2026-09-08/09)
+
+Frente independente, fora da numeração V20.x — integração
+MacBook → Dell P3424WE → Home Assistant → Time Machine. Detalhe completo em
+`docs/governance/despacho_pend017_webhooks_macbook_dell_fechamento.md`.
+
+Sequência: pré-voo read-only → execução da rotação (backup dedicado fora do
+repositório, dois novos `webhook_id` gerados e armazenados somente em
+`secrets.yaml` + macOS Keychain, `automations.yaml` migrado para
+`webhook_id: !secret`) → `homeassistant.check_config` PASS →
+`automation.reload` PASS → homologação física real (transição OFF e ON reais
+por conexão/desconexão do monitor, cadeia completa script→webhook→helper→
+automação Time Machine→tomada confirmada por `context.parent_id`) → teste
+negativo dos dois `webhook_id` antigos (inertes, confirmado por
+`last_triggered`/estado inalterados, não pelo HTTP 200 genérico do endpoint)
+→ PR #21 fechado sem merge → branch `feature/macbook-dell-timemachine-clean`
+criada a partir do `main` remoto vigente, com prova formal de que o commit
+exposto do PR #21 não é ancestral, transporte seletivo apenas das 3
+automações (sem cherry-pick, sem literais) e commit local único.
+
+Em nenhuma etapa um `webhook_id`, URL de webhook, valor de `secrets.yaml` ou
+do Keychain foi impresso. Restart do Home Assistant nunca foi necessário.
+Estado físico final restaurado organicamente (Dell conectado, helper `on`,
+tomada `on`).
+
+Branch `feature/macbook-dell-timemachine-clean` publicada em `origin` e
+mergeada em `main` via PR #22 (squash), merge commit
+`248ec78bc1ad05f414c7f5e330d87a64bc6ad529` — único arquivo incorporado,
+`automations.yaml`. PR #21 permaneceu `CLOSED`/`mergedAt: null`, inalterado.
+
+PEND-017 = encerrada — homologada tecnicamente e publicada em `main`. Nenhuma
+pendência remanescente.
