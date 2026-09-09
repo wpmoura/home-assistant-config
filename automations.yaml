@@ -1032,13 +1032,14 @@
     metadata: {}
     data:
       message: "\U0001F6E1️Alarme foi ativado no modo casa! "
-  - action: script.1743352611708
+  - action: notify.alexa_media
     metadata: {}
     data:
-      onde_anunciar:
-      - media_player.echo_show_de_wilson_2
-      volume: 0.5
-      mensagem: Alarme ligado modo Casa
+      message: Alarme ligado modo Casa
+      title: Aviso
+      target: media_player.echo_show_de_wilson_2
+      data:
+        type: tts
   mode: single
 - id: '1741347761801'
   alias: LAB - Alarme - Desarmado
@@ -1130,15 +1131,6 @@
     metadata: {}
     data:
       message: "\U0001F6A8Alarme disparado! Verifique sua casa !"
-  - action: notify.alexa_media
-    metadata: {}
-    data:
-      message: <audio src='http://192.168.50.237:8123/local/efeitos sonoros/alarme.mp3'/>
-      title: Aviso
-      target: media_player.echo_show_de_wilson_2
-      data:
-        type: tts
-    enabled: false
   mode: single
 - id: '1741641419440'
   alias: Quarto - Hora de dormir 0:45

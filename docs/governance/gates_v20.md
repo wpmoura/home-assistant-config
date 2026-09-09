@@ -613,3 +613,32 @@ mergeada em `main` via PR #22 (squash), merge commit
 
 PEND-017 = encerrada — homologada tecnicamente e publicada em `main`. Nenhuma
 pendência remanescente.
+
+## Gate P2/P3 — PEND-016 — Alarme / Alexa (2026-09-09)
+
+Frente independente, fora da numeração V20.x — caminho produtivo do alarme
+(`alarm_control_panel.home_alarm`) que anuncia por voz via Alexa Media
+Player ao armar em modo casa. Detalhe completo em
+`docs/governance/despacho_pend016_alarme_alexa_fechamento.md`.
+
+Sequência: auditoria read-only identificou defeito real (script órfão
+referenciado por `automation.alarme_modo_casa`, ação TTS desabilitada e
+redundante em `automation.alarme_alarme_disparado_2_2`, e bloqueio externo
+da integração `alexa_media` em `setup_retry`) → correção mínima em
+`automations.yaml` (substituição do script ausente por `notify.alexa_media`
+direto; remoção da ação TTS redundante) → `check_config` e
+`automation.reload` (somente automações) PASS → bloqueio externo resolvido
+por atualização do Alexa Media Player (5.7.0 → 5.15.7, com restart do HA,
+evidência humana) → homologação física real autorizada: ciclo único
+armar→anúncio→desarmar pelo caminho produtivo normal, com **confirmação
+auditiva humana de Wilson** da mensagem "Alarme ligado modo Casa" e retorno
+estável ao estado `disarmed`.
+
+Nenhuma porta/janela aberta deliberadamente, nenhuma sirene, nenhum
+disparo, nenhuma credencial da conta Amazon manuseada ou exposta em
+nenhum momento.
+
+PEND-016 = encerrada — corrigida e homologada. Correção permanece não
+commitada, junto com o restante do working tree misto desta frente de
+trabalho; publicação em histórico limpo é item separado, não autorizado
+neste Gate.
