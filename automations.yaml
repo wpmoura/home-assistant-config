@@ -1218,34 +1218,6 @@
     data:
       value: '{{ states(''sensor.nivel_de_agua_do_umidificador'') }}'
   id: e9ad05511b6d44bd81b1feb2ab1bcff1
-- id: '1743452727258'
-  alias: Lab - Liga input_boolean.hd_backup
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - switch.regua_zigbee_br_l4
-    to: 'on'
-  conditions: []
-  actions:
-  - action: input_boolean.turn_on
-    data: {}
-    target:
-      entity_id: input_boolean.hd_backup
-  mode: single
-- id: '1743452975044'
-  alias: Lab - Desligar input_boolean.hd_backup
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - switch.regua_zigbee_br_l4
-    to: 'off'
-  conditions: []
-  actions:
-  - action: input_boolean.turn_off
-    data: {}
-  mode: single
 - id: '1743455128141'
   alias: Lab - Liga input_boolean.impressora
   description: ''
