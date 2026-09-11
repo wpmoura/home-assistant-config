@@ -483,3 +483,43 @@ Status: fase V20.1C encerrada formalmente como diagnóstico e governança.
 ---
 
 > Nota: esta auditoria é documental e identificatória. Nenhuma alteração de YAML de produção foi realizada nesta fase.
+
+---
+
+## Nota de Fechamento — PEND-018 (2026-09-11)
+
+Esta nota complementa, sem apagar ou reescrever, a entrada de Quarentena C1
+acima (`Lab - Liga input_boolean.hd_backup` / `Lab - Desligar
+input_boolean.hd_backup`, linhas referentes a `input_boolean.hd_backup`). A
+classificação original registrada em 2026-05-22 — risco BAIXO, quarentena C1,
+apta a futura desativação — era **válida e correta para o estado observado
+naquele momento**.
+
+PEND-018 foi posteriormente auditada em **2026-09-11** (Gates P1/P2/P2.1),
+com o seguinte resultado:
+
+- O mecanismo legado descrito nesta entrada foi classificado como
+  **D — SUBSTITUÍDO**.
+- `input_boolean.hd_backup` deixou de existir (removido do
+  `entity_registry`; confirmado ausente em toda a configuração YAML e no
+  estado live do Home Assistant).
+- As duas automações associadas, `Lab - Liga input_boolean.hd_backup` e
+  `Lab - Desligar input_boolean.hd_backup`, foram removidas; as entradas
+  órfãs remanescentes no `entity_registry` (`automation.lab_liga_input_boolean_impressora`
+  e `automation.lab_desligar_input_boolean_impressora` — nomes herdados do
+  registro original, não confundir com as automações reais e ativas
+  `Lab - Liga/Desliga input_boolean.impressora`) foram removidas na
+  higienização do Gate P2.
+- A entidade física `switch.regua_zigbee_br_l4` passou a representar
+  **"Discos Time Machine"** (nome corrigido no `entity_registry` e no
+  comentário de `emulated_hue.yaml`), refletindo seu uso real e atual.
+- O controle vigente dessa tomada é o mecanismo
+  `MacBook ↔ Dell P3424WE ↔ Discos Time Machine` (webhooks de
+  conexão/desconexão do monitor Dell → `input_boolean.macbook_dell_p3424we_conectado`
+  → automação `Time Machine - Controle tomada pela conexão Dell`), já
+  consolidado em `main` via PEND-017.
+- Não existe mais qualquer vínculo funcional entre a tomada física e o
+  antigo mecanismo "HD Backup".
+
+Detalhes completos da reconstrução, evidências e critérios de classificação
+estão em `docs/governance/despacho_pend018_hd_backup_timemachine_fechamento.md`.
