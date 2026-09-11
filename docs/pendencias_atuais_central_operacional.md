@@ -1,11 +1,11 @@
 # Pendências Atuais - Central Operacional Home Assistant
 
 Data do levantamento original: 2026-05-16
-Última reconciliação: 2026-09-07
+Última reconciliação: 2026-09-11
 
 Este arquivo é a fila canônica de pendências concretas da Central Operacional. Roadmaps declaram situação e prioridade; `docs/technical_debt/backlog_tecnico.md` registra dívidas estruturais; Gates registram critérios e evidências. O conteúdo original de maio permanece abaixo como snapshot histórico não saneado.
 
-## Fila operacional atual — reconciliada em 2026-09-07
+## Fila operacional atual — reconciliada em 2026-09-11
 
 Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVADA`.
 
@@ -13,7 +13,6 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 
 | ID | Frente | Roadmap | Pendência | Tipo | Bloqueante | Classificação | Próxima ação / evidência necessária |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| PEND-001 | Working tree local — frentes mistas | SOC | Reconciliar 11 itens locais sobre o HEAD `4ef2362`: dez rastreados e um não rastreado; auditoria e classificação arquivo/hunk concluídas | sincronização local | Sim para sincronizar `/Volumes/config`; não para o PR da integração | ABERTA | Usar o backup validado `2026-09-06_pos_correcao_id_alarme`; transportar cada frente isoladamente e não executar `pull` sobre o working tree misto |
 | PEND-002 | Recovery 4G | SOC | Cancelamento em ciclo ativo, retorno antes do esgotamento e estabilização igual a zero | teste | Sim, para encerramento integral | ABERTA | Retomar somente os cenários sem evidência definidos no Gate V20.1Q |
 | PEND-003 | V20.2E | SOC | Guard, concorrência e matriz completa dos controles de push ainda sem cobertura runtime integral | teste | Sim, para encerramento formal | ABERTA | Auditar estado atual e executar somente cobertura residual autorizada |
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
@@ -43,6 +42,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-008 — publicação da consolidação documental | RESOLVIDA | PR #16 mergeado em `feature/v20-2c-contextual-automations` pelo merge commit `4a0f63b` |
 | PEND-007 — divergência entre `main` e a feature | RESOLVIDA | Histórias reconciliadas e mergeadas em `main` pelo PR #18, merge commit `a25c4713b2f7e1226db77cf90604e3d5529934cb`; referências de segurança e branches anteriores preservadas. A sincronização local permanece separada e bloqueada pela PEND-001 |
 | Correção de segurança e identidade do alarme | RESOLVIDA | Código exposto rotacionado; referências migradas para `!secret home_alarm_code`; ID duplicado substituído por `alarme_desativar_automaticamente_ao_acordar_v1`; configuração, reload e coexistência das automações validados. Commit remoto `859531c`; teste integral dos gatilhos permanece em PEND-016 |
+| PEND-001 — Working tree local / frentes mistas | RESOLVIDA | Gates P1 (auditoria e classificação arquivo/hunk, PASS) e P2 (reconciliação, PASS) de 2026-09-11: base local de `/Volumes/config` realinhada com `origin/main` (`194562e`) por branch de segurança + commit WIP + `checkout -B` + reaplicação seletiva por cópia exata de arquivo — sem `reset --hard`, `clean` ou `pull` destrutivo. Dez itens que apareciam como alteração local eram apenas efeito do HEAD antigo (`e665417`, com `4ef2362` como ancestral distante) e já estavam publicados em `main`; removidos do diff sem perda de conteúdo, com rollback preservado em `backup/pend-001-head-antigo-20260911-133452` e `backup/pend-001-wip-snapshot-20260911-133452`. Resíduos genuinamente ainda não publicados foram identificados, preservados intactos e transferidos às respectivas frentes: CSMR/V20.2C (`docs/v20_2c/c1_saida_de_casa.md`, `docs/v20_2c/plano_tecnico_csmr.md`, `packages/csmr_dispatcher_integracao_v20_2c.yaml`, `packages/v20_2c_contextual_automations.yaml`, `packages/v20_2c_protect_csmr.yaml`) e o arquivo misto CSMR+SmallTV `docs/ARCHITECTURE.md`. Nenhum desses resíduos reabre a PEND-001; CSMR/H4 permanece estacionado. Encerramento documental em `docs/handoffs/HANDOFF_PEND001_ENCERRADO.md` |
 
 ### Regras de manutenção
 
