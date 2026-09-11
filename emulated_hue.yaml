@@ -9,7 +9,7 @@ entities:
     hidden: false
   switch.regua_zigbee_br_l3: # Monitor AOC
     hidden: false
-  switch.regua_zigbee_br_l4: # HD Backup
+  switch.regua_zigbee_br_l4: # Discos Time Machine
     hidden: false
   switch.regua_zigbee_br_l5: # Tomada USB
     hidden: false
