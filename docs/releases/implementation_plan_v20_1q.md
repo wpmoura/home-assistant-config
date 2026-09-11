@@ -1,7 +1,7 @@
 # Implementation Plan V20.1Q — Recovery Automático do Modem 4G
 
 Data: 2026-07-13
-Status: HOMOLOGAÇÃO RUNTIME PARCIAL — SUSPENSA POR DECISÃO OPERACIONAL. Sem bloqueio técnico conhecido; pronta para retomada futura.
+Status: HOMOLOGAÇÃO RUNTIME CONCLUÍDA — PEND-002 RESOLVIDA EM 2026-09-11. Os três cenários pendentes abaixo (cancelamento, retorno intermediário, estabilização=0) obtiveram evidência via harness de simulação qualificado (H1 — REPRESENTATIVO). Ver seção "Fechamento via harness — PEND-002 (2026-09-11)" ao final deste documento; a homologação real de 2026-07-18/20 permanece registrada sem alteração abaixo.
 Classificação: release transitório operacional
 Validade: execução e homologação da V20.1Q
 Autoridade: subordinada à Constituição, Source of Truth, Arquitetura, Roadmap e Gates
@@ -105,6 +105,8 @@ Monitoramento por assinatura de eventos (WebSocket `subscribe_events`) implement
 - Cancelamento pelo operador em ciclo ativo.
 - Retorno estabilizado em índice intermediário (sucesso antes do esgotamento).
 - Janela de estabilização igual a zero exercida de fato (com retorno real durante a validação).
+
+> **Atualização de 2026-09-11:** os três pontos acima obtiveram evidência via harness de simulação qualificado (H1 — REPRESENTATIVO), não via novo ciclo real. Ver seção "Fechamento via harness — PEND-002 (2026-09-11)" ao final deste documento. Este parágrafo original permanece inalterado como registro histórico do estado em 2026-07-20.
 
 ### Guard de manutenção da comunicação — consolidação estática
 
@@ -453,3 +455,41 @@ A V20.1Q.1 somente estará apta à homologação se:
 - Definir persistência e reconciliação após restart.
 - Confirmar arquivos exatos e necessidade ou não de package novo.
 - Confirmar fronteira de reutilização do publicador canônico em V20.1Q.1 versus V20.1Q.2.
+
+---
+
+## Fechamento via harness — PEND-002 (2026-09-11)
+
+Esta seção documenta o fechamento da PEND-002, complementando — sem substituir — a Ata de Homologação Runtime de 2026-07-18/20 acima. Os fatos daquela Ata permanecem exatamente como registrados; esta seção cobre exclusivamente os três pontos que ficaram pendentes desde então.
+
+### Gate P1 (auditoria de evidências) — PASS
+
+Confrontou os três itens registrados na fila canônica contra toda a evidência existente (Ata de Homologação, Gate corretivo V20.1Q em `docs/governance/gates_v20.md`, histórico live). Confirmou que os três continuavam genuinamente sem evidência — nenhum havia sido comprovado organicamente e esquecido de reconciliar. Os 12 demais cenários já homologados (esgotamento, cooldown, snapshot, religamento, erro técnico seguro, restart em ciclo ativo, Timeline, guard rail `tomada_ja_desligada`, entre outros) não foram reexecutados.
+
+### Qualificação da Via A (pré-voo do harness) — PASS
+
+Auditou estaticamente o harness de simulação já presente em `main` desde 2026-08-09/10 (commits `8695c02` e `dd350b0`), nunca antes exercitado de ponta a ponta. Mapeou a arquitetura completa (orquestrador, Executor, automações de salvaguarda física, helpers) e concluiu classificação **H1 — REPRESENTATIVO**: o harness reutiliza integralmente a máquina de estados produtiva; os únicos pontos de mock são o sinal de conectividade (`binary_sensor.backup_4g_operacional_efetivo`, espelha `sim_backup_operacional` em modo teste) e o alvo de atuação física (`sim_tomada` em vez de `switch.0xa4c1381045aeb344`), comutados por uma variável imutável capturada uma única vez no nascimento de cada execução, presente nos 5/5 pontos de atuação física (Executor, religamento de segurança, reconciliação de restart, interrupção por energia, cancelamento), todos com fail-closed em estado ambíguo. Concluiu que cancelamento e estabilização=0 são plenamente comprováveis pelo harness; retorno intermediário é tecnicamente comprovável, com a ressalva não bloqueante de que a simulação não reproduz o timing real da operadora/ISP — ressalva já classificada como hipótese em aberto, não como critério de bloqueio, desde a própria Ata original de 2026-07-20.
+
+### Execução Via A — PASS nos 3 cenários
+
+Executada em 2026-09-11, com parâmetros de tempo temporariamente reduzidos para viabilizar a execução em janela curta (restaurados ao final — ver abaixo).
+
+**Ciclo 1 — retorno intermediário + estabilização = 0** (`request_id=r4g-20260911182637261461`): tentativa 1 expirou por timeout sem retorno simulado; na tentativa 2 de 3, o retorno simulado foi injetado — o sistema reconheceu `retorno_detectado`, aplicou o branch de `estabilizacao_retorno_minutos=0` e validou instantaneamente (`veredito=...:2:validado`), retornando a `ocioso` sem cooldown; a tentativa 3 nunca disparou.
+
+**Ciclo 2 — cancelamento em ciclo ativo** (`request_id=r4g-20260911183007444582`), independente do Ciclo 1: com a tentativa 1 em `aguardando_validacao` (ciclo genuinamente ativo), `casa_recovery_4g_automatico` foi desligado — o sistema reconheceu `cancelado_operador`, encerrou orquestrador e Executor com segurança e religou `sim_tomada` pelo ramo de reconciliação de teste.
+
+### Isolamento físico — confirmado empiricamente
+
+Consultado o histórico de `switch.0xa4c1381045aeb344` (tomada real) e `binary_sensor.backup_4g_operacional` (sensor real da casa) para toda a janela de execução: **nenhuma transição de estado em nenhum dos dois**, em nenhum dos dois ciclos. O isolamento se comportou exatamente como a qualificação H1 previu — nenhuma ação física real ocorreu em nenhum momento.
+
+### Restauração
+
+Todos os parâmetros temporariamente reduzidos para a execução foram restaurados e verificados ao final: `max_tentativas=2`, `estabilizacao_retorno_minutos=3`, `confirmacao_queda_minutos=3`, `timeout_validacao_segundos=120`, `tempo_off_segundos=5`, `timeout_confirmacao_tomada_segundos=5`, `cooldown_minutos=10`, `automatico=on`, `modo_teste=off`, `sim_backup_operacional=off`, `sim_tomada=on` (repouso). `bloqueio_legado_harness` permaneceu `on` (inalterado) e `harness_checkpoint` permaneceu `idle` (barreiras R2/R3 não foram necessárias).
+
+### Limitação registrada — não bloqueante
+
+O harness comprova a resposta da máquina de estados ao retorno intermediário controlado, mas não reproduz o timing ou comportamento probabilístico real da operadora/ISP. Esta limitação é conhecida desde a Ata de 2026-07-20 e não bloqueia o fechamento técnico da PEND-002.
+
+### Conclusão
+
+PEND-002 — **RESOLVIDA**. Nenhum cenário residual conhecido permanece sem evidência bloqueante. Nenhuma ação física real foi necessária. Detalhes completos, incluindo a matriz de evidências do Gate P1 e a matriz comparativa da qualificação do harness, em `docs/governance/despacho_pend002_recovery_4g_v20_1q_fechamento.md`.
