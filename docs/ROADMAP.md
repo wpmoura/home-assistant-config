@@ -24,7 +24,7 @@ O Gate de Enquadramento em `docs/governance/gates_v20.md` decide `GO AT`, `GO SO
 | Working tree local — alterações posteriores | SOC | Em andamento | 11 itens auditados e protegidos; NO-GO permanece somente para sincronizar `/Volumes/config` até transportar as frentes isoladamente |
 | Reconciliação `main` × feature | SOC | Concluída | PR #18 mergeado em `main` pelo merge commit `a25c471`; histórias e referências de segurança preservadas |
 | Alarme — segurança e identidade | SOC | Correção concluída | Código rotacionado, segredo externalizado e IDs validados; Alexa e teste integral dos gatilhos permanecem na PEND-016 sem bloquear o PR |
-| Lavadora/FSM | SOC | Concluído | Decidir destino do watcher pós-cutover, sem bloquear a baseline |
+| Lavadora/FSM | SOC | Concluído | Nenhuma — watcher pós-cutover cumpriu sua função, não existe mais e o registro órfão foi removido (PEND-005 resolvida) |
 | Heartbeat HA → Timeline → SmallTV | SOC | Concluído | Dívida técnica: allowlist replicada em contrato, motor e SmallTV |
 | Gestão do Carro — baseline AT-GC | SOC atual; origem AT | Concluído somente para a baseline AT-GC-00 a AT-GC-08 | Domínio não está integralmente concluído; zonas permanecem pendentes |
 | Entrada/saída em zonas conhecidas | SOC | Backlog priorizado | Não iniciada; inclui Casa da Fernanda, Casa da Camila e demais zonas cadastradas |
