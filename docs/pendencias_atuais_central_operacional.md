@@ -17,7 +17,7 @@ Classificações permitidas: `ABERTA`, `RESOLVIDA`, `SUPERADA` e `NÃO COMPROVAD
 | PEND-004 | Gestão do Carro — zonas | SOC | Registrar entrada e saída nas zonas conhecidas | funcional | Não para a baseline AT-GC; sim para concluir o domínio | ABERTA | Abrir Gate próprio para entidade observada, contrato, GPS, idempotência, sobreposição e mudanças cadastrais |
 | PEND-009 | V20.2 shadow | SOC | Concluir ou reclassificar testes ainda pendentes da Fase 1A | teste | Sim para promoção geral; não para manter shadow | ABERTA | Usar `docs/execucao_testes_reais_v20_2_fase_1a.md`; preservar os 7 OK, 1 parcial e 2 bloqueados já registrados |
 | PEND-011 | V20.1B/legado | SOC | Side-effects, consumidores e duplicidades externas ainda não possuem encerramento integral comprovado | auditoria | Sim para decommission | ABERTA | Reutilizar auditorias V20.1C/D/E e investigar somente lacunas reais |
-| PEND-012 | V20.1C/decommission | SOC | Definir e autorizar lotes pequenos de desativação com rollback | decisão | Sim para qualquer remoção | ABERTA | Manter decommission bloqueado até Gate específico; diagnóstico/governança já concluídos |
+| PEND-012 | V20.1C/decommission | SOC | Definir e autorizar lotes pequenos de desativação com rollback | decisão | Sim para qualquer remoção | ABERTA | Primeiro lote executado (`automation.sala_porta_da_sala_abriu`; blueprint `wan_4G_AppleWatch.yaml` sem `_Energia`) via Gate P1/P2 dedicado; `packages/_disabled/*` e `lovelace.teste_4` já resolvidos sem ação necessária. PEND-012 permanece ABERTA como mecanismo recorrente de autorização de novos lotes pequenos — o restante do universo do V20.1C ainda não foi qualificado item a item; próximo lote exige Gate P1 próprio, sem auditoria geral |
 
 ### Itens antigos resolvidos ou superados
 
