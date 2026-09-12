@@ -1451,17 +1451,15 @@
   - condition: state
     entity_id: switch.regua_zigbee_br_l1
     state: 'on'
-  - condition: numeric_state
-    entity_id: sensor.estabilizador_potencia
-    above: 70
   actions:
-  - action: script.1743352611708
+  - action: notify.alexa_media
     metadata: {}
     data:
-      onde_anunciar:
-      - media_player.echo_show_de_wilson_2
-      volume: 0.5
-      mensagem: Wilson, seu monitor Dell será desligado em 10 min.
+      message: Wilson, seu monitor Dell será desligado em 10 min.
+      title: Aviso
+      target: media_player.echo_show_de_wilson_2
+      data:
+        type: tts
   - delay:
       hours: 0
       minutes: 10
