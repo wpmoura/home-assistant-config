@@ -71,15 +71,6 @@ desliga_tudo:
       - switch.regua_zigbee_br_l5
       - switch.regua_zigbee_br_l3
   mode: single
-verifica_subida_do_sistema_ha:
-  alias: Verifica subida do sistema HA
-  sequence:
-  - service: light.turn_off
-    data: {}
-    target:
-      device_id: c7a76fc56d44064ab8b3f5df93cea603
-  mode: single
-  icon: mdi:home-assistant
 '1691176415030':
   alias: Home office - Alexa - Good bye
   sequence:
@@ -113,28 +104,10 @@ home_office_religar_link_fibra_apos_10min:
     data: {}
   alias: Home office - Religar Link Fibra após 10min
   description: ''
-resetar_nivel_do_umidificador:
-  alias: Resetar Nível do Umidificador
-  sequence:
-  - target:
-      entity_id: input_number.nivel_atual_umidificador
-    data:
-      value: 4
-    action: input_number.set_value
-  mode: single
-  description: ''
 '1743352611708':
   alias: Anunciar via Alexa
   use_blueprint:
     path: lnpbr/anunciar_na_alexa.yaml
-  description: ''
-'1743721090083':
-  sequence:
-  - action: input_boolean.turn_off
-    target:
-      entity_id: input_boolean.naodesliguemonitorhoje
-    data: {}
-  alias: LAB - Reset do Não desligar Monitor
   description: ''
 #
 #
