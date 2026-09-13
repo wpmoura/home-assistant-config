@@ -60,35 +60,6 @@
     target:
       entity_id: light.aqara_hub_2311_lightbulb_2311_2
   mode: single
-- id: '1658715883076'
-  alias: 'Banheiro - Iniciou Movimento '
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.sensor_movimento_banheiro_occupancy_2
-    from: 'off'
-    to: 'on'
-  conditions:
-  - condition: time
-    after: '22:00:00'
-    before: 06:00:00
-    weekday:
-    - mon
-    - tue
-    - wed
-    - thu
-    - fri
-    - sat
-    - sun
-  actions:
-  - data:
-      brightness: 5
-      color_temp: 500
-    target:
-      entity_id: light.desktop_light
-    action: light.turn_on
-  mode: single
 - id: '1658922111032'
   alias: Home Office - Iniciar o expediente
   description: ''
@@ -128,33 +99,6 @@
     target:
       entity_id: script.teste
   mode: single
-- id: '1659754267648'
-  alias: 'Banheiro - Parou Movimento '
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.sensor_movimento_banheiro_occupancy_2
-    from: 'on'
-    to: 'off'
-  conditions:
-  - condition: time
-    after: '22:00:00'
-    before: 06:00:00
-    weekday:
-    - mon
-    - tue
-    - wed
-    - thu
-    - fri
-    - sat
-    - sun
-  actions:
-  - data: {}
-    target:
-      entity_id: light.desktop_light
-    action: light.turn_off
-  mode: single
 - id: '1660270262154'
   alias: Home Office - Rotina Ligar Home office Voice
   description: ''
@@ -183,40 +127,6 @@
     target:
       entity_id: switch.regua_zigbee_br_l5
     action: switch.turn_on
-  mode: single
-- id: '1660344556646'
-  alias: 'Cozinha - Iniciou Movimento '
-  description: ''
-  triggers:
-  - type: motion
-    device_id: cba3930254edfa46e6684e87266092f8
-    entity_id: binary_sensor.sensor_movimento_cozinha_occupancy
-    domain: binary_sensor
-    trigger: device
-  - trigger: state
-    entity_id:
-    - binary_sensor.sensor_movimento_cozinha_occupancy_2
-    from: 'off'
-    to: 'on'
-  conditions:
-  - condition: time
-    after: '22:00:00'
-    before: 06:30:00
-    weekday:
-    - mon
-    - tue
-    - wed
-    - thu
-    - fri
-    - sat
-    - sun
-  actions:
-  - data:
-      brightness: 5
-      color_temp: 500
-    target:
-      entity_id: light.desktop_light
-    action: light.turn_on
   mode: single
 - id: '1660344617666'
   alias: 'Cozinha - Parou Movimento '
