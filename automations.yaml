@@ -990,34 +990,6 @@
     target:
       entity_id: input_boolean.desligatemppihole
   mode: single
-- id: '1739194250700'
-  alias: Sala - Porta da sala abriu
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.sensor_porta_sala_contact
-    - sensor.porta
-    from: 'off'
-    to: 'on'
-  conditions:
-  - condition: time
-    after: 08:00:00
-    before: '23:00:00'
-    weekday:
-    - mon
-    - tue
-    - wed
-    - thu
-    - fri
-    - sat
-    - sun
-    enabled: false
-  actions:
-  - action: notify.mobile_app_iphonewm
-    data:
-      message: '  ⚠️ Porta da Sala abriu !'
-  mode: single
 - id: '1741347643810'
   alias: LAB  - Alarme - Armado Modo Casa
   description: ''
