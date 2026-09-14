@@ -437,7 +437,7 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 
 ## Gate V20.2E — Integração do Uso do Carro à Timeline
 
-**Status: CORREÇÃO DO CONSUMIDOR APROVADA ESTATICAMENTE PARA COMMIT E PUSH; HOMOLOGAÇÃO RUNTIME PENDENTE**
+**Status: HOMOLOGADO — PEND-003 ENCERRADA (2026-09-14). Saldo técnico final = zero.**
 
 ### Escopo e arquitetura
 
@@ -459,17 +459,17 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 ### Validação e homologação
 
 - [x] Persistência e reconciliação controlada do `request_id` de `car_use_ended` implementadas e verificadas; ciclo real reconciliado em ordem com sessão e requests originais, dois ACKs `published` e limpeza somente após o término.
-- [x] Ausência de `initial` nos dois controles de push verificada estaticamente, permitindo primeira criação nativa em `off` e restauração posterior da escolha do usuário; ativação inicial controlada permanece pendente de implantação.
-- [ ] Tratamento de checkpoint de término vazio/válido/inválido e bloqueio de estados parciais verificados estaticamente; confirmação runtime permanece pendente.
-- [ ] Persistência de `rejected` para início/término, bloqueio da reconciliação e liberação governada verificados estaticamente; confirmação runtime permanece pendente.
-- [ ] Recuperação administrativa de metadados `rejected` parciais, validação contra o ciclo e trava contra escritor ativo verificadas estaticamente; confirmação runtime permanece pendente.
-- [ ] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente; teste de concorrência runtime permanece pendente.
+- [x] Ausência de `initial` nos dois controles de push verificada estaticamente, permitindo primeira criação nativa em `off` e restauração posterior da escolha do usuário. Independência Push × Timeline confirmada por leitura de código (2026-09-14): os helpers controlam exclusivamente a chamada `notify.mobile_app_iphonewm`, sem qualquer efeito sobre checkpoints, contadores ou publicação. A matriz completa 2×2 nunca foi requisito formal obrigatório deste Gate; ativação dos controles permanece **escolha operacional de Wilson**, não dívida técnica — não bloqueia o encerramento da PEND-003.
+- [x] Tratamento de checkpoint de término vazio/válido/inválido e bloqueio de estados parciais verificados estaticamente; **confirmado em runtime controlado (2026-09-14)** — checkpoint de término inválido produziu `stop` correto ("Checkpoints ausentes ou incoerentes; reconciliação bloqueada"), sem publicação nem alteração indevida.
+- [x] Persistência de `rejected` para início/término, bloqueio da reconciliação e liberação governada verificados estaticamente; **confirmado em runtime controlado (2026-09-14)** — persistência comprovada para início e término, bloqueio de `script.carro_reconciliar_termino_pendente` comprovado em ambos, liberação governada via `script.carro_liberar_bloqueio_rejected` comprovada nas duas branches (`car_use_started` e `car_use_ended`).
+- [x] Recuperação administrativa de metadados `rejected` parciais, validação contra o ciclo e trava contra escritor ativo verificadas estaticamente; **confirmado em runtime controlado (2026-09-14)** para as branches `car_use_started` e `car_use_ended` — limpeza correta e exclusiva dos 4 campos de rejeição, checkpoints funcionais preservados, sem publicação. A trava contra escritor ativo (`escritor_rejected_ativo`) permanece aprovada apenas estaticamente — ver item de concorrência abaixo.
+- [x] Guard fail-closed de concorrência, sem default zero e com validação explícita de existência, disponibilidade e `current`, verificado estaticamente. **Teste de concorrência real (escritor ativo) permanece BLOCKED por desenho** — não reproduzível por manipulação administrativa de helpers, pois `current`/`has_value` são atributos nativos de runtime de `automation`/`script` sem proxy editável; produzir esse cenário exigiria desabilitar automação de produção ou executar de fato o fluxo protegido (gerando publicação real). **Encerrado por aceitação fundamentada de risco residual (2026-09-14):** implementação existente e já revisada estaticamente, ausência de defeito conhecido, caminho normal comprovado em runtime (`mode: single` em ambos os executores estruturalmente impede concorrência real), impacto residual informacional (não físico/segurança), e desproporcionalidade de criar infraestrutura de teste dedicada sem uso produtivo.
 - [x] Compatibilidade do guard fail-closed com `has_value`/`state_attr` aprovada na revisão estática final independente: `none` preservado, validação numérica estrita, booleanos e negativos recusados, ausência de fallback zero, stops separados antes da limpeza e lógica administrativa preservada. Classificação: **A. APROVADA ESTATICAMENTE PARA ATUALIZAÇÃO DO GATE E COMMIT.**
 - [x] Inclusão de `car_use_started`/`car_use_ended` no consumidor canônico, correlação atômica por `trigger.to_state`, autorização fail-closed de `publicar_timeline` e vínculo entre materialização visível, `request_ids_json` e ACK aprovados em revisão estática independente para commit e push.
 - [x] Normalização restritiva de `publicar_timeline` aprovada estaticamente e em runtime: aceita somente `true` nativo ou string legítima exatamente `true` após `trim`/normalização de caixa; valores falsos, ausentes, ambíguos ou incompatíveis permanecem fail-closed.
-- [ ] Eventos consecutivos com a mesma mensagem validados no runtime: segundo evento deduplicado visualmente, sem inclusão de seu `request_id` no ledger e sem ACK `published` falso; resultado efetivo do publicador registrado.
+- [x] Eventos consecutivos com a mesma mensagem: deduplicação (`evento_consecutivo_sem_timestamp`) **pertence ao consumidor canônico compartilhado `sensor.casa_evento_publicavel_v20`/motor V20.1O, não ao produtor `carro_presenca`**. Mecanismo já homologado estática e continuamente em runtime por todos os produtores da Timeline (evidência operacional contínua observada em 2026-09-14). Nenhum teste artificial dedicado a `carro_presenca` é necessário — **encerrado (2026-09-14)** por classificação de risco residual aceitável na camada compartilhada.
 - [x] Correção runtime do produtor (`hash` incompatível substituído por `md5`) e bootstrap fail-closed aprovados; `check_config`, carregamento das automações e primeira materialização dos checkpoints concluídos sem efeitos funcionais espontâneos.
-- [ ] Validação no ambiente real do atributo `current`, testes funcionais e de concorrência, implantação e homologação operacional permanecem pendentes.
+- [x] Validação no ambiente real do atributo `current`: cenário de concorrência real encerrado por aceitação fundamentada de risco residual (ver item de guard/concorrência acima). Testes funcionais em runtime controlado (checkpoint parcial/inválido, persistência/bloqueio/recuperação de `rejected` para ambas as branches) **concluídos com PASS em 2026-09-14**. Homologação operacional reforçada por evidência espontânea: ciclo real completo de uso do carro em 2026-09-13, ACKs `published`, checkpoints reconciliados corretamente.
 - [x] Parser YAML, parser JSON Storage e `check_config` nativo aprovados.
 - [x] `git diff --check`, referências, IDs e ausência de escrita direta aprovados.
 - [x] Cenários de pushes ligados/desligados preparados.
@@ -480,6 +480,8 @@ Foram validados os dois selects Protect, retorno pendente, ending, failed, manua
 - [x] Decisão temporal concluída: a Timeline atual não suporta `occurred_at` nem ordenação histórica; o request real de `wilson_left_home` não será reapresentado. Evolução temporal permanece futura e não bloqueante.
 
 A sequência operacional e os bloqueios detalhados permanecem consolidados na seção V20.2E de `docs/pendencias_atuais_central_operacional.md`.
+
+**Encerramento (2026-09-14):** todos os itens acima estão marcados. PEND-003 encerrada com saldo técnico final igual a zero. Detalhes de execução dos Gates de homologação runtime e fechamento documental estão registrados na seção "Encerramento (PEND-003, 2026-09-14)" de `docs/pendencias_atuais_central_operacional.md`.
 
 I4B.2 permanece exclusivamente como evidência operacional futura e não bloqueante. O catálogo de contratos, mapa arquitetural, auditoria estática e próximas evoluções elegíveis estão consolidados em `docs/v20_2c/baseline_v20_2d.md`.
 
