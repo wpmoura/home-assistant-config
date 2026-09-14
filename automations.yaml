@@ -767,42 +767,6 @@
           message: O umidificador está sem água. Por favor, reabasteça-o.
         action: notify.mobile_app_iphone14
   mode: restart
-- id: '1738422640496'
-  alias: Lab - Notificar quando downloads forem concluídos_WM
-  description: Envia uma notificação quando não houver mais downloads no qBittorrent.
-  triggers:
-  - entity_id: sensor.qbittorrent_download_speed
-    below: 0.1
-    for:
-      minutes: 2
-    trigger: numeric_state
-  - entity_id: sensor.qbittorrent_status
-    to: idle
-    trigger: state
-  conditions:
-  - condition: numeric_state
-    entity_id: sensor.qbittorrent_download_speed
-    below: 0.1
-  - condition: state
-    entity_id: sensor.qbittorrent_status
-    state: idle
-  actions:
-  - data:
-      message: Todos os downloads no qBittorrent foram concluídos.
-    action: notify.mobile_app_iphone14
-  mode: single
-- id: ee0c6a269cc44e099bd788bbc0755772
-  alias: Quarto  - Notificação intensidade de Chuva
-  description: ''
-  triggers:
-  - entity_id: sensor.intensidade_da_chuva
-    to: Forte
-    trigger: state
-  actions:
-  - action: notify.mobile_app_iphonewm
-    metadata: {}
-    data:
-      message: '⛈️ Chove forte agora! '
 - id: '1738725529224'
   alias: Home Office - Desliga Pi-Hole por 5 min
   description: ''
