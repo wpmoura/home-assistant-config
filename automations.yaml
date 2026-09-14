@@ -128,47 +128,6 @@
       entity_id: switch.regua_zigbee_br_l5
     action: switch.turn_on
   mode: single
-- id: '1660344617666'
-  alias: 'Cozinha - Parou Movimento '
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.sensor_movimento_cozinha_occupancy_2
-    from: 'on'
-    to: 'off'
-  conditions:
-  - condition: time
-    after: '23:00:00'
-    before: 06:30:00
-    weekday:
-    - mon
-    - tue
-    - wed
-    - thu
-    - fri
-    - sat
-    - sun
-  actions:
-  - data: {}
-    target:
-      entity_id: light.desktop_light
-    action: light.turn_off
-  mode: single
-- id: '1660365267987'
-  alias: Desliga everything
-  description: ''
-  trigger:
-  - platform: state
-    entity_id:
-    - input_boolean.everything
-    from: 'on'
-    to: 'off'
-  condition: []
-  action:
-  - service: script.desliga_tudo
-    data: {}
-  mode: single
 - id: '1661522048133'
   alias: Home Office  - Sem Conexão com Internet
   description: ''
