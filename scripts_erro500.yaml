@@ -14,63 +14,6 @@ teste:
     action: notify.alexa_media_echo_show_de_wilson
   mode: single
   icon: mdi:briefcase-clock-outline
-inicio_do_trabalho:
-  sequence:
-  - service: light.turn_on
-    data:
-      color_temp: 421
-      brightness_pct: 30
-    target:
-      entity_id:
-      - light.smart_lampada_wifi_2
-      - light.yeelight_lamp15_0xeccc7ee
-      - light.yeelight_strip6_0x156f44f7
-      - switch.regua_zigbee_br_l5
-  mode: single
-  alias: 'Home office - Iniciar expediente  '
-  icon: mdi:briefcase-outline
-home_office_iniciar_expediente_strip_light:
-  alias: Home office - Iniciar expediente Strip Light
-  sequence:
-  - service: light.turn_on
-    data:
-      brightness_pct: 100
-      rgb_color:
-      - 103
-      - 92
-      - 255
-    target:
-      device_id: de92f5877e537102f7c39d4a4169741e
-  - service: light.turn_off
-    data:
-      transition: 60
-    target:
-      device_id: de92f5877e537102f7c39d4a4169741e
-  mode: single
-  icon: mdi:led-strip-variant
-desliga_tudo:
-  alias: Desliga tudo
-  sequence:
-  - service: light.turn_off
-    data: {}
-    target:
-      entity_id:
-      - light.chair
-      - light.smart_lampada_wifi
-      - light.desktop_light
-      - light.quarto
-      - light.yeelight_lamp15_0xeccc7ee
-      - light.yeelight_lamp15_0xeccc7ee_ambilight
-      - light.yeelight_strip6_0x156f44f7
-  - service: switch.turn_off
-    data: {}
-    target:
-      entity_id:
-      - switch.regua_zigbee_br_l2
-      - switch.regua_zigbee_br_l1
-      - switch.regua_zigbee_br_l5
-      - switch.regua_zigbee_br_l3
-  mode: single
 '1691176415030':
   alias: Home office - Alexa - Good bye
   sequence:
