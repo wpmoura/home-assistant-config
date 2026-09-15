@@ -1,8 +1,9 @@
 ###############################################################################
 # V20.2C-I3A — Dispatcher lógico do CSMR
 #
-# Integra presença, graça, I2A e I1 exclusivamente com publicações test_mode.
-# Autoriza consumidores C1.x somente fora de retorno pendente; sem startup.
+# Integra presença, graça, I2A e I1 em produção para triggers reais e em
+# test_mode isolado para o Harness. Autoriza consumidores produtivos e de teste
+# por canais distintos, somente fora de retorno pendente; sem startup.
 ###############################################################################
 
 input_boolean:
@@ -16,9 +17,18 @@ input_datetime:
     has_date: true
     has_time: true
 
+  casa_csmr_consumidores_teste_autorizados_desde_v20_2c:
+    name: Casa CSMR — Consumidores de Teste Autorizados Desde V20.2C
+    has_date: true
+    has_time: true
+
 input_text:
   casa_csmr_consumidores_sessao_autorizada_v20_2c:
     name: Casa CSMR — Sessão Autorizada dos Consumidores V20.2C
+    max: 64
+
+  casa_csmr_consumidores_teste_sessao_autorizada_v20_2c:
+    name: Casa CSMR — Sessão de Teste Autorizada dos Consumidores V20.2C
     max: 64
 
 template:
@@ -85,10 +95,66 @@ template:
             {{ trigger.event.data.consumer_authorized_session_id
                | default(this.attributes.consumer_authorized_session_id | default('', true), false) }}
           updated_at: "{{ trigger.event.data.updated_at | default(now().isoformat(), true) }}"
-          publication_test_mode: true
+          test_mode: >-
+            {{ trigger.event.data.test_mode
+               | default(this.attributes.test_mode | default(false), false) }}
+          publication_test_mode: >-
+            {{ trigger.event.data.test_mode
+               | default(this.attributes.test_mode | default(false), false) }}
           consumers_connected: true
           return_pending: >-
             {{ is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'on') }}
+          real_departure_pending: >-
+            {{ trigger.event.data.real_departure_pending
+               | default(this.attributes.real_departure_pending | default(false), false) }}
+          real_departure_phase: >-
+            {{ trigger.event.data.real_departure_phase
+               | default(this.attributes.real_departure_phase | default('none', true), false) }}
+          real_departure_cycle_id: >-
+            {{ trigger.event.data.real_departure_cycle_id
+               | default(this.attributes.real_departure_cycle_id | default('', true), false) }}
+          real_departure_source: >-
+            {{ trigger.event.data.real_departure_source
+               | default(this.attributes.real_departure_source | default('', true), false) }}
+          real_departure_test_mode: >-
+            {{ trigger.event.data.real_departure_test_mode
+               | default(this.attributes.real_departure_test_mode | default(false), false) }}
+          real_departure_occurred_at: >-
+            {{ trigger.event.data.real_departure_occurred_at
+               | default(this.attributes.real_departure_occurred_at | default('', true), false) }}
+          real_departure_captured_at: >-
+            {{ trigger.event.data.real_departure_captured_at
+               | default(this.attributes.real_departure_captured_at | default('', true), false) }}
+          real_departure_grace_seconds: >-
+            {{ trigger.event.data.real_departure_grace_seconds
+               | default(this.attributes.real_departure_grace_seconds | default(0), false) }}
+          real_departure_reserve_request_id: >-
+            {{ trigger.event.data.real_departure_reserve_request_id
+               | default(this.attributes.real_departure_reserve_request_id | default('', true), false) }}
+          real_departure_left_request_id: >-
+            {{ trigger.event.data.real_departure_left_request_id
+               | default(this.attributes.real_departure_left_request_id | default('', true), false) }}
+          real_departure_open_request_id: >-
+            {{ trigger.event.data.real_departure_open_request_id
+               | default(this.attributes.real_departure_open_request_id | default('', true), false) }}
+          real_departure_started_request_id: >-
+            {{ trigger.event.data.real_departure_started_request_id
+               | default(this.attributes.real_departure_started_request_id | default('', true), false) }}
+          real_departure_session_id: >-
+            {{ trigger.event.data.real_departure_session_id
+               | default(this.attributes.real_departure_session_id | default('', true), false) }}
+          real_departure_resume_attempts: >-
+            {{ trigger.event.data.real_departure_resume_attempts
+               | default(this.attributes.real_departure_resume_attempts | default(0), false) }}
+          real_departure_last_error: >-
+            {{ trigger.event.data.real_departure_last_error
+               | default(this.attributes.real_departure_last_error | default('', true), false) }}
+          real_departure_last_result: >-
+            {{ trigger.event.data.real_departure_last_result
+               | default(this.attributes.real_departure_last_result | default('', true), false) }}
+          real_departure_updated_at: >-
+            {{ trigger.event.data.real_departure_updated_at
+               | default(this.attributes.real_departure_updated_at | default('', true), false) }}
 
 automation:
   - id: casa_csmr_marcar_retorno_pendente_v20_2c
@@ -101,13 +167,31 @@ automation:
     trigger:
       - platform: state
         entity_id: person.wmoura
-        from: not_home
         to: home
+        id: real_return
 
       - platform: event
         event_type: casa_csmr_i3a_harness
         event_data:
           command: return
+        id: harness_return
+
+    condition:
+      - condition: template
+        alias: >-
+          Retorno Harness exige test_mode booleano nativo verdadeiro; retorno
+          real exige origem de ausência confirmada (fail-closed para
+          home/unknown/unavailable — corrige retorno via zona nomeada, Gate
+          corretivo estático de 16-17/08/2026)
+        value_template: >-
+          {{ (trigger.id == 'real_return'
+              and trigger.from_state is not none
+              and trigger.from_state.state not in ['home', 'unknown', 'unavailable'])
+             or (trigger.event.data.test_mode is defined
+               and trigger.event.data.test_mode is boolean
+               and trigger.event.data.test_mode is sameas true
+               and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is boolean
+               and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is sameas false) }}
 
     action:
       - service: input_boolean.turn_on
@@ -145,18 +229,144 @@ automation:
           entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
         data:
           value: ""
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.casa_csmr_consumidores_teste_autorizados_desde_v20_2c
+        data:
+          datetime: "1970-01-01 00:00:00"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.casa_csmr_consumidores_teste_sessao_autorizada_v20_2c
+        data:
+          value: ""
       - event: casa_csmr_dispatcher_checkpoint_v20_2c
         event_data:
           phase: "{{ states('sensor.casa_csmr_dispatcher_estado_v20_2c') }}"
           consumer_authorized_since: ""
           consumer_authorized_session_id: ""
+          test_mode: >-
+            {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode')
+               if state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean else false }}
           updated_at: "{{ now().isoformat() }}"
+
+  - id: casa_csmr_reconciliar_saida_real_pendente_v20_2c
+    alias: Casa — CSMR — Reconciliar Saída Real Pendente V20.2C
+    description: >-
+      Reativa o processador serial quando uma saída real persistida encontra
+      nova condição material; não altera checkpoint, I2 ou Timeline diretamente.
+    mode: single
+
+    trigger:
+      - platform: homeassistant
+        event: start
+        id: startup
+
+      - platform: state
+        entity_id: sensor.casa_csmr_estado_v20_2c
+        to:
+          - idle
+          - failed
+          - active
+        id: csmr_changed
+
+      - platform: state
+        entity_id: sensor.casa_csmr_dispatcher_estado_v20_2c
+        attribute: real_departure_updated_at
+        id: checkpoint_changed
+
+      - platform: state
+        entity_id: person.wmoura
+        to: home
+        id: person_returned
+
+      - platform: state
+        entity_id: automation.casa_csmr_reconciliar_saida_real_pendente_v20_2c
+        from: "off"
+        to: "on"
+        id: automation_enabled
+
+      - platform: event
+        event_type: automation_reloaded
+        id: automation_reloaded
+
+      - platform: event
+        event_type: event_template_reloaded
+        id: template_reloaded
+
+    action:
+      - delay: "00:00:01"
+      - variables:
+          pending_value: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') }}"
+          pending_error: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_last_error') | default('', true) }}"
+          # Harmonizado com script.casa_csmr_processar_saida_real_pendente_v20_2c
+          # (Gate de saneamento pré-reload, pós-revisão independente). Antes,
+          # esta lista continha apenas o rótulo genérico 'schema_invalid', que o
+          # script nunca escreve de fato (ele sempre grava a variante granular
+          # correspondente) — a divergência era acidental e deixava erros de
+          # schema permanentemente inválidos elegíveis a novo wake-up por
+          # qualquer trigger que não seja checkpoint_changed. Os dois conjuntos
+          # abaixo (aqui e no script) são agora idênticos e cobrem exatamente
+          # os mesmos erros permanentes/não retomáveis.
+          #
+          # Deliberadamente FORA de ambas as listas (motivo arquitetural, não
+          # divergência): falhas técnicas/transitórias — left_publication_failed,
+          # open_failed, started_publication_failed, test_close_failed,
+          # test_close_inconsistent_state, test_recover_failed,
+          # state_not_resumable. Essas podem ser passageiras (timeout, rejeição
+          # momentânea) e permanecem elegíveis a nova tentativa automática; o
+          # limite de segurança para elas é o circuit breaker numérico
+          # (real_departure_resume_attempts >= 50), não uma lista de bloqueio
+          # imediato.
+          structural_errors:
+            - schema_invalid
+            - pending_invalid
+            - phase_invalid
+            - cycle_id_invalid
+            - source_invalid
+            - test_mode_invalid
+            - occurred_at_invalid
+            - captured_at_invalid
+            - timestamp_order_invalid
+            - grace_invalid
+            - attempts_invalid
+            - request_invalid
+            - identity_mismatch
+            - session_invalid
+            - duplicate_reserve_identity_unproven
+            - reservation_identity_mismatch
+            - session_identity_mismatch
+            - active_session_identity_mismatch
+            - rejected
+            - resume_attempts_exceeded
+      - condition: template
+        alias: Somente pending nativo e erro não estrutural recebem wake-up automático
+        value_template: >-
+          {{ pending_value is boolean and pending_value is sameas true
+             and pending_error not in structural_errors
+             and not (trigger.id == 'checkpoint_changed'
+               and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_phase') == 'blocked')
+             and states('sensor.casa_csmr_dispatcher_estado_v20_2c') not in ['unknown', 'unavailable']
+             and states('sensor.casa_csmr_estado_v20_2c') not in ['unknown', 'unavailable'] }}
+      - wait_template: >-
+          {% set process_current = state_attr('script.casa_csmr_processar_saida_real_pendente_v20_2c', 'current') %}
+          {{ has_value('script.casa_csmr_processar_saida_real_pendente_v20_2c')
+             and process_current is number
+             and process_current is not boolean
+             and process_current == 0 }}
+        timeout: "00:00:10"
+        continue_on_timeout: false
+      - action: script.turn_on
+        target:
+          entity_id: script.casa_csmr_processar_saida_real_pendente_v20_2c
+        data:
+          variables:
+            invocation_reason: "{{ trigger.id }}"
 
   - id: casa_csmr_dispatcher_logico_v20_2c
     alias: Casa — CSMR — Dispatcher Lógico V20.2C
     description: >-
-      Coordena presença, graça, reserva, estado CSMR e ACKs I1 em test_mode.
-      Não aciona consumidores ou dispositivos.
+      Coordena presença, graça, reserva, estado CSMR e ACKs I1: triggers reais
+      operam em produção e o Harness usa test_mode isolado.
     mode: queued
     max: 10
 
@@ -164,12 +374,10 @@ automation:
       - platform: state
         entity_id: person.wmoura
         from: home
-        to: not_home
         id: real_departure
 
       - platform: state
         entity_id: person.wmoura
-        from: not_home
         to: home
         id: real_return
 
@@ -179,6 +387,11 @@ automation:
 
     variables:
       is_harness: "{{ trigger.id == 'harness' }}"
+      test_mode_raw: >-
+        {{ trigger.event.data.test_mode | default(none)
+           if trigger.id == 'harness' else false }}
+      execution_test_mode: >-
+        {{ test_mode_raw if test_mode_raw is boolean else false }}
       command: >-
         {% if trigger.id == 'real_departure' %}departure
         {% elif trigger.id == 'real_return' %}return
@@ -190,11 +403,13 @@ automation:
           {{ trigger.to_state.context.id }}
         {% endif %}
       dispatcher_source: "{{ 'harness_i3a' if is_harness else 'person.wmoura' }}"
+      transition_source: "{{ 'harness_i2' if execution_test_mode else 'csmr_dispatcher_v20_2c' }}"
       grace_seconds: "{{ states('input_number.teste_v20_2_tempo_graca_saida') | int(15) }}"
-      reserve_hash: "{{ md5(cycle_id ~ ':reserve') }}"
-      left_hash: "{{ md5(cycle_id ~ ':wilson_left_home') }}"
-      open_hash: "{{ md5(cycle_id ~ ':open') }}"
-      started_hash: "{{ md5(cycle_id ~ ':remote_monitoring_started') }}"
+      identity_seed: "{{ ('test:' ~ cycle_id) if execution_test_mode else cycle_id }}"
+      reserve_hash: "{{ md5(identity_seed ~ ':reserve') }}"
+      left_hash: "{{ md5(identity_seed ~ ':wilson_left_home') }}"
+      open_hash: "{{ md5(identity_seed ~ ':open') }}"
+      started_hash: "{{ md5(identity_seed ~ ':remote_monitoring_started') }}"
       reserve_request_id: >-
         {{ reserve_hash[0:8] ~ '-' ~ reserve_hash[8:12] ~ '-4' ~ reserve_hash[13:16]
            ~ '-8' ~ reserve_hash[17:20] ~ '-' ~ reserve_hash[20:32] }}
@@ -209,13 +424,208 @@ automation:
            ~ '-8' ~ started_hash[17:20] ~ '-' ~ started_hash[20:32] }}
 
     action:
+      - if:
+          - condition: template
+            alias: >-
+              Retorno com origem home/unknown/unavailable é ignorado
+              (fail-closed — corrige retorno via zona nomeada, Gate corretivo
+              estático de 16-17/08/2026; não é uma saída real confirmada)
+            value_template: >-
+              {{ trigger.id == 'real_return'
+                 and (trigger.from_state is none
+                   or trigger.from_state.state in ['home', 'unknown', 'unavailable']) }}
+        then:
+          - stop: >-
+              Retorno com origem home/unknown/unavailable não corresponde a
+              uma saída real confirmada; ignorado sem efeito.
+
+      - if:
+          - condition: template
+            alias: >-
+              Saída com destino home/unknown/unavailable é ignorada
+              (fail-closed — reconhece saída de home independentemente do
+              destino ser not_home ou uma zona nomeada válida; Gate corretivo
+              estático de 20/08/2026; não é uma saída real confirmada)
+            value_template: >-
+              {{ trigger.id == 'real_departure'
+                 and (trigger.to_state is none
+                   or trigger.to_state.state in ['home', 'unknown', 'unavailable']) }}
+        then:
+          - stop: >-
+              Saída com destino home/unknown/unavailable não corresponde a
+              uma saída real confirmada; ignorado sem efeito.
+
+      - if:
+          - condition: template
+            alias: Captura produtiva ocorre antes de qualquer preempção
+            value_template: "{{ trigger.id == 'real_departure' }}"
+        then:
+          - variables:
+              real_cycle_id: "{{ trigger.to_state.context.id | default('', true) | string | trim }}"
+              real_occurred_at: "{{ trigger.to_state.last_changed.isoformat() }}"
+              real_captured_at: "{{ now().isoformat() }}"
+              real_grace_raw: "{{ states('input_number.teste_v20_2_tempo_graca_saida') }}"
+              real_grace_seconds: "{{ real_grace_raw | float(0) }}"
+              real_reserve_hash: "{{ md5(real_cycle_id ~ ':reserve') }}"
+              real_left_hash: "{{ md5(real_cycle_id ~ ':wilson_left_home') }}"
+              real_open_hash: "{{ md5(real_cycle_id ~ ':open') }}"
+              real_started_hash: "{{ md5(real_cycle_id ~ ':remote_monitoring_started') }}"
+              real_reserve_request_id: >-
+                {{ real_reserve_hash[0:8] ~ '-' ~ real_reserve_hash[8:12] ~ '-4' ~ real_reserve_hash[13:16]
+                   ~ '-8' ~ real_reserve_hash[17:20] ~ '-' ~ real_reserve_hash[20:32] }}
+              real_left_request_id: >-
+                {{ real_left_hash[0:8] ~ '-' ~ real_left_hash[8:12] ~ '-4' ~ real_left_hash[13:16]
+                   ~ '-8' ~ real_left_hash[17:20] ~ '-' ~ real_left_hash[20:32] }}
+              real_open_request_id: >-
+                {{ real_open_hash[0:8] ~ '-' ~ real_open_hash[8:12] ~ '-4' ~ real_open_hash[13:16]
+                   ~ '-8' ~ real_open_hash[17:20] ~ '-' ~ real_open_hash[20:32] }}
+              real_started_request_id: >-
+                {{ real_started_hash[0:8] ~ '-' ~ real_started_hash[8:12] ~ '-4' ~ real_started_hash[13:16]
+                   ~ '-8' ~ real_started_hash[17:20] ~ '-' ~ real_started_hash[20:32] }}
+          - condition: template
+            alias: Identidade e snapshot da saída real são válidos
+            value_template: >-
+              {{ real_cycle_id | regex_match('^[0-9A-HJKMNP-TV-Z]{26}$')
+                 and real_grace_raw not in ['unknown', 'unavailable', '', 'none']
+                 and is_number(real_grace_raw)
+                 and real_grace_seconds >= 5
+                 and real_grace_seconds <= 300
+                 and as_timestamp(real_occurred_at, 0) > 0
+                 and as_timestamp(real_occurred_at, 0) <= as_timestamp(real_captured_at, 0) }}
+          - if:
+              - condition: template
+                value_template: >-
+                  {{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is boolean
+                     and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is sameas true }}
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: failed
+                  last_error: real_departure_conflict_pending_exists
+                  updated_at: "{{ now().isoformat() }}"
+              - stop: Nova saída real recusada; checkpoint anterior permanece pendente.
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: captured
+              cycle_id: "{{ real_cycle_id }}"
+              session_id: ""
+              source: person.wmoura
+              presence_observed: not_home
+              grace_seconds: "{{ real_grace_seconds }}"
+              reserve_request_id: "{{ real_reserve_request_id }}"
+              left_request_id: "{{ real_left_request_id }}"
+              open_request_id: "{{ real_open_request_id }}"
+              started_request_id: "{{ real_started_request_id }}"
+              last_error: ""
+              test_mode: false
+              updated_at: "{{ real_captured_at }}"
+              real_departure_pending: true
+              real_departure_phase: captured
+              real_departure_cycle_id: "{{ real_cycle_id }}"
+              real_departure_source: person.wmoura
+              real_departure_test_mode: false
+              real_departure_occurred_at: "{{ real_occurred_at }}"
+              real_departure_captured_at: "{{ real_captured_at }}"
+              real_departure_grace_seconds: "{{ real_grace_seconds }}"
+              real_departure_reserve_request_id: "{{ real_reserve_request_id }}"
+              real_departure_left_request_id: "{{ real_left_request_id }}"
+              real_departure_open_request_id: "{{ real_open_request_id }}"
+              real_departure_started_request_id: "{{ real_started_request_id }}"
+              real_departure_session_id: ""
+              real_departure_resume_attempts: 0
+              real_departure_last_error: ""
+              real_departure_last_result: ""
+              real_departure_updated_at: "{{ real_captured_at }}"
+          - wait_template: >-
+              {{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is boolean
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is sameas true
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_phase') == 'captured'
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_cycle_id') == real_cycle_id
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_reserve_request_id') == real_reserve_request_id
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_left_request_id') == real_left_request_id
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_open_request_id') == real_open_request_id
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_started_request_id') == real_started_request_id }}
+            timeout: "00:00:02"
+            continue_on_timeout: true
+          - condition: template
+            alias: Captura persistente confirmada antes da preempção
+            value_template: "{{ wait.completed }}"
+          - action: script.casa_csmr_processar_saida_real_pendente_v20_2c
+            data:
+              invocation_reason: edge_capture
+          - stop: Saída real entregue ao processador persistente.
+
+      - condition: template
+        alias: Harness exige test_mode booleano nativo verdadeiro
+        value_template: >-
+          {{ not is_harness
+             or (test_mode_raw is boolean and test_mode_raw is sameas true
+               and not (state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is boolean
+                 and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') is sameas true)) }}
+
+      - if:
+          - condition: template
+            alias: Retorno real encontrou sessão de teste ativa
+            value_template: >-
+              {{ trigger.id == 'real_return'
+                 and is_state('sensor.casa_csmr_estado_v20_2c', 'active')
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas true }}
+        then:
+          - variables:
+              real_return_test_session: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') }}"
+              real_return_test_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') | default('', true) }}"
+              real_return_close_hash: "{{ md5('test:' ~ real_return_test_cycle ~ ':close') }}"
+              real_return_ended_hash: "{{ md5('test:' ~ real_return_test_cycle ~ ':remote_monitoring_ended') }}"
+              real_return_close_request: >-
+                {{ real_return_close_hash[0:8] ~ '-' ~ real_return_close_hash[8:12] ~ '-4' ~ real_return_close_hash[13:16]
+                   ~ '-8' ~ real_return_close_hash[17:20] ~ '-' ~ real_return_close_hash[20:32] }}
+              real_return_ended_request: >-
+                {{ real_return_ended_hash[0:8] ~ '-' ~ real_return_ended_hash[8:12] ~ '-4' ~ real_return_ended_hash[13:16]
+                   ~ '-8' ~ real_return_ended_hash[17:20] ~ '-' ~ real_return_ended_hash[20:32] }}
+          - condition: template
+            value_template: "{{ real_return_test_session != '' and real_return_test_cycle != '' }}"
+          - action: script.casa_csmr_transicionar_v20_2c
+            data:
+              action: close
+              request_id: "{{ real_return_close_request }}"
+              source: harness_i2
+              reason: real_return_closes_test_session
+              test_mode: true
+              simulate_failure: false
+            response_variable: real_return_close_response
+          - condition: template
+            value_template: >-
+              {{ real_return_close_response.status in ['completed', 'duplicate']
+                 and is_state('sensor.casa_csmr_estado_v20_2c', 'idle') }}
+          - action: script.casa_publicar_evento_timeline_v20
+            data:
+              request_id: "{{ real_return_ended_request }}"
+              source: csmr_v20_2c
+              session_id: "{{ real_return_test_session }}"
+              event_code: remote_monitoring_ended
+              message: "🛡️ Monitoramento remoto encerrado"
+              schema_version: 1
+              test_mode: true
+            response_variable: real_return_ended_ack
+          - condition: template
+            value_template: "{{ real_return_ended_ack.status in ['validated_test', 'duplicate'] }}"
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.casa_csmr_retorno_pendente_v20_2c
+          - stop: Retorno real encerrou sessão de teste sem publicação produtiva.
+
       - choose:
           - conditions: "{{ command == 'departure' }}"
             sequence:
               - condition: template
                 value_template: >-
                   {{ is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
-                     and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+                     and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false)
+                     and (not execution_test_mode or (
+                       states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') == ''
+                       and is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'off')
+                     )) }}
 
               - event: casa_csmr_dispatcher_checkpoint_v20_2c
                 event_data:
@@ -235,6 +645,7 @@ automation:
                   last_ack_status: ""
                   last_ack_request_id: ""
                   last_error: ""
+                  test_mode: "{{ execution_test_mode }}"
                   updated_at: "{{ now().isoformat() }}"
 
               - wait_for_trigger:
@@ -273,6 +684,7 @@ automation:
                       last_ack_status: cancelled_during_grace
                       last_ack_request_id: ""
                       last_error: ""
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - service: input_boolean.turn_off
                     target:
@@ -287,9 +699,9 @@ automation:
                 data:
                   action: reserve
                   request_id: "{{ reserve_request_id }}"
-                  source: csmr_dispatcher_v20_2c
+                  source: "{{ transition_source }}"
                   reason: "i3a_departure_{{ dispatcher_source }}"
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                   simulate_failure: false
                 response_variable: reserve_response
 
@@ -329,14 +741,35 @@ automation:
                   event_code: wilson_left_home
                   message: "📍 Wilson saiu de casa"
                   schema_version: 1
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                 response_variable: left_ack
 
               - if:
                   - condition: template
-                    value_template: "{{ left_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                    value_template: >-
+                      {{ (execution_test_mode and left_ack.status in ['validated_test', 'duplicate'])
+                         or (not execution_test_mode and left_ack.status in ['published', 'duplicate']) }}
                 then: []
                 else:
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ execution_test_mode
+                             and is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                             and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+                    then:
+                      - action: script.casa_csmr_transicionar_v20_2c
+                        data:
+                          action: cancel_reservation
+                          request_id: >-
+                            {% set h = md5(identity_seed ~ ':cancel_reservation_after_left_failure') %}
+                            {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                          source: harness_i2
+                          session_id: "{{ session_id }}"
+                          reason: left_validation_failed
+                          test_mode: true
+                          simulate_failure: false
+                        response_variable: left_cancel_response
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
                       phase: failed
@@ -346,6 +779,7 @@ automation:
                       last_ack_status: "{{ left_ack.status | default('failed', true) }}"
                       last_ack_request_id: "{{ left_request_id }}"
                       last_error: "left_{{ left_ack.reason | default('unknown', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - stop: ACK de saída incompatível.
 
@@ -364,10 +798,10 @@ automation:
                 data:
                   action: open
                   request_id: "{{ open_request_id }}"
-                  source: csmr_dispatcher_v20_2c
+                  source: "{{ transition_source }}"
                   session_id: "{{ session_id }}"
                   reason: "i3a_departure_{{ dispatcher_source }}"
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                   simulate_failure: false
                 response_variable: open_response
 
@@ -379,6 +813,23 @@ automation:
                          and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') == session_id }}
                 then: []
                 else:
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ execution_test_mode
+                             and is_state('sensor.casa_csmr_estado_v20_2c', 'failed') }}
+                    then:
+                      - action: script.casa_csmr_transicionar_v20_2c
+                        data:
+                          action: recover
+                          request_id: >-
+                            {% set h = md5(identity_seed ~ ':recover_after_open_failure') %}
+                            {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                          source: harness_i2
+                          reason: open_failed_in_test
+                          test_mode: true
+                          simulate_failure: false
+                        response_variable: open_recover_response
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
                       phase: failed
@@ -388,6 +839,7 @@ automation:
                       last_ack_status: "{{ open_response.status | default('failed', true) }}"
                       last_ack_request_id: "{{ open_request_id }}"
                       last_error: "open_{{ open_response.reason | default('inconsistent_state', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - stop: Abertura transacional incompatível.
 
@@ -399,12 +851,14 @@ automation:
                   event_code: remote_monitoring_started
                   message: "🛡️ Monitoramento remoto iniciado"
                   schema_version: 1
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                 response_variable: started_ack
 
               - if:
                   - condition: template
-                    value_template: "{{ started_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                    value_template: >-
+                      {{ (execution_test_mode and started_ack.status in ['validated_test', 'duplicate'])
+                         or (not execution_test_mode and started_ack.status in ['published', 'duplicate']) }}
                 then:
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
@@ -416,6 +870,7 @@ automation:
                       last_ack_status: "{{ started_ack.status }}"
                       last_ack_request_id: "{{ started_request_id }}"
                       last_error: ""
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - if:
                       - condition: state
@@ -424,16 +879,30 @@ automation:
                     then:
                       - variables:
                           consumer_authorized_since: "{{ now().isoformat() }}"
-                      - service: input_datetime.set_datetime
-                        target:
-                          entity_id: input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c
-                        data:
-                          datetime: "{{ consumer_authorized_since }}"
-                      - service: input_text.set_value
-                        target:
-                          entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
-                        data:
-                          value: "{{ session_id }}"
+                      - choose:
+                          - conditions: "{{ execution_test_mode }}"
+                            sequence:
+                              - service: input_datetime.set_datetime
+                                target:
+                                  entity_id: input_datetime.casa_csmr_consumidores_teste_autorizados_desde_v20_2c
+                                data:
+                                  datetime: "{{ consumer_authorized_since }}"
+                              - service: input_text.set_value
+                                target:
+                                  entity_id: input_text.casa_csmr_consumidores_teste_sessao_autorizada_v20_2c
+                                data:
+                                  value: "{{ session_id }}"
+                        default:
+                          - service: input_datetime.set_datetime
+                            target:
+                              entity_id: input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c
+                            data:
+                              datetime: "{{ consumer_authorized_since }}"
+                          - service: input_text.set_value
+                            target:
+                              entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
+                            data:
+                              value: "{{ session_id }}"
                       - event: casa_csmr_dispatcher_checkpoint_v20_2c
                         event_data:
                           phase: active
@@ -442,6 +911,7 @@ automation:
                           source: "{{ dispatcher_source }}"
                           consumer_authorized_since: "{{ consumer_authorized_since }}"
                           consumer_authorized_session_id: "{{ session_id }}"
+                          test_mode: "{{ execution_test_mode }}"
                           updated_at: "{{ now().isoformat() }}"
                       - wait_template: >-
                           {{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'consumer_authorized_since')
@@ -449,13 +919,77 @@ automation:
                              and state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'consumer_authorized_session_id')
                                == session_id }}
                         timeout: "00:00:02"
-                        continue_on_timeout: false
-                      - event: casa_csmr_consumidores_autorizar_v20_2c
-                        event_data:
-                          session_id: "{{ session_id }}"
-                          cycle_id: "{{ cycle_id }}"
-                          consumer_authorized_since: "{{ consumer_authorized_since }}"
+                        continue_on_timeout: true
+                      - choose:
+                          - conditions: "{{ execution_test_mode }}"
+                            sequence:
+                              - if:
+                                  - condition: template
+                                    value_template: >-
+                                      {{ wait.completed
+                                         and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+                                         and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas true
+                                         and states('input_text.casa_csmr_consumidores_teste_sessao_autorizada_v20_2c') == session_id
+                                         and as_timestamp(states('input_datetime.casa_csmr_consumidores_teste_autorizados_desde_v20_2c'), 0) > 0 }}
+                                then:
+                                  - event: casa_csmr_consumidores_autorizar_teste_v20_2c
+                                    event_data:
+                                      session_id: "{{ session_id }}"
+                                      cycle_id: "{{ cycle_id }}"
+                                      consumer_authorized_since: "{{ consumer_authorized_since }}"
+                                      test_mode: true
+                                else:
+                                  - action: script.casa_csmr_transicionar_v20_2c
+                                    data:
+                                      action: close
+                                      request_id: >-
+                                        {% set h = md5(identity_seed ~ ':close_after_authorization_failure') %}
+                                        {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                                      source: harness_i2
+                                      reason: consumer_test_authorization_failed
+                                      test_mode: true
+                                      simulate_failure: false
+                                    response_variable: authorization_close_response
+                                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                                    event_data:
+                                      phase: failed
+                                      cycle_id: "{{ cycle_id }}"
+                                      session_id: "{{ session_id }}"
+                                      source: "{{ dispatcher_source }}"
+                                      last_error: consumer_test_authorization_failed
+                                      test_mode: true
+                                      updated_at: "{{ now().isoformat() }}"
+                                  - stop: Autorização de consumidores de teste não foi confirmada.
+                        default:
+                          - condition: template
+                            value_template: >-
+                              {{ wait.completed
+                                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+                                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas false }}
+                          - event: casa_csmr_consumidores_autorizar_v20_2c
+                            event_data:
+                              session_id: "{{ session_id }}"
+                              cycle_id: "{{ cycle_id }}"
+                              consumer_authorized_since: "{{ consumer_authorized_since }}"
+                              test_mode: false
                 else:
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ execution_test_mode
+                             and is_state('sensor.casa_csmr_estado_v20_2c', 'active') }}
+                    then:
+                      - action: script.casa_csmr_transicionar_v20_2c
+                        data:
+                          action: close
+                          request_id: >-
+                            {% set h = md5(identity_seed ~ ':close_after_started_failure') %}
+                            {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                          source: harness_i2
+                          reason: started_validation_failed
+                          test_mode: true
+                          simulate_failure: false
+                        response_variable: started_close_response
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
                       phase: failed
@@ -465,6 +999,7 @@ automation:
                       last_ack_status: "{{ started_ack.status | default('failed', true) }}"
                       last_ack_request_id: "{{ started_request_id }}"
                       last_error: "started_{{ started_ack.reason | default('unknown', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
 
           - conditions: "{{ command == 'return' }}"
@@ -479,12 +1014,12 @@ automation:
                     data:
                       action: cancel_reservation
                       request_id: >-
-                        {% set h = md5(cycle_id ~ ':cancel_reservation') %}
+                        {% set h = md5(identity_seed ~ ':cancel_reservation') %}
                         {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
-                      source: csmr_dispatcher_v20_2c
+                      source: "{{ transition_source }}"
                       session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') }}"
                       reason: i3a_return_before_open
-                      test_mode: false
+                      test_mode: "{{ execution_test_mode }}"
                       simulate_failure: false
                     response_variable: cancel_response
 
@@ -512,12 +1047,21 @@ automation:
                 entity_id: sensor.casa_csmr_estado_v20_2c
                 state: active
 
+              - condition: template
+                alias: Modo do retorno corresponde à sessão ativa
+                value_template: >-
+                  {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+                     and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') == execution_test_mode
+                     and (not execution_test_mode
+                       or state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') == cycle_id) }}
+
               - variables:
                   session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') }}"
                   return_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') | default(cycle_id, true) }}"
-                  arrived_hash: "{{ md5(return_cycle ~ ':wilson_arrived_home') }}"
-                  close_hash: "{{ md5(return_cycle ~ ':close') }}"
-                  ended_hash: "{{ md5(return_cycle ~ ':remote_monitoring_ended') }}"
+                  return_identity_seed: "{{ ('test:' ~ return_cycle) if execution_test_mode else return_cycle }}"
+                  arrived_hash: "{{ md5(return_identity_seed ~ ':wilson_arrived_home') }}"
+                  close_hash: "{{ md5(return_identity_seed ~ ':close') }}"
+                  ended_hash: "{{ md5(return_identity_seed ~ ':remote_monitoring_ended') }}"
                   arrived_request_id: >-
                     {{ arrived_hash[0:8] ~ '-' ~ arrived_hash[8:12] ~ '-4' ~ arrived_hash[13:16]
                        ~ '-8' ~ arrived_hash[17:20] ~ '-' ~ arrived_hash[20:32] }}
@@ -549,14 +1093,31 @@ automation:
                   event_code: wilson_arrived_home
                   message: "📍 Wilson chegou em casa"
                   schema_version: 1
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                 response_variable: arrived_ack
 
               - if:
                   - condition: template
-                    value_template: "{{ arrived_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                    value_template: >-
+                      {{ (execution_test_mode and arrived_ack.status in ['validated_test', 'duplicate'])
+                         or (not execution_test_mode and arrived_ack.status in ['published', 'duplicate']) }}
                 then: []
                 else:
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ execution_test_mode
+                             and is_state('sensor.casa_csmr_estado_v20_2c', 'active') }}
+                    then:
+                      - action: script.casa_csmr_transicionar_v20_2c
+                        data:
+                          action: close
+                          request_id: "{{ close_request_id }}"
+                          source: harness_i2
+                          reason: arrived_validation_failed
+                          test_mode: true
+                          simulate_failure: false
+                        response_variable: arrived_failure_close_response
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
                       phase: failed
@@ -566,6 +1127,7 @@ automation:
                       last_ack_status: "{{ arrived_ack.status | default('failed', true) }}"
                       last_ack_request_id: "{{ arrived_request_id }}"
                       last_error: "arrived_{{ arrived_ack.reason | default('unknown', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - stop: ACK de chegada incompatível.
 
@@ -573,9 +1135,9 @@ automation:
                 data:
                   action: close
                   request_id: "{{ close_request_id }}"
-                  source: csmr_dispatcher_v20_2c
+                  source: "{{ transition_source }}"
                   reason: "i3a_return_{{ dispatcher_source }}"
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                   simulate_failure: false
                 response_variable: close_response
 
@@ -586,6 +1148,23 @@ automation:
                          and is_state('sensor.casa_csmr_estado_v20_2c', 'idle') }}
                 then: []
                 else:
+                  - if:
+                      - condition: template
+                        value_template: >-
+                          {{ execution_test_mode
+                             and is_state('sensor.casa_csmr_estado_v20_2c', 'failed') }}
+                    then:
+                      - action: script.casa_csmr_transicionar_v20_2c
+                        data:
+                          action: recover
+                          request_id: >-
+                            {% set h = md5(return_identity_seed ~ ':recover_after_close_failure') %}
+                            {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                          source: harness_i2
+                          reason: close_failed_in_test
+                          test_mode: true
+                          simulate_failure: false
+                        response_variable: close_recover_response
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
                       phase: failed
@@ -595,6 +1174,7 @@ automation:
                       last_ack_status: "{{ close_response.status | default('failed', true) }}"
                       last_ack_request_id: "{{ close_request_id }}"
                       last_error: "close_{{ close_response.reason | default('inconsistent_state', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - stop: Encerramento transacional incompatível.
 
@@ -606,12 +1186,14 @@ automation:
                   event_code: remote_monitoring_ended
                   message: "🛡️ Monitoramento remoto encerrado"
                   schema_version: 1
-                  test_mode: false
+                  test_mode: "{{ execution_test_mode }}"
                 response_variable: ended_ack
 
               - if:
                   - condition: template
-                    value_template: "{{ ended_ack.status in ['published', 'validated_test', 'duplicate'] }}"
+                    value_template: >-
+                      {{ (execution_test_mode and ended_ack.status in ['validated_test', 'duplicate'])
+                         or (not execution_test_mode and ended_ack.status in ['published', 'duplicate']) }}
                 then:
                   - event: casa_csmr_dispatcher_checkpoint_v20_2c
                     event_data:
@@ -623,6 +1205,7 @@ automation:
                       last_ack_status: "{{ ended_ack.status }}"
                       last_ack_request_id: "{{ ended_request_id }}"
                       last_error: ""
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
                   - service: input_boolean.turn_off
                     target:
@@ -637,9 +1220,848 @@ automation:
                       last_ack_status: "{{ ended_ack.status | default('failed', true) }}"
                       last_ack_request_id: "{{ ended_request_id }}"
                       last_error: "ended_{{ ended_ack.reason | default('unknown', true) }}"
+                      test_mode: "{{ execution_test_mode }}"
                       updated_at: "{{ now().isoformat() }}"
 
 script:
+  casa_csmr_processar_saida_real_pendente_v20_2c:
+    alias: Casa — CSMR — Processar Saída Real Pendente V20.2C
+    description: >-
+      Retoma uma única etapa externa da saída real persistida, preservando
+      cycle_id, requests, graça e sessão através de falha, reload e restart.
+    icon: mdi:account-arrow-right-outline
+    mode: single
+    fields:
+      invocation_reason:
+        name: Motivo técnico da invocação
+        required: false
+        selector:
+          select:
+            options:
+              - edge_capture
+              - checkpoint_changed
+              - csmr_changed
+              - person_returned
+              - startup
+              - automation_reloaded
+              - template_reloaded
+              - automation_enabled
+              - administrative_resume
+    sequence:
+      - variables:
+          invocation_reason_norm: "{{ invocation_reason | default('checkpoint_changed', true) | string | trim }}"
+          pending_raw: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_pending') }}"
+          pending_phase: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_phase') | default('', true) }}"
+          pending_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_cycle_id') | default('', true) }}"
+          pending_source: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_source') | default('', true) }}"
+          pending_test_mode: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_test_mode') }}"
+          pending_occurred_at: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_occurred_at') | default('', true) }}"
+          pending_captured_at: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_captured_at') | default('', true) }}"
+          pending_grace: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_grace_seconds') }}"
+          pending_reserve_request: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_reserve_request_id') | default('', true) }}"
+          pending_left_request: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_left_request_id') | default('', true) }}"
+          pending_open_request: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_open_request_id') | default('', true) }}"
+          pending_started_request: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_started_request_id') | default('', true) }}"
+          pending_session: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_session_id') | default('', true) }}"
+          pending_attempts: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_resume_attempts') }}"
+          pending_last_error: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_last_error') | default('', true) }}"
+          pending_last_result: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'real_departure_last_result') | default('', true) }}"
+          uuid_pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          ulid_pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          expected_reserve_hash: "{{ md5(pending_cycle ~ ':reserve') }}"
+          expected_left_hash: "{{ md5(pending_cycle ~ ':wilson_left_home') }}"
+          expected_open_hash: "{{ md5(pending_cycle ~ ':open') }}"
+          expected_started_hash: "{{ md5(pending_cycle ~ ':remote_monitoring_started') }}"
+          expected_reserve_request: >-
+            {{ expected_reserve_hash[0:8] ~ '-' ~ expected_reserve_hash[8:12] ~ '-4' ~ expected_reserve_hash[13:16]
+               ~ '-8' ~ expected_reserve_hash[17:20] ~ '-' ~ expected_reserve_hash[20:32] }}
+          expected_left_request: >-
+            {{ expected_left_hash[0:8] ~ '-' ~ expected_left_hash[8:12] ~ '-4' ~ expected_left_hash[13:16]
+               ~ '-8' ~ expected_left_hash[17:20] ~ '-' ~ expected_left_hash[20:32] }}
+          expected_open_request: >-
+            {{ expected_open_hash[0:8] ~ '-' ~ expected_open_hash[8:12] ~ '-4' ~ expected_open_hash[13:16]
+               ~ '-8' ~ expected_open_hash[17:20] ~ '-' ~ expected_open_hash[20:32] }}
+          expected_started_request: >-
+            {{ expected_started_hash[0:8] ~ '-' ~ expected_started_hash[8:12] ~ '-4' ~ expected_started_hash[13:16]
+               ~ '-8' ~ expected_started_hash[17:20] ~ '-' ~ expected_started_hash[20:32] }}
+          allowed_results:
+            - ""
+            - preempting_test
+            - test_preempted
+            - test_close_failed
+            - test_recover_failed
+            - ready
+            - grace_completed
+            - reserve_completed
+            - left_completed
+            - open_completed
+            - started_completed
+          allowed_errors:
+            - ""
+            - pending_invalid
+            - phase_invalid
+            - cycle_id_invalid
+            - source_invalid
+            - test_mode_invalid
+            - occurred_at_invalid
+            - captured_at_invalid
+            - timestamp_order_invalid
+            - grace_invalid
+            - attempts_invalid
+            - request_invalid
+            - identity_mismatch
+            - session_invalid
+            - schema_invalid
+            - active_session_identity_mismatch
+            - test_close_failed
+            - test_close_inconsistent_state
+            - test_recover_failed
+            - reservation_identity_mismatch
+            - duplicate_reserve_identity_unproven
+            - session_identity_mismatch
+            - rejected
+            - left_publication_failed
+            - open_failed
+            - started_publication_failed
+            - state_not_resumable
+            - resume_attempts_exceeded
+          schema_error: >-
+            {% if pending_raw is not boolean or pending_raw is not sameas true %}pending_invalid
+            {% elif pending_phase not in ['captured', 'preempting_test', 'ready', 'resuming', 'blocked'] %}phase_invalid
+            {% elif not pending_cycle | regex_match(ulid_pattern) %}cycle_id_invalid
+            {% elif pending_source != 'person.wmoura' %}source_invalid
+            {% elif pending_test_mode is not boolean or pending_test_mode is not sameas false %}test_mode_invalid
+            {% elif as_timestamp(pending_occurred_at, 0) <= 0 %}occurred_at_invalid
+            {% elif as_timestamp(pending_captured_at, 0) <= 0 %}captured_at_invalid
+            {% elif as_timestamp(pending_occurred_at, 0) > as_timestamp(pending_captured_at, 0) %}timestamp_order_invalid
+            {% elif pending_grace is boolean or pending_grace is not number or pending_grace < 5 or pending_grace > 300 %}grace_invalid
+            {% elif pending_attempts is boolean or pending_attempts is not number or pending_attempts | int(-1) < 0 %}attempts_invalid
+            {% elif pending_last_error not in allowed_errors or pending_last_result not in allowed_results %}schema_invalid
+            {% elif not pending_reserve_request | regex_match(uuid_pattern)
+                 or not pending_left_request | regex_match(uuid_pattern)
+                 or not pending_open_request | regex_match(uuid_pattern)
+                 or not pending_started_request | regex_match(uuid_pattern) %}request_invalid
+            {% elif pending_reserve_request != expected_reserve_request
+                 or pending_left_request != expected_left_request
+                 or pending_open_request != expected_open_request
+                 or pending_started_request != expected_started_request %}identity_mismatch
+            {% elif pending_session != '' and not pending_session | regex_match(uuid_pattern) %}session_invalid
+            {% else %}{% endif %}
+          i2_state: "{{ states('sensor.casa_csmr_estado_v20_2c') }}"
+          i2_test_mode: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') }}"
+          i2_session: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') | default('', true) }}"
+          i2_ledger: >-
+            {% set raw = state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_ledger') | default([], true) %}
+            {{ raw if raw is iterable and raw is not string and raw is not mapping else [] }}
+          publication_ledger: >-
+            {% set raw = state_attr('sensor.casa_timeline_publicacao_ack_v20', 'ledger_producao') | default([], true) %}
+            {{ raw if raw is iterable and raw is not string and raw is not mapping else [] }}
+          evidence_started_matches: >-
+            {{ publication_ledger
+               | selectattr('request_id', 'eq', pending_started_request)
+               | selectattr('source', 'eq', 'csmr_v20_2c')
+               | selectattr('session_id', 'eq', pending_session)
+               | selectattr('event_code', 'eq', 'remote_monitoring_started') | list }}
+          evidence_authorization_valid: >-
+            {{ states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') == pending_session
+               and as_timestamp(states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c'), 0) > 0 }}
+          # Lista canônica de erros permanentes/não retomáveis do checkpoint da
+          # saída real. automation.casa_csmr_reconciliar_saida_real_pendente_v20_2c
+          # mantém uma cópia idêntica (harmonizada no Gate de saneamento
+          # pré-reload, pós-revisão independente) para decidir se deve
+          # despachar um novo wake-up automático. Falhas técnicas/transitórias
+          # (left_publication_failed, open_failed, started_publication_failed,
+          # test_close_failed, test_close_inconsistent_state,
+          # test_recover_failed, state_not_resumable) permanecem
+          # deliberadamente fora desta lista em ambos os lugares: são elegíveis
+          # a nova tentativa, limitadas apenas pelo circuit breaker numérico
+          # (real_departure_resume_attempts >= 50), não por bloqueio imediato.
+          structural_errors:
+            - pending_invalid
+            - phase_invalid
+            - cycle_id_invalid
+            - source_invalid
+            - test_mode_invalid
+            - occurred_at_invalid
+            - captured_at_invalid
+            - timestamp_order_invalid
+            - grace_invalid
+            - attempts_invalid
+            - request_invalid
+            - identity_mismatch
+            - session_invalid
+            - duplicate_reserve_identity_unproven
+            - reservation_identity_mismatch
+            - session_identity_mismatch
+            - active_session_identity_mismatch
+            - rejected
+            - resume_attempts_exceeded
+
+      - if:
+          - condition: template
+            value_template: "{{ schema_error != '' }}"
+        then:
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: blocked
+              real_departure_phase: blocked
+              real_departure_last_error: "{{ schema_error if schema_error in structural_errors else 'schema_invalid' }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Checkpoint da saída real inválido; retomada bloqueada.
+
+      - if:
+          - condition: template
+            alias: >-
+              Limite determinístico de tentativas evita reexecução
+              indefinida quando nenhum branch consegue avançar o progresso
+              real (anti-loop de defesa em profundidade; Gate corretivo
+              estático de 16-17/08/2026). Valor 50 é um teto conservador —
+              ciclos normais concluem com resume_attempts de um dígito;
+              requer aprovação explícita se for ajustado.
+            value_template: "{{ pending_attempts | int(0) >= 50 }}"
+        then:
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: blocked
+              real_departure_phase: blocked
+              real_departure_last_error: resume_attempts_exceeded
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: >-
+              Limite de tentativas de retomada excedido sem estado terminal;
+              retomada bloqueada para análise. O reconciliador para de
+              reacordar automaticamente (resume_attempts_exceeded é erro
+              estrutural).
+
+      - if:
+          - condition: template
+            alias: Sessão produtiva ativa pertence a outro ciclo
+            value_template: >-
+              {{ i2_state == 'active'
+                 and i2_test_mode is boolean and i2_test_mode is sameas false
+                 and (pending_session == ''
+                   or i2_session != pending_session
+                   or state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_request_id') != pending_open_request
+                   or state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_source') != 'csmr_dispatcher_v20_2c') }}
+        then:
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: blocked
+              real_departure_phase: blocked
+              real_departure_last_error: active_session_identity_mismatch
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Sessão ativa incompatível com a saída pendente.
+
+      - if:
+          - condition: template
+            alias: >-
+              Sessão produtiva ativa do mesmo ciclo é reconciliada por
+              evidência (restrito a evidência que está ADIANTE do checkpoint
+              — corrige loop autorreferente que impedia os branches de
+              started/autorização de progredir quando o checkpoint já
+              refletia corretamente a última etapa externa concluída; Gate
+              corretivo estático de 16-17/08/2026)
+            value_template: >-
+              {{ i2_state == 'active'
+                 and i2_test_mode is boolean and i2_test_mode is sameas false
+                 and pending_session != '' and i2_session == pending_session
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_request_id') == pending_open_request
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_source') == 'csmr_dispatcher_v20_2c'
+                 and (evidence_authorization_valid
+                   or (evidence_started_matches | count == 1
+                       and pending_last_result not in ['started_completed', 'completed'])) }}
+        then:
+          - variables:
+              started_matches: >-
+                {{ publication_ledger
+                   | selectattr('request_id', 'eq', pending_started_request)
+                   | selectattr('source', 'eq', 'csmr_v20_2c')
+                   | selectattr('session_id', 'eq', pending_session)
+                   | selectattr('event_code', 'eq', 'remote_monitoring_started') | list }}
+              authorization_valid: >-
+                {{ states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') == pending_session
+                   and as_timestamp(states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c'), 0) > 0 }}
+          - choose:
+              - conditions: "{{ started_matches | count == 1 and authorization_valid }}"
+                sequence:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: active
+                      cycle_id: "{{ pending_cycle }}"
+                      session_id: "{{ pending_session }}"
+                      source: person.wmoura
+                      presence_observed: "{{ states('person.wmoura') }}"
+                      last_error: ""
+                      test_mode: false
+                      updated_at: "{{ now().isoformat() }}"
+                      real_departure_pending: false
+                      real_departure_phase: none
+                      real_departure_last_error: ""
+                      real_departure_last_result: completed
+                      real_departure_updated_at: "{{ now().isoformat() }}"
+                  - stop: Saída produtiva já concluída; pending reconciliado.
+              - conditions: "{{ started_matches | count == 1 }}"
+                sequence:
+                  - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                    event_data:
+                      phase: resuming
+                      real_departure_phase: resuming
+                      real_departure_last_error: ""
+                      real_departure_last_result: started_completed
+                      real_departure_updated_at: "{{ now().isoformat() }}"
+                  - stop: Publicação inicial comprovada; autorização ainda pendente.
+            default:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: resuming
+                  real_departure_phase: resuming
+                  real_departure_last_error: ""
+                  real_departure_last_result: open_completed
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Open comprovado; publicação de monitoramento ainda pendente.
+
+      - if:
+          - condition: template
+            alias: Sessão de teste ativa é preemptada antes da produção
+            value_template: >-
+              {{ i2_state == 'active'
+                 and pending_phase == 'captured'
+                 and i2_test_mode is boolean and i2_test_mode is sameas true }}
+        then:
+          - variables:
+              test_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') | default('', true) }}"
+              test_open_hash: "{{ md5('test:' ~ test_cycle ~ ':open') }}"
+              expected_test_open_request: >-
+                {{ test_open_hash[0:8] ~ '-' ~ test_open_hash[8:12] ~ '-4' ~ test_open_hash[13:16]
+                   ~ '-8' ~ test_open_hash[17:20] ~ '-' ~ test_open_hash[20:32] }}
+              test_close_hash: "{{ md5('test:' ~ test_cycle ~ ':close') }}"
+              test_close_request: >-
+                {{ test_close_hash[0:8] ~ '-' ~ test_close_hash[8:12] ~ '-4' ~ test_close_hash[13:16]
+                   ~ '-8' ~ test_close_hash[17:20] ~ '-' ~ test_close_hash[20:32] }}
+              i2_open_ledger_matches: >-
+                {{ i2_ledger | selectattr('action', 'eq', 'open')
+                   | selectattr('result', 'eq', 'completed')
+                   | selectattr('session_id', 'eq', i2_session) | list }}
+          - if:
+              - condition: template
+                value_template: >-
+                  {{ i2_open_ledger_matches | count != 1
+                     or not i2_session | regex_match(uuid_pattern)
+                     or state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_action') != 'open'
+                     or state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_request_id') != i2_open_ledger_matches[0].request_id
+                     or state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_source') != 'harness_i2' }}
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: blocked
+                  real_departure_phase: blocked
+                  real_departure_last_error: session_identity_mismatch
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Identidade da sessão de teste não permite preempção segura.
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: preempting_test
+              real_departure_phase: preempting_test
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_last_error: ""
+              real_departure_last_result: preempting_test
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_csmr_transicionar_v20_2c
+            data:
+              action: close
+              request_id: "{{ test_close_request }}"
+              source: harness_i2
+              reason: preempt_test_for_real_departure
+              test_mode: true
+              simulate_failure: false
+            response_variable: test_close_response
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'ready' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'preempting_test' if is_state('sensor.casa_csmr_estado_v20_2c', 'failed') else 'blocked' }}"
+              real_departure_phase: "{{ 'ready' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'preempting_test' if is_state('sensor.casa_csmr_estado_v20_2c', 'failed') else 'blocked' }}"
+              real_departure_last_error: "{{ '' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'test_close_failed' if is_state('sensor.casa_csmr_estado_v20_2c', 'failed') else 'test_close_inconsistent_state' }}"
+              real_departure_last_result: "{{ 'test_preempted' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'test_close_failed' }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de preempção foi processada.
+
+      - if:
+          - condition: template
+            alias: Teste failed recebe uma recuperação governada
+            value_template: >-
+              {{ pending_phase == 'preempting_test'
+                 and pending_last_result == 'test_close_failed'
+                 and i2_state == 'failed'
+                 and i2_test_mode is boolean and i2_test_mode is sameas true }}
+        then:
+          - variables:
+              failed_test_cycle: "{{ state_attr('sensor.casa_csmr_dispatcher_estado_v20_2c', 'cycle_id') | default('', true) }}"
+              test_recover_hash: "{{ md5('test:' ~ failed_test_cycle ~ ':recover_preemption') }}"
+              test_recover_request: >-
+                {{ test_recover_hash[0:8] ~ '-' ~ test_recover_hash[8:12] ~ '-4' ~ test_recover_hash[13:16]
+                   ~ '-8' ~ test_recover_hash[17:20] ~ '-' ~ test_recover_hash[20:32] }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: preempting_test
+              real_departure_phase: preempting_test
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_csmr_transicionar_v20_2c
+            data:
+              action: recover
+              request_id: "{{ test_recover_request }}"
+              source: harness_i2
+              reason: recover_test_preemption_for_real_departure
+              test_mode: true
+              simulate_failure: false
+            response_variable: test_recover_response
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'ready' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'blocked' }}"
+              real_departure_phase: "{{ 'ready' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'blocked' }}"
+              real_departure_last_error: "{{ '' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'test_recover_failed' }}"
+              real_departure_last_result: "{{ 'test_preempted' if is_state('sensor.casa_csmr_estado_v20_2c', 'idle') else 'test_recover_failed' }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de recuperação foi processada.
+
+      - if:
+          - condition: template
+            alias: Estado idle sem teste libera a retomada
+            value_template: >-
+              {{ pending_phase in ['captured', 'preempting_test', 'blocked']
+                 and i2_state == 'idle'
+                 and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+        then:
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: ready
+              real_departure_phase: ready
+              real_departure_last_error: ""
+              real_departure_last_result: ready
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Saída real pronta para retomada.
+
+      - if:
+          - condition: state
+            entity_id: person.wmoura
+            state: home
+        then:
+          - variables:
+              reservation_owned: >-
+                {{ i2_state == 'idle'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is sameas true
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') == pending_reserve_request
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is sameas false }}
+              cancel_hash: "{{ md5(pending_cycle ~ ':cancel_reservation_returned_before_resume') }}"
+              cancel_request: >-
+                {{ cancel_hash[0:8] ~ '-' ~ cancel_hash[8:12] ~ '-4' ~ cancel_hash[13:16]
+                   ~ '-8' ~ cancel_hash[17:20] ~ '-' ~ cancel_hash[20:32] }}
+          - if:
+              - condition: template
+                value_template: "{{ reservation_owned }}"
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - action: script.casa_csmr_transicionar_v20_2c
+                data:
+                  action: cancel_reservation
+                  request_id: "{{ cancel_request }}"
+                  source: csmr_dispatcher_v20_2c
+                  session_id: "{{ state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') }}"
+                  reason: returned_before_real_departure_resume
+                  test_mode: false
+                  simulate_failure: false
+                response_variable: cancel_pending_response
+              - condition: template
+                value_template: >-
+                  {{ cancel_pending_response.status in ['cancelled', 'duplicate']
+                     and is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                     and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+          - if:
+              - condition: template
+                alias: Cancelamento só termina sem sessão produtiva ativa
+                value_template: >-
+                  {{ is_state('sensor.casa_csmr_estado_v20_2c', 'idle')
+                     and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: idle
+                  presence_observed: home
+                  updated_at: "{{ now().isoformat() }}"
+                  real_departure_pending: false
+                  real_departure_phase: none
+                  real_departure_last_error: ""
+                  real_departure_last_result: cancelled_returned_before_resume
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Saída pendente cancelada após retorno anterior a active.
+            else:
+              - stop: >-
+                  Encerramento explícito (Gate de saneamento pré-reload,
+                  achado #3 da revisão independente): a sessão produtiva
+                  permanece active para outro ciclo, então o cancelamento
+                  desta saída pendente não pôde ser concluído aqui. Nenhum
+                  checkpoint foi escrito, nenhum evento de Timeline foi
+                  publicado, nenhuma nova tentativa foi disparada e
+                  session_id/cycle_id/real_departure_* permanecem
+                  exatamente como estavam antes desta invocação.
+
+      - if:
+          - condition: template
+            alias: Ready calcula somente a graça restante
+            value_template: >-
+              {{ pending_phase == 'ready'
+                 and i2_state == 'idle'
+                 and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false)
+                 and states('person.wmoura') not in ['home', 'unknown', 'unavailable']
+                 and is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'off') }}
+        then:
+          - variables:
+              elapsed_seconds: "{{ as_timestamp(now()) - as_timestamp(pending_occurred_at, 0) }}"
+              remaining_seconds: "{{ [0, pending_grace | float(0) - elapsed_seconds | float(0)] | max }}"
+          - condition: template
+            value_template: "{{ elapsed_seconds >= 0 }}"
+          - delay:
+              seconds: "{{ remaining_seconds }}"
+          - if:
+              - condition: state
+                entity_id: person.wmoura
+                state: home
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: ready
+                  real_departure_phase: ready
+                  real_departure_last_error: ""
+                  real_departure_last_result: ready
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Retorno durante a graça entregue ao cancelamento governado.
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: resuming
+              real_departure_phase: resuming
+              real_departure_last_error: ""
+              real_departure_last_result: grace_completed
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Graça restante concluída sem operação produtiva.
+
+      - if:
+          - condition: template
+            alias: Reserva existente deve pertencer ao mesmo ciclo
+            value_template: >-
+              {{ pending_phase == 'resuming'
+                 and pending_last_result == 'grace_completed'
+                 and i2_state == 'idle'
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+        then:
+          - variables:
+              existing_reserve_matches: >-
+                {{ i2_ledger
+                   | selectattr('request_id', 'eq', pending_reserve_request)
+                   | selectattr('action', 'eq', 'reserve')
+                   | selectattr('result', 'eq', 'reserved') | list }}
+              existing_reservation_valid: >-
+                {{ existing_reserve_matches | count == 1
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') == pending_reserve_request
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') == existing_reserve_matches[0].session_id
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is sameas false }}
+          - if:
+              - condition: template
+                value_template: "{{ existing_reservation_valid }}"
+            then:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: resuming
+                  session_id: "{{ existing_reserve_matches[0].session_id }}"
+                  real_departure_phase: resuming
+                  real_departure_session_id: "{{ existing_reserve_matches[0].session_id }}"
+                  real_departure_last_error: ""
+                  real_departure_last_result: reserve_completed
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Reserva existente do mesmo ciclo foi adotada.
+            else:
+              - event: casa_csmr_dispatcher_checkpoint_v20_2c
+                event_data:
+                  phase: blocked
+                  real_departure_phase: blocked
+                  real_departure_last_error: reservation_identity_mismatch
+                  real_departure_updated_at: "{{ now().isoformat() }}"
+              - stop: Reserva existente pertence a outro ciclo.
+
+      - if:
+          - condition: template
+            alias: Reserva produtiva usa o request congelado
+            value_template: >-
+              {{ pending_phase == 'resuming'
+                 and pending_last_result == 'grace_completed'
+                 and i2_state == 'idle'
+                 and not state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') | default(false) | bool(false) }}
+        then:
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_csmr_transicionar_v20_2c
+            data:
+              action: reserve
+              request_id: "{{ pending_reserve_request }}"
+              source: csmr_dispatcher_v20_2c
+              reason: resume_real_departure
+              test_mode: false
+              simulate_failure: false
+            response_variable: pending_reserve_response
+          - variables:
+              reserve_matches: >-
+                {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_ledger') | default([], true)
+                   | selectattr('request_id', 'eq', pending_reserve_request)
+                   | selectattr('action', 'eq', 'reserve')
+                   | selectattr('result', 'eq', 'reserved') | list }}
+              reserve_identity_valid: >-
+                {{ pending_reserve_response.status in ['reserved', 'duplicate']
+                   and pending_reserve_response.session_id | default('', true) | regex_match(uuid_pattern)
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is sameas true
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') == pending_reserve_request
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') == pending_reserve_response.session_id
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is sameas false
+                   and reserve_matches | count == 1
+                   and reserve_matches[0].session_id == pending_reserve_response.session_id }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'resuming' if reserve_identity_valid else 'blocked' }}"
+              session_id: "{{ pending_reserve_response.session_id if reserve_identity_valid else pending_session }}"
+              real_departure_phase: "{{ 'resuming' if reserve_identity_valid else 'blocked' }}"
+              real_departure_session_id: "{{ pending_reserve_response.session_id if reserve_identity_valid else pending_session }}"
+              real_departure_last_error: "{{ '' if reserve_identity_valid else 'duplicate_reserve_identity_unproven' if pending_reserve_response.status == 'duplicate' else 'reservation_identity_mismatch' }}"
+              real_departure_last_result: "{{ 'reserve_completed' if reserve_identity_valid else pending_last_result }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de reserva foi processada.
+
+      - if:
+          - condition: template
+            alias: Publicação left usa identidade congelada
+            value_template: "{{ pending_phase == 'resuming' and pending_last_result == 'reserve_completed' }}"
+        then:
+          - variables:
+              reservation_valid: >-
+                {{ pending_session | regex_match(uuid_pattern)
+                   and i2_state == 'idle'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is sameas true
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') == pending_reserve_request
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') == pending_session
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is sameas false }}
+          - condition: template
+            value_template: >-
+              {{ reservation_valid
+                 and states('person.wmoura') not in ['home', 'unknown', 'unavailable'] }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_publicar_evento_timeline_v20
+            data:
+              request_id: "{{ pending_left_request }}"
+              source: csmr_v20_2c
+              session_id: "{{ pending_session }}"
+              event_code: wilson_left_home
+              message: "📍 Wilson saiu de casa"
+              schema_version: 1
+              test_mode: false
+            response_variable: pending_left_ack
+          - variables:
+              left_matches: >-
+                {{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'ledger_producao') | default([], true)
+                   | selectattr('request_id', 'eq', pending_left_request)
+                   | selectattr('source', 'eq', 'csmr_v20_2c')
+                   | selectattr('session_id', 'eq', pending_session)
+                   | selectattr('event_code', 'eq', 'wilson_left_home') | list }}
+              left_valid: >-
+                {{ pending_left_ack.status in ['published', 'duplicate']
+                   and left_matches | count == 1 }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'resuming' if left_valid else 'blocked' }}"
+              real_departure_phase: "{{ 'resuming' if left_valid else 'blocked' }}"
+              real_departure_last_error: "{{ '' if left_valid else 'rejected' if pending_left_ack.status == 'rejected' else 'left_publication_failed' }}"
+              real_departure_last_result: "{{ 'left_completed' if left_valid else pending_last_result }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de publicação da saída foi processada.
+
+      - if:
+          - condition: template
+            alias: Open usa reserva e request do mesmo ciclo
+            value_template: "{{ pending_phase == 'resuming' and pending_last_result == 'left_completed' }}"
+        then:
+          - variables:
+              open_reservation_valid: >-
+                {{ states('person.wmoura') not in ['home', 'unknown', 'unavailable']
+                   and i2_state == 'idle'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_reserved') is sameas true
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_request_id') == pending_reserve_request
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reserved_session_id') == pending_session
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'reservation_test_mode') is sameas false }}
+          - condition: template
+            value_template: "{{ open_reservation_valid }}"
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_csmr_transicionar_v20_2c
+            data:
+              action: open
+              request_id: "{{ pending_open_request }}"
+              source: csmr_dispatcher_v20_2c
+              session_id: "{{ pending_session }}"
+              reason: resume_real_departure
+              test_mode: false
+              simulate_failure: false
+            response_variable: pending_open_response
+          - variables:
+              open_matches: >-
+                {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_ledger') | default([], true)
+                   | selectattr('request_id', 'eq', pending_open_request)
+                   | selectattr('action', 'eq', 'open')
+                   | selectattr('result', 'eq', 'completed')
+                   | selectattr('session_id', 'eq', pending_session) | list }}
+              open_valid: >-
+                {{ pending_open_response.status in ['completed', 'duplicate']
+                   and is_state('sensor.casa_csmr_estado_v20_2c', 'active')
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') == pending_session
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_source') == 'csmr_dispatcher_v20_2c'
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+                   and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas false
+                   and open_matches | count == 1 }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'resuming' if open_valid else 'blocked' }}"
+              real_departure_phase: "{{ 'resuming' if open_valid else 'blocked' }}"
+              real_departure_last_error: "{{ '' if open_valid else 'rejected' if pending_open_response.status == 'rejected' else 'open_failed' }}"
+              real_departure_last_result: "{{ 'open_completed' if open_valid else pending_last_result }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de abertura foi processada.
+
+      - if:
+          - condition: template
+            alias: Started usa sessão active do mesmo ciclo
+            value_template: "{{ pending_phase == 'resuming' and pending_last_result == 'open_completed' }}"
+        then:
+          - condition: template
+            value_template: >-
+              {{ i2_state == 'active'
+                 and i2_test_mode is boolean and i2_test_mode is sameas false
+                 and i2_session == pending_session
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_request_id') == pending_open_request
+                 and state_attr('sensor.casa_csmr_estado_v20_2c', 'transition_source') == 'csmr_dispatcher_v20_2c' }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - action: script.casa_publicar_evento_timeline_v20
+            data:
+              request_id: "{{ pending_started_request }}"
+              source: csmr_v20_2c
+              session_id: "{{ pending_session }}"
+              event_code: remote_monitoring_started
+              message: "🛡️ Monitoramento remoto iniciado"
+              schema_version: 1
+              test_mode: false
+            response_variable: pending_started_ack
+          - variables:
+              started_matches_after: >-
+                {{ state_attr('sensor.casa_timeline_publicacao_ack_v20', 'ledger_producao') | default([], true)
+                   | selectattr('request_id', 'eq', pending_started_request)
+                   | selectattr('source', 'eq', 'csmr_v20_2c')
+                   | selectattr('session_id', 'eq', pending_session)
+                   | selectattr('event_code', 'eq', 'remote_monitoring_started') | list }}
+              started_valid: >-
+                {{ pending_started_ack.status in ['published', 'duplicate']
+                   and started_matches_after | count == 1 }}
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: "{{ 'resuming' if started_valid else 'blocked' }}"
+              real_departure_phase: "{{ 'resuming' if started_valid else 'blocked' }}"
+              real_departure_last_error: "{{ '' if started_valid else 'rejected' if pending_started_ack.status == 'rejected' else 'started_publication_failed' }}"
+              real_departure_last_result: "{{ 'started_completed' if started_valid else pending_last_result }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Uma etapa externa de publicação do início foi processada.
+
+      - if:
+          - condition: template
+            alias: Autorização produtiva é a última etapa externa
+            value_template: "{{ pending_phase == 'resuming' and pending_last_result == 'started_completed' }}"
+        then:
+          - condition: template
+            value_template: >-
+              {{ i2_state == 'active'
+                 and i2_test_mode is boolean and i2_test_mode is sameas false
+                 and i2_session == pending_session
+                 and is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'off') }}
+          - variables:
+              productive_authorized_since: "{{ now().isoformat() }}"
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              real_departure_resume_attempts: "{{ pending_attempts | int(0) + 1 }}"
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - service: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c
+            data:
+              datetime: "{{ productive_authorized_since }}"
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c
+            data:
+              value: "{{ pending_session }}"
+          - condition: template
+            value_template: >-
+              {{ states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') == pending_session
+                 and as_timestamp(states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c'), 0) > 0 }}
+          - event: casa_csmr_consumidores_autorizar_v20_2c
+            event_data:
+              session_id: "{{ pending_session }}"
+              cycle_id: "{{ pending_cycle }}"
+              consumer_authorized_since: "{{ productive_authorized_since }}"
+              test_mode: false
+          - event: casa_csmr_dispatcher_checkpoint_v20_2c
+            event_data:
+              phase: active
+              cycle_id: "{{ pending_cycle }}"
+              session_id: "{{ pending_session }}"
+              source: person.wmoura
+              presence_observed: not_home
+              consumer_authorized_since: "{{ productive_authorized_since }}"
+              consumer_authorized_session_id: "{{ pending_session }}"
+              last_error: ""
+              test_mode: false
+              updated_at: "{{ now().isoformat() }}"
+              real_departure_pending: false
+              real_departure_phase: none
+              real_departure_last_error: ""
+              real_departure_last_result: completed
+              real_departure_updated_at: "{{ now().isoformat() }}"
+          - stop: Saída real concluída e consumidores produtivos autorizados.
+
+      - event: casa_csmr_dispatcher_checkpoint_v20_2c
+        event_data:
+          phase: blocked
+          real_departure_phase: blocked
+          real_departure_last_error: state_not_resumable
+          real_departure_updated_at: "{{ now().isoformat() }}"
+      - stop: Estado pendente sem continuação segura.
+
   casa_csmr_dispatcher_harness_v20_2c:
     alias: Casa — CSMR — Harness Dispatcher V20.2C
     description: Injeta presença lógica no dispatcher I3A sem alterar person.wmoura.
@@ -667,3 +2089,4 @@ script:
         event_data:
           command: "{{ command }}"
           cycle_id: "{{ cycle_id | trim }}"
+          test_mode: true

@@ -72,6 +72,8 @@ automation:
     variables:
       protect_authorized: >-
         {{ is_state('sensor.casa_csmr_estado_v20_2c', 'active')
+           and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+           and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas false
            and is_state('input_boolean.casa_csmr_retorno_pendente_v20_2c', 'off')
            and states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') != ''
            and states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c')
@@ -84,6 +86,11 @@ automation:
         {{ protect_authorized or manual_override }}
 
     action:
+      - condition: template
+        alias: Sessão de teste não altera intenção nem selects Protect
+        value_template: >-
+          {{ not (state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+             and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas true) }}
       - choose:
           - conditions: "{{ effective_continuous_recording }}"
             sequence:
