@@ -113,6 +113,10 @@ A automação `v20_2c_saida_teste_alertar_porta_aberta` usa a mesma transição 
 
 Arquitetura-alvo decidida em V20.2C-D1: a descrição acima permanece fotografia da implementação atual. No CSMR futuro, C1.2 não será chamada pelo dispatcher nem executada no início da sessão. C1.3 a habilita como preparação; C1.2 reage à abertura física da porta enquanto a sessão estiver `active`, sem graça própria, e recusa atuação fora da sessão.
 
+**Status final (fechamento H4, 2026-09-14):** a arquitetura-alvo acima está implementada, homologada em runtime e integrada ao código-fonte canônico (PR #43, merge commit `9094c3e`) — ver `docs/ARCHITECTURE.md`, seção "Real × Test Isolation e saída real pendente (H4)", para o detalhamento completo do mecanismo, da correção de `session_identity_mismatch` e da evidência de homologação.
+
+Em resumo: os triggers físico e de Harness atravessam guards de estado, retorno, sessão e fronteira temporal distintos. `physical_door` exige sessão produtiva e é o único autorizado a chamar `notify.mobile_app_iphonewm`; `harness_door` exige sessão e fronteira exclusivas de teste e nunca aciona o push. C1.1, C1.3 e Protect não consomem a autorização de teste. Uma saída real ocorrendo durante sessão de teste tem identidade, instante, graça e requests persistidos antes da preempção da sessão de teste, e é retomada pelo processador serial sem depender de nova mudança de presença; enquanto houver saída real pendente, nenhum novo Harness pode iniciar.
+
 Evidências preservadas:
 
 - porta fechada, sem alerta: `5d9bce5b6a189c9cbbecb771d99ec62e`;

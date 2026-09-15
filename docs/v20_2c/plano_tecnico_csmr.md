@@ -768,6 +768,16 @@ O Harness legado sem `source` continuou operando como `harness_i2`, incluindo ge
 
 Status: HOMOLOGADO em 2026-08-07; commit funcional `b02e05d`.
 
+### Evolução de testabilidade end-to-end (H4)
+
+**Status:** HOMOLOGADO em runtime e integrado ao código-fonte canônico (PR #43, merge commit `9094c3e`, 2026-09-14). Ver `docs/ARCHITECTURE.md`, seção "Real × Test Isolation e saída real pendente (H4)", para a descrição completa do mecanismo e da correção de `session_identity_mismatch`.
+
+O Harness dispatcher fixa `test_mode: true` booleano e usa namespace lógico `test:<cycle_id>` para os requests de teste, `source: harness_i2` nas transições e `validated_test` nas publicações. A autorização técnica usa evento e helpers separados da produção. C1.1, C1.3, o trigger físico C1.2 e Protect exigem sessão explicitamente produtiva. O retorno do Harness fecha a mesma sessão; saída real durante teste fecha primeiro o teste (preempção) e somente prossegue após `idle`, sem reutilizar IDs.
+
+A saída real preemptada é uma intenção persistente no checkpoint restaurável do dispatcher. A captura congela `cycle_id`, `occurred_at`, graça e requests determinísticos antes de tocar o teste. O processador serial, identificando a sessão de teste preemptada por evidência do ledger de transições (`i2_open_ledger_matches`, e não mais pelo `cycle_id` real mutável), executa uma etapa externa por vez; o reconciliador produtivo está ativo e reage a startup, reload e mudanças materiais. Conflitos de reserva/sessão ficam `blocked`, e o pending termina exclusivamente após `active` produtivo autorizado ou cancelamento governado por retorno anterior a `active`.
+
+Homologação: dois ciclos reais completos de saída/retorno físico com sessão de teste ativa confirmaram ausência de `session_identity_mismatch`, isolamento REAL × TESTE preservado e encerramento produtivo limpo. Nenhuma homologação física adicional está pendente para este mecanismo.
+
 O Gate confirmou a subordinação de C1.1, C1.2 e C1.3 ao CSMR, sem alterar a máquina I2/I2A, I1, Timeline, Event Feed, Recovery, Protect ou `person.wmoura`. O `input_boolean.casa_csmr_retorno_pendente_v20_2c` é persistente e bloqueia consumidores durante o retorno e D1.
 
 A autorização operacional exige cumulativamente:
