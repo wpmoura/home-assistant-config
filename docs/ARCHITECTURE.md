@@ -326,6 +326,8 @@ A Sessão de Monitoramento Remoto é um contrato operacional confirmado, distint
 
 A promoção está consolidada documentalmente, mas não autoriza implementação ou publicação em runtime. O restante da V20.2, incluindo o Context Engine original, permanece em shadow.
 
+**Atualização (fechamento H4, 2026-09-14):** o subconjunto do CSMR responsável pelo tratamento de uma saída REAL de Wilson durante uma sessão de TESTE ativa do Harness já foi implementado, homologado em runtime e integrado ao código-fonte canônico (PR #43, merge commit `9094c3e`) — ver "Real × Test Isolation e saída real pendente (H4)" abaixo. A ressalva de que a promoção documental não autoriza implementação/publicação em runtime permanece válida apenas para o restante do escopo do CSMR ainda não implementado.
+
 Decisão subordinada: `docs/arquitetura/despacho_arquitetural_v20_2c_a1.md`.
 
 ### Modelo e fronteiras
@@ -396,6 +398,18 @@ Esses componentes não abrem nem encerram sessão. Módulos futuros devem declar
 A futura implementação somente poderá solicitar publicação pelo caminho canônico formalmente aprovado. É proibido escrever diretamente em `sensor.casa_timeline`, `sensor.casa_event_feed` ou aliases finais, criar histórico paralelo, criar outra Timeline/Event Feed, substituir `sensor.casa_evento_publicavel_v20` ou implementar deduplicação concorrente.
 
 V20.1O permanece autoridade sobre política de publicação, armazenamento, histórico, limite, deduplicação e apresentação pública.
+
+### Real × Test Isolation e saída real pendente (H4)
+
+**Status:** HOMOLOGADO em runtime e integrado ao código-fonte canônico (PR #43, merge commit `9094c3e`, 2026-09-14).
+
+O dispatcher lógico (`automation.casa_csmr_dispatcher_logico_v20_2c`, em `packages/csmr_dispatcher_integracao_v20_2c.yaml`) mantém o canal de teste do Harness estruturalmente isolado do canal produtivo: `test_mode` é sempre booleano nativo, o namespace de identidade determinística (`md5`) usa prefixo `test:` exclusivo do canal de teste, e as transições de teste usam `source: harness_i2`. Os consumidores subordinados C1.1/C1.3 (`packages/v20_2c_contextual_automations.yaml`) e o Protect (`packages/v20_2c_protect_csmr.yaml`) exigem explicitamente `test_mode` booleano `false` na sessão ativa antes de agir; nenhum deles reage a uma sessão de teste.
+
+Quando uma saída real de Wilson ocorre com uma sessão de teste ativa, o checkpoint do dispatcher (`sensor.casa_csmr_dispatcher_estado_v20_2c`, atributos `real_departure_*`) persiste `cycle_id`, `occurred_at`, graça e os quatro `request_id` determinísticos antes de tocar a sessão de teste. A sessão de teste é então preemptada (encerrada) e `script.casa_csmr_processar_saida_real_pendente_v20_2c` retoma a saída real produtiva uma etapa externa por invocação (`reserve → wilson_left_home → open → remote_monitoring_started → autorização de consumidores`), sobrevivendo a reload/restart e a falhas transitórias por um circuit breaker de 50 tentativas. `automation.casa_csmr_reconciliar_saida_real_pendente_v20_2c` apenas desperta esse processador em mudanças materiais (startup, checkpoint, reload, retorno); o reconciliador produtivo está ativo e estável.
+
+A identidade da sessão de teste preemptada é validada por `i2_open_ledger_matches`: uma consulta ao ledger de transições da máquina de estado (`sensor.casa_csmr_estado_v20_2c`, atributo `transition_ledger`) filtrando `action == 'open'`, `result == 'completed'` e `session_id` igual ao `session_id` correntemente ativo, exigindo exatamente um resultado cujo `request_id` coincida com o `transition_request_id` corrente e cujo `transition_source` seja `harness_i2`. Essa validação por evidência do ledger — em vez da reconstrução do identificador a partir de um campo de ciclo compartilhado e mutável — elimina a condição de corrida que causava `session_identity_mismatch` quando uma saída real e uma captura de teste ocorriam em sequência próxima.
+
+**Homologação:** dois ciclos reais completos e independentes de saída/retorno físico de Wilson, com sessão de teste ativa no momento da saída em ambos, confirmaram preempção sem `session_identity_mismatch`, isolamento REAL × TESTE preservado, sessão produtiva independente, Timeline de saída e retorno publicada corretamente e encerramento produtivo limpo. Não há homologação física pendente para este mecanismo.
 
 ### Rollback arquitetural
 
