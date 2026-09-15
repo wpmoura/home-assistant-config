@@ -36,16 +36,16 @@ template:
           {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
             {{ is_state('input_boolean.teste_v20_2_simular_wilson_ausente', 'on') }}
           {% else %}
-            {{ is_state('person.wmoura', 'not_home') }}
+            {{ states('person.wmoura') not in ['home', 'unknown', 'unavailable', ''] }}
           {% endif %}
         attributes:
           source: >
             {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
               simulation
-            {% elif states('person.wmoura') in ['home', 'not_home'] %}
-              real
+            {% elif states('person.wmoura') in ['unknown', 'unavailable', ''] %}
+              indeterminate
             {% else %}
-              safe_fallback
+              real
             {% endif %}
           test_mode: >
             {{ is_state('input_boolean.teste_v20_2_harness_ativo', 'on') }}
@@ -55,23 +55,23 @@ template:
           wilson_tracker: "{{ state_attr('person.wmoura', 'source') | default('none', true) }}"
           wilson_state: "{{ states('person.wmoura') }}"
           critical_source_available: >
-            {{ states('person.wmoura') in ['home', 'not_home'] }}
+            {{ states('person.wmoura') not in ['unknown', 'unavailable', ''] }}
           jacira_state_observational: "{{ states('person.jacira_f_p_moura') }}"
           reason: >
             {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
               harness_controls_wilson_absence
-            {% elif is_state('person.wmoura', 'not_home') %}
-              wilson_is_away
+            {% elif states('person.wmoura') in ['unknown', 'unavailable', ''] %}
+              wilson_state_indeterminate
             {% elif is_state('person.wmoura', 'home') %}
               wilson_is_home
             {% else %}
-              wilson_state_unavailable_safe_fallback
+              wilson_is_away
             {% endif %}
           remote_monitoring_requested: >
             {% if is_state('input_boolean.teste_v20_2_harness_ativo', 'on') %}
               {{ is_state('input_boolean.teste_v20_2_simular_wilson_ausente', 'on') }}
             {% else %}
-              {{ is_state('person.wmoura', 'not_home') }}
+              {{ states('person.wmoura') not in ['home', 'unknown', 'unavailable', ''] }}
             {% endif %}
 
 automation:
@@ -125,7 +125,12 @@ automation:
       - condition: template
         alias: Sessão autorizada corresponde à sessão ativa
         value_template: >-
-          {{ trigger.event.data.session_id | default('', true)
+          {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+             and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas false
+             and trigger.event.data.test_mode is defined
+             and trigger.event.data.test_mode is boolean
+             and trigger.event.data.test_mode is sameas false
+             and trigger.event.data.session_id | default('', true)
              == state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
              and trigger.event.data.session_id | default('', true)
                == states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c')
@@ -189,13 +194,27 @@ automation:
         alias: Evento pertence à sessão e ocorreu depois da autorização
         value_template: >-
           {% set active_session = state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id') | default('', true) %}
-          {% set authorized_session = states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c') %}
-          {% set authorized_since = states('input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c') %}
+          {% set session_test_mode = state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') %}
+          {% set is_physical = trigger.id == 'physical_door' %}
+          {% set is_harness = trigger.id == 'harness_door' %}
+          {% set mode_valid = session_test_mode is boolean and (
+               (is_physical and session_test_mode is sameas false)
+               or (is_harness and session_test_mode is sameas true)) %}
+          {% set authorized_session = states(
+               'input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c'
+               if is_physical else
+               'input_text.casa_csmr_consumidores_teste_sessao_autorizada_v20_2c') %}
+          {% set authorized_since = states(
+               'input_datetime.casa_csmr_consumidores_autorizados_desde_v20_2c'
+               if is_physical else
+               'input_datetime.casa_csmr_consumidores_teste_autorizados_desde_v20_2c') %}
           {% set event_session = active_session if trigger.id == 'physical_door'
              else trigger.event.data.session_id | default('', true) %}
           {% set occurred_at = trigger.to_state.last_changed.isoformat() if trigger.id == 'physical_door'
              else trigger.event.data.occurred_at | default('', true) %}
-          {{ active_session != ''
+          {{ (is_physical or is_harness)
+             and mode_valid
+             and active_session != ''
              and event_session == active_session
              and authorized_session == active_session
              and as_timestamp(authorized_since, 0) > 0
@@ -215,8 +234,16 @@ automation:
         data:
           name: V20.2C — Monitoramento Remoto
           message: >-
-            V20.2C — Porta da Sala permaneceu aberta após a saída de Wilson.
+            {% if trigger.id == 'physical_door' %}
+              V20.2C — Porta da Sala permaneceu aberta após a saída de Wilson.
+            {% else %}
+              V20.2C — Harness C1.2 autorizado; nenhum push produtivo enviado.
+            {% endif %}
           entity_id: binary_sensor.sensor_porta_sala_contact
+
+      - condition: template
+        alias: Push produtivo somente para abertura física
+        value_template: "{{ trigger.id == 'physical_door' }}"
 
       - service: notify.mobile_app_iphonewm
         data:
@@ -247,7 +274,12 @@ automation:
       - condition: template
         alias: Sessão autorizada corresponde à sessão ativa
         value_template: >-
-          {{ trigger.event.data.session_id | default('', true)
+          {{ state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is boolean
+             and state_attr('sensor.casa_csmr_estado_v20_2c', 'test_mode') is sameas false
+             and trigger.event.data.test_mode is defined
+             and trigger.event.data.test_mode is boolean
+             and trigger.event.data.test_mode is sameas false
+             and trigger.event.data.session_id | default('', true)
                == state_attr('sensor.casa_csmr_estado_v20_2c', 'session_id')
              and trigger.event.data.session_id | default('', true)
                == states('input_text.casa_csmr_consumidores_sessao_autorizada_v20_2c')
