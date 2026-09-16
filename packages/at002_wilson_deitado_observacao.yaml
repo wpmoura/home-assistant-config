@@ -1,0 +1,51 @@
+template:
+  - binary_sensor:
+      - name: "Wilson Deitado (Candidato)"
+        unique_id: at002_wilson_deitado_candidato
+        availability: >
+          {{ states('input_boolean.wilson_dormindo') not in ['unknown', 'unavailable', 'none', '']
+             and states('sensor.iphone_de_wilson_battery_state') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set hora = now().strftime('%H:%M') %}
+          {% set janela_noturna = hora >= '23:30' or hora < '06:10' %}
+          {% set wilson_dormindo_on = is_state('input_boolean.wilson_dormindo', 'on') %}
+          {% set iphone_conectado_energia = states('sensor.iphone_de_wilson_battery_state') in ['Charging', 'Full'] %}
+          {{ janela_noturna and wilson_dormindo_on and iphone_conectado_energia }}
+        attributes:
+          modo: "observacao"
+          janela_noturna: >
+            {{ now().strftime('%H:%M') >= '23:30' or now().strftime('%H:%M') < '06:10' }}
+          wilson_dormindo_raw: "{{ states('input_boolean.wilson_dormindo') }}"
+          iphone_battery_raw: "{{ states('sensor.iphone_de_wilson_battery_state') }}"
+          iphone_conectado_energia: >
+            {{ states('sensor.iphone_de_wilson_battery_state') in ['Charging', 'Full'] }}
+          mapeamento_iphone: "provisorio"
+          fontes_disponiveis: >
+            {{ states('input_boolean.wilson_dormindo') not in ['unknown', 'unavailable', 'none', '']
+               and states('sensor.iphone_de_wilson_battery_state') not in ['unknown', 'unavailable', 'none', ''] }}
+          condicao_candidata: >
+            {% set hora = now().strftime('%H:%M') %}
+            {% set janela_noturna = hora >= '23:30' or hora < '06:10' %}
+            {% set wilson_dormindo_on = is_state('input_boolean.wilson_dormindo', 'on') %}
+            {% set iphone_conectado_energia = states('sensor.iphone_de_wilson_battery_state') in ['Charging', 'Full'] %}
+            {{ janela_noturna and wilson_dormindo_on and iphone_conectado_energia }}
+
+  - binary_sensor:
+      - name: "Wilson Deitado (Estimado)"
+        unique_id: at002_wilson_deitado_estimado
+        availability: >
+          {{ has_value('binary_sensor.wilson_deitado_candidato') }}
+        state: >
+          {{ is_state('binary_sensor.wilson_deitado_candidato', 'on') }}
+        delay_on:
+          minutes: 5
+        attributes:
+          modo: "observacao"
+          janela_noturna: "{{ state_attr('binary_sensor.wilson_deitado_candidato', 'janela_noturna') }}"
+          wilson_dormindo_raw: "{{ state_attr('binary_sensor.wilson_deitado_candidato', 'wilson_dormindo_raw') }}"
+          iphone_battery_raw: "{{ state_attr('binary_sensor.wilson_deitado_candidato', 'iphone_battery_raw') }}"
+          iphone_conectado_energia: "{{ state_attr('binary_sensor.wilson_deitado_candidato', 'iphone_conectado_energia') }}"
+          mapeamento_iphone: "provisorio"
+          fontes_disponiveis: "{{ state_attr('binary_sensor.wilson_deitado_candidato', 'fontes_disponiveis') }}"
+          condicao_candidata: "{{ is_state('binary_sensor.wilson_deitado_candidato', 'on') }}"
+          criterio_confirmacao: "candidato_on_continuo_por_5_minutos"

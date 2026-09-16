@@ -68,7 +68,9 @@ Nenhuma iniciativa identificada no checkpoint de 2026-09-04.
 
 ### Em andamento
 
-Nenhuma iniciativa identificada no checkpoint de 2026-09-04.
+| ID | Iniciativa | Estado | Próximo Gate |
+| --- | --- | --- | --- |
+| AT-002 | Inferência observacional "Wilson Deitado" para iluminação do quarto | Modo observação implementado no repositório — implantação no Home Assistant pendente de Gate. | Gate de implantação (P2 controlado) — homologação de 7 a 14 dias em modo observação antes de qualquer integração com luzes |
 
 ### Backlog priorizado
 
@@ -93,6 +95,22 @@ Novas ideias somente entram aqui após o Gate de Enquadramento resultar em `GO A
 - MacBook desconectado → helper desligado → atraso de 10 segundos → tomada desligada.
 - Webhooks permanecem `local_only`; seus UUIDs não devem ser documentados.
 - O volume do Time Machine deve ser ejetado no macOS antes da desconexão física.
+
+## 7A. AT-002 — resumo operacional
+
+- **Título**: Inferência observacional "Wilson Deitado" para iluminação do quarto.
+- **Classificação**: AT / P2 — operacional controlado, modo observação.
+- **Status**: Implementação em branch isolada (`feature/at002-wilson-deitado-observacao`) — não implantada no Home Assistant. `/Volumes/config` (repositório operacional real) não foi alterado.
+- **Objetivo**: estimar, apenas para observação e diagnóstico, se Wilson está deitado, sem acionar luzes nem qualquer outra ação, para futuramente subsidiar um Gate de implantação separado.
+- **Package criado**: `packages/at002_wilson_deitado_observacao.yaml`, com dois `binary_sensor` template:
+  - `binary_sensor.wilson_deitado_candidato` (`unique_id: at002_wilson_deitado_candidato`) — reflexo imediato, sem memória.
+  - `binary_sensor.wilson_deitado_estimado` (`unique_id: at002_wilson_deitado_estimado`) — confirma o candidato após permanência contínua.
+- **Regra do candidato**: `janela_noturna (23:30–06:10) E input_boolean.wilson_dormindo = on E iphone_conectado_energia`. Não usa movimento da casa, `input_boolean.modo_dormir_ativo` nem `binary_sensor.todos_dormindo` — ambos representam estado coletivo (Wilson e Jacira), não pessoal.
+- **Estabilização**: `binary_sensor.wilson_deitado_estimado` usa `delay_on: minutes: 5` nativo do template binary_sensor; desliga imediatamente (sem `delay_off`) quando o candidato deixar de ser verdadeiro.
+- **Ausência de ação física**: nenhum dos dois sensores comanda luz, cria automação, publica na Timeline ou cria helper persistente; é puramente diagnóstico.
+- **Mapeamento do iPhone**: `iphone_conectado_energia` aceita provisoriamente apenas os literais `Charging`/`Full` de `sensor.iphone_de_wilson_battery_state`; atributo fixo `mapeamento_iphone: "provisorio"` sinaliza que esses valores não foram comprovados no histórico real (14 dias auditados só mostraram `"Not Charging"`). Qualquer outro valor resulta em `false`, nunca em confirmação positiva.
+- **Indisponibilidade**: ambos os sensores usam `availability:` — ficam `unavailable` (não `off`) quando `wilson_dormindo` ou o sensor do iPhone estiverem `unknown`/`unavailable`/vazios.
+- **Próximo passo**: a integração com as luzes está fora da fase observacional atual; nenhuma ação física está autorizada agora. Após 7 a 14 dias de evidências reais de observação (etapa futura, fora deste worktree), a continuidade da AT-002 será submetida a novo Gate, que decidirá se a integração com as luzes permanece como próxima fase desta mesma AT-002 ou exige novo enquadramento. Essa integração poderá continuar como P2 controlado e não é automaticamente P3.
 
 ## 8. Regra de manutenção
 
