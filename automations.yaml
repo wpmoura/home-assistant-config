@@ -1914,33 +1914,6 @@
       tomadas_criticas:
       - switch.tomada_mesa_tomada_1
       modo_acao: alertar
-- id: '1777423497558'
-  alias: Cozinha - Gestão Energia Geladeira
-  description: ''
-  use_blueprint:
-    path: wmoura/monitoramento_energia_v5.yaml
-    input:
-      nome_equipamento: Geladeira
-      sensor_potencia: sensor.geladeira_potencia
-      sensor_corrente: sensor.geladeira_corrente
-      sensor_tensao: sensor.geladeira_voltagem
-      tomada_switch: switch.geladeira_tomada_1
-      limite_potencia_alta: 300
-      tempo_potencia_alta: 15
-- id: '1777424244998'
-  alias: Dispensa - Gestão Energia Cervejeira
-  description: ''
-  use_blueprint:
-    path: wmoura/monitoramento_energia_v5.yaml
-    input:
-      nome_equipamento: Cervejeira
-      sensor_potencia: sensor.cervejeira_power
-      sensor_corrente: sensor.cervejeira_current
-      sensor_tensao: sensor.cervejeira_voltage
-      tomada_switch: switch.cervejeira
-      limite_potencia_alta: 400
-      tempo_potencia_alta: 10
-      limite_corrente_alta: 5.5
 - id: '1777424726293'
   alias: Cozinha - Gestão energia Geladeira
   description: ''
