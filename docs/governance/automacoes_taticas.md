@@ -70,7 +70,7 @@ Nenhuma iniciativa identificada no checkpoint de 2026-09-04.
 
 | ID | Iniciativa | Estado | Próximo Gate |
 | --- | --- | --- | --- |
-| AT-002 | Inferência observacional "Wilson Deitado" para iluminação do quarto | Implementação local no worktree `feature/at002-wilson-deitado-observacao` — não implantada, não commitada, não mergeada | Gate de implantação (P2 controlado) — homologação de 7 a 14 dias em modo observação antes de qualquer integração com luzes |
+| AT-002 | Inferência observacional "Wilson Deitado" para iluminação do quarto | Modo observação implementado no repositório — implantação no Home Assistant pendente de Gate. | Gate de implantação (P2 controlado) — homologação de 7 a 14 dias em modo observação antes de qualquer integração com luzes |
 
 ### Backlog priorizado
 
