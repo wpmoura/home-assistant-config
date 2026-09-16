@@ -1004,21 +1004,6 @@
       entity_id: switch.tomada_mesa_tomada_1
     data: {}
   mode: single
-- id: '1743565284745'
-  alias: Cozinha - Liga Microondas
-  description: ''
-  triggers:
-  - trigger: state
-    entity_id:
-    - schedule.agenda_micro_ondas
-    to: 'on'
-  conditions: []
-  actions:
-  - action: switch.turn_on
-    target:
-      entity_id: switch.micro_ondas_tomada_1
-    data: {}
-  mode: single
 - id: '1743565365161'
   alias: LAB - Desliga Agenda Micro Ondas
   description: ''
