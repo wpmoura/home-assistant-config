@@ -413,7 +413,7 @@ template:
             'csmr_v20_2c': ['wilson_left_home', 'remote_monitoring_started', 'wilson_arrived_home', 'remote_monitoring_ended'],
             'carro_presenca': ['car_use_started', 'car_use_ended'],
             'lavadora': ['washing_started', 'spinning_detected', 'washing_finished'],
-            'ha_uptime': ['heartbeat']
+            'ha_uptime': ['heartbeat', 'ha_started']
           } %}
           {% set canonico_mensagens = {
             'wilson_left_home': '📍 Wilson saiu de casa',
@@ -425,7 +425,8 @@ template:
             'washing_started': '🧺 Lavagem iniciada',
             'spinning_detected': '🌀 Centrifugação detectada',
             'washing_finished': '✅ Lavagem finalizada',
-            'heartbeat': '🟢 HA ativo'
+            'heartbeat': '🟢 HA ativo',
+            'ha_started': '🔄 HA iniciado'
           } %}
           {% set canonico_reconhecido = canonico_source in canonico_eventos_por_source
             and canonico_event_code in canonico_eventos_por_source[canonico_source]
@@ -1029,7 +1030,7 @@ template:
           {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
           {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
           {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-          {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+          {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
           {% if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) %}
             {{ this.state | default('Aguardando eventos', true) }}
           {% else %}
@@ -1061,7 +1062,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) %}
               {{ historico[:limite] | to_json }}
             {% else %}
@@ -1086,7 +1087,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and request_id != '' and request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set evento_materializado = publicar_timeline
               and evento not in ['', 'unknown', 'unavailable', 'sem_evento']
               and (evento_base != anterior_base or heartbeat_excecao) %}
@@ -1116,7 +1117,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and request_id != '' and request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set anterior = this.attributes.linha_1 | default('', true) | string | trim %}
             {% set evento_base = evento[6:] | trim if evento | length >= 6 and evento[2:3] == ':' else evento %}
             {% set anterior_base = anterior[6:] | trim if anterior | length >= 6 and anterior[2:3] == ':' else anterior %}
@@ -1149,7 +1150,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[0] | default('', true) }}
           linha_2: >
@@ -1173,7 +1174,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[1] | default('', true) }}
           linha_3: >
@@ -1197,7 +1198,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[2] | default('', true) }}
           linha_4: >
@@ -1221,7 +1222,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[3] | default('', true) }}
           linha_5: >
@@ -1245,7 +1246,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[4] | default('', true) }}
           linha_6: >
@@ -1269,7 +1270,7 @@ template:
             {% set is_heartbeat_evento = evt_source_contrato == 'ha_uptime' and evt_event_code == 'heartbeat' %}
             {% set ultimo_heartbeat_rid = this.attributes.ultimo_request_id_heartbeat_v20 | default('', true) | string | trim %}
             {% set heartbeat_e_retry = is_heartbeat_evento and evt_request_id != '' and evt_request_id == ultimo_heartbeat_rid %}
-            {% set heartbeat_excecao = is_heartbeat_evento and not heartbeat_e_retry %}
+            {% set heartbeat_excecao = (is_heartbeat_evento and not heartbeat_e_retry) or (evt_source_contrato == 'ha_uptime' and evt_event_code == 'ha_started') %}
             {% set lista = historico[:limite] if not publicar_timeline or evento in ['', 'unknown', 'unavailable', 'sem_evento'] or (evento_base == anterior_base and not heartbeat_excecao) else ([evento] + historico)[:limite] %}
             {{ lista[5] | default('', true) }}
 
