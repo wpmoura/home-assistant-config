@@ -169,6 +169,7 @@ script:
             spinning_detected: "🌀 Centrifugação detectada"
             washing_finished: "✅ Lavagem finalizada"
             heartbeat: "🟢 HA ativo"
+            ha_started: "🔄 HA iniciado"
           eventos_por_source:
             csmr_v20_2c:
               - wilson_left_home
@@ -184,6 +185,7 @@ script:
               - washing_finished
             ha_uptime:
               - heartbeat
+              - ha_started
           validacao_reason: >-
             {% if request_id is not defined %}missing_request_id
             {% elif request_id is not string %}invalid_request_id_type

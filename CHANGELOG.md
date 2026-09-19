@@ -1,5 +1,13 @@
 # Changelog
 
+## [ha-iniciou-timeline-homologacao] - 2026-09-19
+
+- Novo evento `source: ha_uptime`, `event_code: ha_started`, mensagem fixa `"🔄 HA iniciado"`, publicado na Timeline V20 pela automação legada `HA iniciou (estável)` (`packages/ha_inicio.yaml`) a cada `homeassistant.start` real; semanticamente distinto do heartbeat periódico (`ha_uptime/heartbeat`, "HA continua ativo").
+- Arquitetura: `homeassistant.start` → `delay 20s` → `parallel` com dois ramos independentes: aviso pessoal (`notify.mobile_app_iphonewm`, conteúdo inalterado, `continue_on_error: true`) e publicação canônica (`script.turn_on` → `script.casa_publicar_evento_timeline_v20`, mesmo padrão `md5(context.id …)` de `request_id`/`session_id` do heartbeat). Falha de um ramo não impede a tentativa do outro.
+- Allowlist acrescida em `packages/contrato_publicacao_timeline_v20.yaml` e na cópia do motor (`packages/motor_timeline_v20.yaml`, `canonico_eventos_por_source`/`canonico_mensagens`); SmallTV/GeekMagic e heartbeat não foram alterados. Exceção de deduplicação por texto escopada a `source=ha_uptime`/`event_code=ha_started` (10 pontos `heartbeat_excecao` do motor), para que dois boots legítimos consecutivos não sejam suprimidos; retry do mesmo `request_id` continua barrado pela checagem de `request_ids_json` no `evento_publicavel`.
+- Homologação runtime (restart real do Core às 11:44:21, boot 11:46:50): automação disparada às 11:47:14, publicador chamado 20s depois; ACK `published` (`request_id 71d9a9b9-00e6-42e0-8329-22cea14df7be`, 11:47:34); `🔄 HA iniciado` materializado uma única vez em `sensor.casa_timeline_v20`; push recebido no iPhone (confirmação humana de Wilson); heartbeat natural das 12:00 `published` (`efa014b8-e932-4dc3-8349-9598dce40d63`), coexistindo com `ha_started`. `check_config` prévio válido; um único restart; nenhuma regressão relacionada observada.
+- Limitações registradas: dois boots próximos não foram provocados (validado só estaticamente; observar se ocorrerem naturalmente); a automação não tem `id:` e por isso o HA não armazena traces (melhoria técnica futura, não implementada); a dívida de allowlist replicada permanece (agora contrato + motor para `ha_started`; SmallTV fora do escopo).
+
 ## [heartbeat-ha-timeline-homologacao] - 2026-09-03
 
 - Carga runtime executada por reload específico (`script.reload`, `template.reload`, `automation.reload`, todos `success: true`); `homeassistant.check_config` já havia passado antes. Restart não foi necessário. `automation.note_ha_uptime` permaneceu `on`, sem overrides, antes e depois.

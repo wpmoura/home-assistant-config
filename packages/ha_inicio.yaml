@@ -8,8 +8,36 @@ automation:
     action:
       - delay: "00:00:20"
 
-      - service: notify.mobile_app_iphonewm
-        data:
-          title: "🏠 Home Assistant"
-          message: >
-            ✅ HA online (há {{ relative_time(states.sensor.uptime.last_changed) }})
+      # Fan-out: duas saidas independentes (aviso pessoal e Timeline). Uma
+      # falha em um ramo nao impede a tentativa do outro (parallel nativo).
+      - parallel:
+          - sequence:
+              - service: notify.mobile_app_iphonewm
+                continue_on_error: true
+                data:
+                  title: "🏠 Home Assistant"
+                  message: >
+                    ✅ HA online (há {{ relative_time(states.sensor.uptime.last_changed) }})
+
+          - sequence:
+              # Saida operacional independente do aviso pessoal: publica o fato
+              # "HA iniciou" na Timeline canonica (source=ha_uptime/event_code=ha_started).
+              # Fire-and-forget; nao altera o aviso pessoal. Nao confundir com o
+              # heartbeat periodico (ha_uptime/heartbeat).
+              - service: script.turn_on
+                continue_on_error: true
+                target:
+                  entity_id: script.casa_publicar_evento_timeline_v20
+                data:
+                  variables:
+                    request_id: >-
+                      {% set h = md5(context.id ~ ':ha_uptime:ha_started:request') %}
+                      {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                    source: ha_uptime
+                    session_id: >-
+                      {% set h = md5(context.id ~ ':ha_uptime:ha_started:session') %}
+                      {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+                    event_code: ha_started
+                    message: "🔄 HA iniciado"
+                    schema_version: 1
+                    test_mode: false

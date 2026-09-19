@@ -21,6 +21,7 @@ Iniciativas pequenas e delimitadas pertencem ao roadmap AT em `docs/governance/a
 | CSMR — baseline publicada | Gates até I5B homologados; V20.2C funcionalmente concluída | I4B.2: evidência operacional natural não bloqueante |
 | Lavadora/FSM | FSM, Harness, contrato, cutover, restart e ciclo físico real homologados sem ressalvas | Nenhuma — watcher pós-cutover resolvido (PEND-005) |
 | Heartbeat HA → Timeline → SmallTV | PRs funcional e documental mergeados; runtime homologado | Allowlist replicada em três pontos |
+| HA iniciou → Timeline V20 (`ha_uptime/ha_started`) | Implementado e homologado em runtime (2026-09-19); startup real, ACK `published`, Timeline e push confirmados | Dois boots próximos aguardam observação natural; allowlist replicada em contrato e motor |
 | Gestão do Carro — baseline AT-GC | AT-GC-00 a AT-GC-08 homologada; histórico AT preservado | Domínio transferido ao SOC e ainda possui backlog funcional |
 | Reconciliação `main` × feature | PR #18 mergeado em `main`; histórias Git e referências de segurança preservadas | Sincronização do working tree operacional permanece separada na PEND-001 |
 

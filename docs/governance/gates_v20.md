@@ -583,6 +583,20 @@ Ambas materializaram `🟢 HA ativo` em `sensor.casa_timeline_v20` (`linha_1`), 
 
 **Dívida técnica residual confirmada como ainda existente:** a allowlist `source`/`event_code`/`message` permanece triplicada em `contrato_publicacao_timeline_v20.yaml`, `motor_timeline_v20.yaml` e `smalltv_publicacao_v20.yaml` — não refatorada neste Gate, por decisão explícita de escopo.
 
+## HA iniciou → Timeline V20 (Gates SOC P1–P2.5, 2026-09-19)
+
+**Status: HOMOLOGADO.** Frente SOC: adiciona um evento novo (`ha_started`) à allowlist do contrato canônico, o que pela governança vigente exige `GO SOC`.
+
+- **Evento:** `source: ha_uptime`, `event_code: ha_started`, mensagem fixa `"🔄 HA iniciado"`, distinto do heartbeat (`ha_uptime/heartbeat`).
+- **Arquitetura:** `homeassistant.start` → `delay 20s` → `parallel` com dois ramos independentes em `packages/ha_inicio.yaml`: aviso pessoal (`notify.mobile_app_iphonewm`, inalterado, `continue_on_error: true`) e publicação canônica (`script.turn_on` → `script.casa_publicar_evento_timeline_v20`). Falha de um ramo não cancela o outro (`asyncio.gather(..., return_exceptions=True)`); `ServiceNotFound`/`TemplateError` no ramo notify não são suprimidos por `continue_on_error`, mas também não impedem o outro ramo.
+- **Allowlist:** `ha_started` adicionado em `packages/contrato_publicacao_timeline_v20.yaml` (`eventos_por_source`, `mensagens`) e na cópia do motor (`packages/motor_timeline_v20.yaml`, `canonico_eventos_por_source`, `canonico_mensagens`). SmallTV/GeekMagic não foi alterada (whitelist própria não inclui `ha_started`).
+- **Deduplicação:** a dedup por texto do motor (`evento_base == anterior_base`, sem janela temporal, só compara com o topo da Timeline) suprimiria um segundo boot consecutivo sem evento intermediário e o contrato terminaria em `failed`. Exceção estritamente escopada a `ha_uptime/ha_started` nas 10 linhas `heartbeat_excecao`; sem retry-guard próprio, pois o retry do mesmo `request_id` já é barrado por `request_ids_json` em `evento_publicavel`. Heartbeat e demais produtores permanecem exatamente como antes.
+- **Identidade:** `request_id`/`session_id` por `md5(context.id ~ ':ha_uptime:ha_started:<request|session>')` formatados UUIDv4-like, mesma convenção do heartbeat.
+
+**Homologação runtime (2026-09-19):** `check_config` oficial válido; um único restart do Core (11:44:21; boot 11:46:50). Automação disparada às 11:47:14; publicador chamado às 11:47:34 (20 s depois). ACK `published` (`request_id 71d9a9b9-00e6-42e0-8329-22cea14df7be`), `🔄 HA iniciado` materializado uma única vez em `sensor.casa_timeline_v20`. Push recebido no iPhone, confirmado por Wilson. Heartbeat natural das 12:00 `published` (`efa014b8-e932-4dc3-8349-9598dce40d63`), `🟢 HA ativo` e `🔄 HA iniciado` coexistindo. Nenhuma regressão relacionada.
+
+**Limitações e residuais (não bloqueantes):** dois boots próximos não foram provocados e seguem validados apenas estaticamente — observar se ocorrerem naturalmente e confirmar duas publicações distintas. A automação não tem `id:`, portanto o HA não armazena traces; adicionar `id:` é melhoria técnica futura, não implementada. A allowlist replicada (contrato/motor/SmallTV) permanece como dívida técnica pré-existente, não refatorada.
+
 ## Gate P3 — PEND-017 — Rotação e fechamento dos webhooks MacBook/Dell (2026-09-08/09)
 
 Frente independente, fora da numeração V20.x — integração
