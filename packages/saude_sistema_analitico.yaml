@@ -449,7 +449,7 @@ template:
               'scheduler': 'frequencia configurada em input_select.saude_sistema_health_check_frequencia; checkpoint anti-duplicidade em ultima_janela_scheduled_atendida',
               'principio': 'a IA nao e fonte da verdade operacional; este sensor reflete apenas o estado do MECANISMO analitico, nunca altera sensor.saude_sistema_status',
               'persistencia_enxuta': 'nunca armazena resposta integral da IA; apenas os campos estruturados do contrato, e apenas da ultima execucao (sem historico cumulativo, exceto contadores inteiros simples)',
-              'publicado_por': 'Node-RED (flow Gate 5.3B/5.3C/5.3D), sem chamada Anthropic real ate o momento'
+              'publicado_por': 'Node-RED (flow Gate 5.3B/5.3C/5.3D)'
             } }}
 
 ###############################################################################
@@ -567,10 +567,10 @@ input_boolean:
 # de UI ("Executar Health Check agora"), preparado para representação futura
 # no dashboard definitivo (Gate 5.3E, não implementado aqui).
 #
-# Ainda 100% MOCK: nenhuma chamada Anthropic real é feita ao pressionar este
-# botão neste Gate. O Node-RED escuta mudanças deste estado e injeta a
+# Comportamento atual: o Node-RED escuta mudanças deste estado e injeta a
 # solicitação na MESMA cadeia de lock/FSM/executor/validação já homologada
-# nos Gates 5.3B/5.3B.1, com origem='manual'.
+# nos Gates 5.3B/5.3B.1, com origem='manual'. A chamada à Anthropic é real ou
+# MOCK conforme input_boolean.saude_sistema_health_check_modo_mock (OFF = real).
 ###############################################################################
 input_button:
   saude_sistema_executar_health_check_manual:
