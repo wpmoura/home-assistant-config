@@ -482,6 +482,8 @@ input_select:
       - "2x por semana"
       - "3x por semana"
       - "1x por dia"
+      - "1x por mês"
+      - "2x por mês"
     initial: "Desativado"
 
   ###############################################################################
