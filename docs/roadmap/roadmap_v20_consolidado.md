@@ -17,7 +17,7 @@ Iniciativas pequenas e delimitadas pertencem ao roadmap AT em `docs/governance/a
 
 | Frente | Evidência consolidada | Pendência não bloqueante ou dívida separada |
 | --- | --- | --- |
-| Health Check | Implementado, homologado, documentado e mergeado em `main`; entrada em operação normal e scheduler diário homologados | Node-RED não versionado; integração semântica com Timeline adiada |
+| Health Check | Implementado, homologado, documentado e mergeado em `main`; entrada em operação normal e scheduler homologado (diário e semanal) e frequências mensais implantadas e validadas (`1x por mês` = dia 1, `2x por mês` = dias 1 e 15, 08:00; ainda sem janela natural executada); resultado terminal real publicado na Timeline V20 (`health_check/health_check_completed|failed`, homologado em 2026-09-19); página Saúde do Sistema com temporalidade explícita (2026-09-21) | Node-RED não versionado; blocos determinísticos da página seguem como publicação manual |
 | CSMR — baseline publicada | Gates até I5B homologados; V20.2C funcionalmente concluída | I4B.2: evidência operacional natural não bloqueante |
 | Lavadora/FSM | FSM, Harness, contrato, cutover, restart e ciclo físico real homologados sem ressalvas | Nenhuma — watcher pós-cutover resolvido (PEND-005) |
 | Heartbeat HA → Timeline → SmallTV | PRs funcional e documental mergeados; runtime homologado | Allowlist replicada em três pontos |

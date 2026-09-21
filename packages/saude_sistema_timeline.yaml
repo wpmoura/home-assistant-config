@@ -1,0 +1,86 @@
+###############################################################################
+# Health Check -> Timeline V20 (SOC)
+#
+# Observador ADITIVO e desacoplado: reage ao evento terminal do Health Check
+# (`health_check_state_changed`, emitido pelo Node-RED e consumido por
+# packages/saude_sistema_analitico.yaml) e publica UM fato na Timeline pelo
+# publicador canonico `script.casa_publicar_evento_timeline_v20`.
+#
+# Nao altera Node-RED, scheduler, sensor analitico, frequencia, SmallTV,
+# heartbeat ou CSMR. Nao escreve em sensor/Event Feed/SmallTV.
+#
+# Regras de elegibilidade (fail-closed; qualquer duvida => nao publica):
+#   - estado terminal apenas: `success` -> "✅ Health Check concluído";
+#     `failed` -> "❌ Health Check falhou". `interrupted` e estados
+#     intermediarios (preparing/calling/processing/validating) NAO publicam;
+#     requested/rejected sao outros tipos de evento e nem chegam aqui.
+#   - origem real: `manual` ou `scheduled` (`system_test` NAO publica).
+#   - execucao REAL, nao MOCK: o `modelo` do evento e o modelo Anthropic
+#     efetivamente usado; em MOCK (ou modelo ausente/vazio/nulo) o Node-RED
+#     grava o literal "mock" (`msg.modelo_usado || 'mock'`, e o sensor
+#     analitico usa o mesmo default). Ausente/vazio/"mock" => tratado como
+#     MOCK e NAO publica.
+#   - `execution_id` nao vazio (identidade da execucao real).
+#
+# Gatilho por EVENTO (nunca por estado do sensor): o sensor volta de
+# `unavailable` para o ultimo `success` a cada restart do HA e republicaria
+# um "concluido" falso; eventos do barramento nao sao reexecutados.
+#
+# Identidade (deterministica a partir do execution_id real, mesmo padrao
+# md5/UUIDv4-like de heartbeat/lavadora): a mesma execucao nunca gera duas
+# publicacoes (identidade logica source+session_id+event_code do contrato).
+#
+# Independencia: fire-and-forget (`script.turn_on`); falha ou lentidao da
+# publicacao nunca volta para o Node-RED nem altera o sensor analitico.
+###############################################################################
+
+automation:
+  - id: saude_sistema_health_check_publicar_timeline_v20
+    alias: "Saúde do Sistema - Health Check - Publicar na Timeline V20"
+    description: >-
+      Publica na Timeline V20 o resultado terminal (success/failed) de uma
+      execucao REAL (manual ou scheduled) do Health Check. MOCK, system_test,
+      interrupted e estados intermediarios nao publicam.
+    mode: queued
+    max: 5
+    trigger:
+      - platform: event
+        event_type: health_check_state_changed
+    condition:
+      - condition: template
+        value_template: >-
+          {% set d = trigger.event.data %}
+          {% set estado = d.estado | default('', true) | string | trim %}
+          {% set origem = d.origem | default('', true) | string | trim %}
+          {% set execucao = d.execution_id | default('', true) | string | trim %}
+          {% set modelo = d.modelo | default('', true) | string | trim | lower %}
+          {{ estado in ['success', 'failed']
+             and origem in ['manual', 'scheduled']
+             and execucao != ''
+             and modelo not in ['', 'mock', 'none', 'null', 'unknown', 'unavailable'] }}
+    action:
+      - variables:
+          execucao_id: "{{ trigger.event.data.execution_id | string | trim }}"
+          sucesso: "{{ (trigger.event.data.estado | string | trim) == 'success' }}"
+          codigo: >-
+            {{ 'health_check_completed' if sucesso else 'health_check_failed' }}
+          mensagem: >-
+            {{ '✅ Health Check concluído' if sucesso else '❌ Health Check falhou' }}
+
+      - service: script.turn_on
+        continue_on_error: true
+        target:
+          entity_id: script.casa_publicar_evento_timeline_v20
+        data:
+          variables:
+            request_id: >-
+              {% set h = md5(execucao_id ~ ':health_check:' ~ codigo ~ ':request') %}
+              {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+            source: health_check
+            session_id: >-
+              {% set h = md5(execucao_id ~ ':health_check:' ~ codigo ~ ':session') %}
+              {{ h[0:8] ~ '-' ~ h[8:12] ~ '-4' ~ h[13:16] ~ '-8' ~ h[17:20] ~ '-' ~ h[20:32] }}
+            event_code: "{{ codigo }}"
+            message: "{{ mensagem }}"
+            schema_version: 1
+            test_mode: false

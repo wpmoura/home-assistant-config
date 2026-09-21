@@ -88,7 +88,7 @@ template:
           contrato: >
             {{ {
               'source_autorizada': 'csmr_v20_2c',
-              'sources_autorizadas': ['csmr_v20_2c', 'carro_presenca', 'lavadora', 'ha_uptime'],
+              'sources_autorizadas': ['csmr_v20_2c', 'carro_presenca', 'lavadora', 'ha_uptime', 'health_check'],
               'schema_version': 1,
               'identidade_transacional': 'request_id',
               'identidade_logica': 'source+session_id+event_code',
@@ -170,6 +170,8 @@ script:
             washing_finished: "✅ Lavagem finalizada"
             heartbeat: "🟢 HA ativo"
             ha_started: "🔄 HA iniciado"
+            health_check_completed: "✅ Health Check concluído"
+            health_check_failed: "❌ Health Check falhou"
           eventos_por_source:
             csmr_v20_2c:
               - wilson_left_home
@@ -186,6 +188,9 @@ script:
             ha_uptime:
               - heartbeat
               - ha_started
+            health_check:
+              - health_check_completed
+              - health_check_failed
           validacao_reason: >-
             {% if request_id is not defined %}missing_request_id
             {% elif request_id is not string %}invalid_request_id_type
