@@ -167,3 +167,9 @@ inalterado. Nenhuma regressão. Nenhum commit, nenhum push.
   impacto em produção, apenas em testes fixture fora de ordem.
 - `link call` da coleta mantém timeout de 30s (não testado empiricamente
   neste Gate — apenas o timeout da futura chamada Anthropic foi validado).
+
+## Extensão — frequências mensais (2026-09-21)
+
+Duas opções foram acrescentadas ao helper `input_select.saude_sistema_health_check_frequencia` (as cinco definitivas acima permanecem): `1x por mês` (dia 1) e `2x por mês` (dias 1 e 15), sempre às 08:00 America/Sao_Paulo (`HORA_EXECUCAO_UTC = 11`). A decisão usa `getUTCDate()` em `gate53d_fn_decidir` (mesmo nó; o restante da política, o checkpoint por janela `YYYY-MM-DD` e o anti-retry não mudaram). Antes da implantação, uma opção desconhecida resultava em `dia_nao_programado` (`DIAS_PROGRAMADOS[frequencia] || []`, lista vazia, sem erro), por isso a ordem Node-RED → helper é segura.
+
+A lógica é implantada no runtime e **não é versionada neste repositório**. Hash SHA-256 canônico da tab `gate53b_tab`: baseline/rollback `45156a39c397087e745f4874c649d9aecca18c5558fd765fc7425a029f6a4ed2`; pós-PUT `bfd6ffd65fd62f0775ee58cecb1bd32f101d521819a752c4e6d7476e6ac09ba5`. Detalhes da homologação em `docs/governance/gates_v20.md` (seção "Health Check — Timeline, frequências mensais e coerência temporal").
